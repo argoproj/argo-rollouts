@@ -86,7 +86,7 @@ func TestRpcPluginWrapper_PropagatesErrors(t *testing.T) {
 	})
 
 	t.Run("success returns nil and values pass through", func(t *testing.T) {
-		status := &types.ResourceStatus{Ready: true, Replicas: 3, ObservedResourceVersion: "42"}
+		status := &types.ResourceStatus{Ready: true, DesiredReplicas: 3, ObservedResourceVersion: "42"}
 		fake := &fakeRpcResourcePlugin{verified: true, status: status}
 		w := RpcPluginWrapper{RpcResourcePlugin: fake}
 

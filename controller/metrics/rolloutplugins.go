@@ -116,7 +116,7 @@ func collectRolloutPlugins(ch chan<- prometheus.Metric, rp *v1alpha1.RolloutPlug
 
 	addGauge(MetricRolloutPluginInfo, 1, strategyType, pluginName, workloadKind, string(calculatedPhase))
 
-	addGauge(MetricRolloutPluginWorkloadReplicasDesired, float64(rp.Status.Replicas))
+	addGauge(MetricRolloutPluginWorkloadReplicasDesired, float64(rp.Status.DesiredReplicas))
 	addGauge(MetricRolloutPluginWorkloadReplicasUpdated, float64(rp.Status.UpdatedReplicas))
 	addGauge(MetricRolloutPluginWorkloadReplicasReady, float64(rp.Status.ReadyReplicas))
 

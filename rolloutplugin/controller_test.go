@@ -134,11 +134,11 @@ func (p *canaryWorkloadPlugin) GetResourceStatus(ctx context.Context, rolloutPlu
 		updated = p.replicas * p.weight / 100
 	}
 	return &ResourceStatus{
-		Replicas:          p.replicas,
+		DesiredReplicas:   p.replicas,
 		UpdatedReplicas:   updated,
 		ReadyReplicas:     p.replicas - p.unready,
 		AvailableReplicas: p.replicas - p.unready,
-		CurrentRevision:   p.stableRevision,
+		StableRevision:    p.stableRevision,
 		UpdatedRevision:   p.updateRevision,
 		Ready:             p.unready == 0,
 
@@ -801,7 +801,7 @@ func TestDeletionCleanupFinalizer(t *testing.T) {
 		_, err = h.reconcileRequest()
 		require.ErrorContains(t, err, "conflict patching the workload")
 		assert.Equal(t, []string{DeletionCleanupFinalizer}, h.get().Finalizers)
-		assert.Contains(t, recorder.Events(), "DeletionCleanupFailed")
+		assert.Contains(t, recorder.Events(), "RolloutPluginDeletionCleanupFailed")
 
 		h.plugin.deletionCleanupErr = nil
 		_, err = h.reconcileRequest()
@@ -834,7 +834,7 @@ func TestDeletionCleanupFinalizer(t *testing.T) {
 		require.ErrorContains(t, err, "plugin process exited")
 		assert.Zero(t, h.plugin.cleanupCalls)
 		assert.Equal(t, []string{DeletionCleanupFinalizer}, h.get().Finalizers)
-		assert.Contains(t, recorder.Events(), "DeletionCleanupFailed")
+		assert.Contains(t, recorder.Events(), "RolloutPluginDeletionCleanupFailed")
 	})
 
 	t.Run("deleted before the finalizer was added", func(t *testing.T) {

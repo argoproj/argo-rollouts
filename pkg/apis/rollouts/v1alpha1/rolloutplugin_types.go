@@ -138,9 +138,9 @@ type RolloutPluginStatus struct {
 	// +optional
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 
-	// CurrentRevision is the hash/version of the current stable workload
+	// StableRevision is the hash/version of the stable workload
 	// +optional
-	CurrentRevision string `json:"currentRevision,omitempty" protobuf:"bytes,5,opt,name=currentRevision"`
+	StableRevision string `json:"stableRevision,omitempty" protobuf:"bytes,5,opt,name=stableRevision"`
 
 	// UpdatedRevision is the hash/version of the updated workload being rolled out
 	// +optional
@@ -194,9 +194,9 @@ type RolloutPluginStatus struct {
 	// +optional
 	PluginStatus map[string]string `json:"pluginStatus,omitempty" protobuf:"bytes,14,rep,name=pluginStatus"`
 
-	// Replicas is the total number of replicas targeted by the workload
+	// DesiredReplicas is the total number of replicas targeted by the workload
 	// +optional
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,15,opt,name=replicas"`
+	DesiredReplicas int32 `json:"desiredReplicas,omitempty" protobuf:"varint,15,opt,name=desiredReplicas"`
 
 	// UpdatedReplicas is the number of replicas that have been updated
 	// +optional

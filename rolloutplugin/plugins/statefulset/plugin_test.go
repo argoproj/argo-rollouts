@@ -424,7 +424,7 @@ func TestGetResourceStatus(t *testing.T) {
 			p, _, _ := newPlugin(t, newSts(tt.opts...))
 			status, err := p.GetResourceStatus(context.Background(), testRP)
 			require.NoError(t, err)
-			tt.assert(t, status.Replicas, status.UpdatedReplicas, status.ReadyReplicas, status.Ready)
+			tt.assert(t, status.DesiredReplicas, status.UpdatedReplicas, status.ReadyReplicas, status.Ready)
 		})
 	}
 }

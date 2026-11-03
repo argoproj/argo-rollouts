@@ -196,7 +196,6 @@ The following prometheus metrics are emitted when notifications are enabled in a
 - `notification_send` is a histogram that measures performance of sending notification.
 
 ## RolloutPlugin
-<!-- TODOH update the trigger names to have on-rollout-plugin-->
 [RolloutPlugin](rolloutplugin/index.md) resources use the same `argo-rollouts-notification-configmap`, secret,
 services and subscription annotations as Rollouts. Namespace based configuration works the same way when
 `--self-service-notification-enabled` is set.
@@ -209,13 +208,15 @@ fire when the RolloutPlugin controller records the matching event:
 * `on-rollout-plugin-resumed` when a pause step completes
 * `on-rollout-plugin-completed` when a rollout is finished and every pod runs the new revision
 * `on-rollout-plugin-aborted` when an abort has rolled every pod back to the stable revision
-* `on-abort-ignored` when an abort is ignored because every pod already runs the new revision
-* `on-progress-deadline-exceeded` when a rollout times out
-* `on-invalid-spec` when the RolloutPlugin spec becomes invalid
-* `on-reconciliation-error` when an AnalysisRun can't be created or updated
-* `on-promote-full-no-op` when promote full is requested with no rollout in progress
-* `on-analysis-run-<phase>` when an AnalysisRun changes phase, for example `on-analysis-run-failed`
-* `on-deletion-cleanup-failed` when the plugin fails to release the workload while the RolloutPlugin is deleted
+* `on-rollout-plugin-abort-ignored` when an abort is ignored because every pod already runs the new revision
+* `on-rollout-plugin-timed-out` when a rollout times out
+* `on-rollout-plugin-invalid-spec` when the RolloutPlugin spec becomes invalid
+* `on-rollout-plugin-reconciliation-error` when an AnalysisRun can't be created or updated
+* `on-rollout-plugin-promote-full-no-op` when promote full is requested with no rollout in progress
+* `on-rollout-plugin-analysis-run-<phase>` when an AnalysisRun changes phase, for example
+  `on-rollout-plugin-analysis-run-failed`
+* `on-rollout-plugin-deletion-cleanup-failed` when the plugin fails to release the workload while the RolloutPlugin is
+  deleted
 * `on-rollout-plugin-deleted` when a RolloutPlugin is deleted
 
 Each template has access to the following fields:

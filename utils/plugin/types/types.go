@@ -30,14 +30,14 @@ func (e RpcError) HasError() bool {
 // ResourceStatus contains the status of a workload resource managed by a RolloutPlugin.
 // This struct is shared between the controller interface and RPC interface to avoid conversions.
 type ResourceStatus struct {
-	Replicas          int32
+	DesiredReplicas   int32
 	UpdatedReplicas   int32
 	ReadyReplicas     int32
 	AvailableReplicas int32
-	CurrentRevision   string
+	StableRevision    string
 	UpdatedRevision   string
 	// Ready reports that every replica is ready, that no pod is left on a revision other than
-	// CurrentRevision or UpdatedRevision while they differ, and that the status reflects the
+	// StableRevision or UpdatedRevision while they differ, and that the status reflects the
 	// workload's latest spec, including the plugin's own most recent write. The controller only
 	// completes a rollout or an abort once Ready is true, so a plugin must not report Ready while
 	// its view of the workload predates its own last write.

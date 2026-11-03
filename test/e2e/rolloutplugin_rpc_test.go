@@ -120,6 +120,6 @@ spec:
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 		})
 }

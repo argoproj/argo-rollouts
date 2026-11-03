@@ -46,13 +46,13 @@ type RpcResourcePlugin interface {
 }
 
 type ResourceStatus struct {
-	Replicas          int32
-	UpdatedReplicas   int32
-	ReadyReplicas     int32
-	AvailableReplicas int32
-	CurrentRevision   string
-	UpdatedRevision   string
-	Ready             bool
+	DesiredReplicas         int32
+	UpdatedReplicas         int32
+	ReadyReplicas           int32
+	AvailableReplicas       int32
+	StableRevision          string
+	UpdatedRevision         string
+	Ready                   bool
 	ObservedResourceVersion string
 }
 
@@ -70,18 +70,18 @@ Every workload method receives the whole RolloutPlugin, including its namespace,
 
 `GetResourceStatus` drives the controller, which calls it on every reconcile:
 
-| Field                                                              | Meaning                                                                                                                                                                                                          |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CurrentRevision`                                                  | The stable revision. It must only change once a rollout completes.                                                                                                                                               |
-| `UpdatedRevision`                                                  | The revision of the workload's latest spec. A rollout is in progress while it differs from `CurrentRevision`. A new value starts a new rollout from step 0; a change back to `CurrentRevision` [rolls back](actions.md#roll-back). |
-| `Replicas`, `UpdatedReplicas`, `ReadyReplicas`, `AvailableReplicas` | Desired replicas, replicas on `UpdatedRevision`, and ready and available replicas.                                                                                                                              |
-| `Ready`                                                            | Every replica is ready, no replica runs a revision other than `CurrentRevision` or `UpdatedRevision` while they differ, and the status reflects the workload's latest spec, including the plugin's own last write. |
-| `ObservedResourceVersion`                                          | The workload's `metadata.resourceVersion` the status was computed from. If it is older than the version that triggered the reconcile, the controller retries shortly instead of acting on stale data. Leave it empty to opt out. |
+| Field                                                                     | Meaning                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `StableRevision`                                                          | The stable revision. It must only change once a rollout completes.                                                                                                                                               |
+| `UpdatedRevision`                                                         | The revision of the workload's latest spec. A rollout is in progress while it differs from `StableRevision`. A new value starts a new rollout from step 0; a change back to `StableRevision` [rolls back](actions.md#roll-back). |
+| `DesiredReplicas`, `UpdatedReplicas`, `ReadyReplicas`, `AvailableReplicas` | Desired replicas, replicas on `UpdatedRevision`, and ready and available replicas.                                                                                                                              |
+| `Ready`                                                                   | Every replica is ready, no replica runs a revision other than `StableRevision` or `UpdatedRevision` while they differ, and the status reflects the workload's latest spec, including the plugin's own last write. |
+| `ObservedResourceVersion`                                                 | The workload's `metadata.resourceVersion` the status was computed from. If it is older than the version that triggered the reconcile, the controller retries shortly instead of acting on stale data. Leave it empty to opt out. |
 
-The controller completes a rollout when `CurrentRevision` equals `UpdatedRevision`, `UpdatedReplicas` equals
-`Replicas` and `Ready` is true. It completes an abort when `UpdatedReplicas` is 0 and `Ready` is true. If `Ready` is
-reported too early, for example from a cache that hasn't seen the plugin's own last write, the controller may complete
-before the workload has.
+The controller completes a rollout when `StableRevision` equals `UpdatedRevision`, `UpdatedReplicas` equals
+`DesiredReplicas` and `Ready` is true. It completes an abort when `UpdatedReplicas` is 0 and `Ready` is true. If
+`Ready` is reported too early, for example from a cache that hasn't seen the plugin's own last write, the controller
+may complete before the workload has.
 
 Revision values are free-form strings, but they appear in AnalysisRun names and in the `podTemplateHashValue`
 analysis arguments, so keep them short and stable, for example a hash of the workload's template.
@@ -93,11 +93,11 @@ analysis arguments, so keep them short and stable, for example a hash of the wor
 | `WatchedGVK`        | Once at startup, before `InitPlugin`.                                                                          | Return the kind. The controller watches its metadata and reconciles the RolloutPlugins that reference a changed workload. Plugins managing the same kind share one watch.                                                      |
 | `InitPlugin`        | Once the replica becomes the leader, and again after the plugin process restarts.                             | Create clients and caches scoped to the namespace. An error at leader election stops the controller; after a restart, the call is retried.                                                                                    |
 | `Validate`          | Every reconcile, before the other workload methods.                                                           | Check `workloadRef` and parse `plugin.config`. An error marks the RolloutPlugin `InvalidSpec` with the message, and nothing else is called until it passes. The controller also checks that `workloadRef` matches `WatchedGVK`. |
-| `GetResourceStatus` | Every reconcile, and after the workload-changing methods.                                                      | See [Reporting status](#reporting-status). An error sets `ReconciliationError`; the controller retries.                                                                                                                          |
-| `SetWeight`         | Every reconcile of a step: with the step's weight for `setWeight`, and the last `setWeight` (0 if none) for `pause` and `analysis` steps. | Move `weight`% of the workload to `UpdatedRevision`, and the rest to `CurrentRevision`. 0 means none. Keep converging the workload toward the weight on later calls, for example after a scale-up.            |
+| `GetResourceStatus` | Every reconcile, and after the workload-changing methods.                                                      | See [Reporting status](#reporting-status). An error sets `RolloutPluginReconciliationError`; the controller retries.                                                                                                                  |
+| `SetWeight`         | Every reconcile of a step: with the step's weight for `setWeight`, and the last `setWeight` (0 if none) for `pause` and `analysis` steps. | Move `weight`% of the workload to `UpdatedRevision`, and the rest to `StableRevision`. 0 means none. Keep converging the workload toward the weight on later calls, for example after a scale-up.            |
 | `VerifyWeight`      | After `SetWeight` on a `setWeight` step, until it returns `true`.                                              | Return `true` once the weight has been reached and is healthy enough to move on. The step stalls until then.                                                                                                                      |
 | `PromoteFull`       | Every reconcile after the last step or a promote full, until the rollout completes.                           | Move the whole workload to `UpdatedRevision`. If the workload's latest revision isn't the RolloutPlugin's `status.updatedRevision`, don't roll it out: a newer revision gets its own rollout.                                  |
-| `Abort`             | Every reconcile of an abort, until it completes. Not called when `CurrentRevision` already equals `UpdatedRevision`: there is nothing to roll back to. | Move the whole workload back to `CurrentRevision`. An error sets `ReconciliationError`; the controller retries.                                                                                                                  |
+| `Abort`             | Every reconcile of an abort, until it completes. Not called when `StableRevision` already equals `UpdatedRevision`: there is nothing to roll back to. | Move the whole workload back to `StableRevision`. An error sets `RolloutPluginReconciliationError`; the controller retries.                                                                                                                  |
 | `Restart`           | Once, when a user restarts an aborted rollout.                                                                 | Undo anything that would skip steps, so the rollout starts again from 0% on the new revision. An error is reported in `status.message` and the restart is cleared.                                                               |
 | `DeletionCleanup`   | When the RolloutPlugin is deleted, until it succeeds.                                                          | See [Deleting](#deleting).                                                                                                                                                                                                        |
 

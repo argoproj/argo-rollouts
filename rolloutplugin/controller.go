@@ -152,8 +152,8 @@ func (r *RolloutPluginReconciler) reconcileAbort(ctx context.Context, rolloutPlu
 	// would otherwise make abortRollback wait forever for UpdatedReplicas to reach 0.
 	nothingToRollBack, nothingToRollBackRevision := "", ""
 	if resourceStatus, statusErr := plugin.GetResourceStatus(ctx, rolloutPlugin); statusErr == nil && resourceStatus != nil &&
-		resourceStatus.CurrentRevision != "" && resourceStatus.CurrentRevision == resourceStatus.UpdatedRevision {
-		nothingToRollBack = fmt.Sprintf("nothing to roll back: all pods already run revision %s", resourceStatus.CurrentRevision)
+		resourceStatus.StableRevision != "" && resourceStatus.StableRevision == resourceStatus.UpdatedRevision {
+		nothingToRollBack = fmt.Sprintf("nothing to roll back: all pods already run revision %s", resourceStatus.StableRevision)
 		nothingToRollBackRevision = resourceStatus.UpdatedRevision
 	}
 	if nothingToRollBack != "" && userRequested {
@@ -340,7 +340,7 @@ func (r *RolloutPluginReconciler) handleDeletion(ctx context.Context, rolloutPlu
 		msg := fmt.Sprintf("Deletion cleanup failed, deletion will be retried: %v", err)
 		logCtx.Warn(msg)
 		if r.Recorder != nil {
-			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: "DeletionCleanupFailed"}, msg)
+			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: "RolloutPluginDeletionCleanupFailed"}, msg)
 		}
 		return ctrl.Result{}, err
 	}
@@ -501,7 +501,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		// promoteFull overrides an abort or a timeout.
 		progCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 		timedOut := progCond != nil && progCond.Reason == conditions.RolloutPluginTimedOutReason
-		if (newStatus.Abort || newStatus.Aborted || timedOut) && newStatus.CurrentRevision != newStatus.UpdatedRevision {
+		if (newStatus.Abort || newStatus.Aborted || timedOut) && newStatus.StableRevision != newStatus.UpdatedRevision {
 			logCtx.Info("PromoteFull overrides the abort/timeout")
 			clearAbortedState(newStatus)
 			newStatus.Abort = false
@@ -622,7 +622,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	// otherwise the next block would take it for a new rollout and restart it from step 0.
 	progCond := conditions.GetRolloutPluginCondition(*newStatus, v1alpha1.RolloutPluginConditionProgressing)
 	if progCond != nil && progCond.Reason == conditions.RolloutPluginReconciliationErrorReason {
-		if !newStatus.Aborted && newStatus.CurrentRevision != newStatus.UpdatedRevision {
+		if !newStatus.Aborted && newStatus.StableRevision != newStatus.UpdatedRevision {
 			conditions.SetRolloutPluginCondition(newStatus, *conditions.NewRolloutPluginCondition(
 				v1alpha1.RolloutPluginConditionProgressing,
 				corev1.ConditionTrue,
@@ -637,11 +637,11 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	// Save the old UpdatedRevision before updating it, to detect if a new rollout started
 	oldUpdatedRevision := newStatus.UpdatedRevision
 
-	newStatus.Replicas = resourceStatus.Replicas
+	newStatus.DesiredReplicas = resourceStatus.DesiredReplicas
 	newStatus.UpdatedReplicas = resourceStatus.UpdatedReplicas
 	newStatus.ReadyReplicas = resourceStatus.ReadyReplicas
 	newStatus.AvailableReplicas = resourceStatus.AvailableReplicas
-	newStatus.CurrentRevision = resourceStatus.CurrentRevision
+	newStatus.StableRevision = resourceStatus.StableRevision
 	newStatus.UpdatedRevision = resourceStatus.UpdatedRevision
 
 	revisionChanged := oldUpdatedRevision != "" && oldUpdatedRevision != resourceStatus.UpdatedRevision
@@ -690,7 +690,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 
 		// The workload went back to its stable revision (e.g. the template was reverted, like a
 		// Rollouts rollback): no canary steps run, every pod is rolled back to it immediately.
-		if resourceStatus.CurrentRevision == resourceStatus.UpdatedRevision {
+		if resourceStatus.StableRevision == resourceStatus.UpdatedRevision {
 			logCtx.WithField("revision", resourceStatus.UpdatedRevision).Info("Updated revision is the stable revision, rolling back all pods")
 			clearAbortedState(newStatus)
 			newStatus.Abort = false
@@ -713,7 +713,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	// A paused rollout (Progressing=Unknown/Paused) is the same revision already in progress, not
 	// a fresh one; IsRolloutPluginInProgress keeps this block from resetting CurrentStepIndex and
 	// re-running completed steps while paused.
-	if resourceStatus.CurrentRevision != resourceStatus.UpdatedRevision {
+	if resourceStatus.StableRevision != resourceStatus.UpdatedRevision {
 		if !conditions.IsRolloutPluginInProgress(newStatus) {
 			// If timed out (without abort), don't restart — stay degraded.
 			// Without this guard, the TimedOut condition (Progressing=False) causes
@@ -802,7 +802,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		newStatus.Message = "No rollout in progress to promote"
 		if r.Recorder != nil {
 			r.Recorder.Eventf(rolloutPlugin, record.EventOptions{
-				EventReason: "PromoteFullNoOp",
+				EventReason: "RolloutPluginPromoteFullNoOp",
 			}, newStatus.Message)
 		}
 	}
@@ -848,7 +848,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	// The interval is bounded so this is not a hot loop, and the updateStatus no-op guard means
 	// these polls do not write. A workload that has converged (Healthy) or is aborted rests
 	// until the next real event.
-	converged := resourceStatus.Ready && newStatus.CurrentRevision == newStatus.UpdatedRevision
+	converged := resourceStatus.Ready && newStatus.StableRevision == newStatus.UpdatedRevision
 	if !newStatus.Aborted && !converged {
 		return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
 	}
@@ -1015,11 +1015,11 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 			return ctrl.Result{}, err
 		}
 		converged := resourceStatus.UpdatedRevision == newStatus.UpdatedRevision &&
-			resourceStatus.CurrentRevision == resourceStatus.UpdatedRevision &&
-			resourceStatus.UpdatedReplicas == resourceStatus.Replicas && resourceStatus.Ready
+			resourceStatus.StableRevision == resourceStatus.UpdatedRevision &&
+			resourceStatus.UpdatedReplicas == resourceStatus.DesiredReplicas && resourceStatus.Ready
 		if !converged {
 			logCtx.WithFields(log.Fields{
-				"currentRevision": resourceStatus.CurrentRevision,
+				"stableRevision":  resourceStatus.StableRevision,
 				"updatedRevision": resourceStatus.UpdatedRevision,
 				"updatedReplicas": resourceStatus.UpdatedReplicas,
 				"ready":           resourceStatus.Ready,
@@ -1362,7 +1362,7 @@ func calculateFinalRolloutPluginConditions(rolloutPlugin *v1alpha1.RolloutPlugin
 		condChanged = conditions.SetRolloutPluginCondition(newStatus, *unhealthyCond) || condChanged
 	}
 
-	if !conditions.IsRolloutPluginInProgress(newStatus) && newStatus.CurrentRevision != "" && newStatus.CurrentRevision == newStatus.UpdatedRevision {
+	if !conditions.IsRolloutPluginInProgress(newStatus) && newStatus.StableRevision != "" && newStatus.StableRevision == newStatus.UpdatedRevision {
 		completedCond := conditions.NewRolloutPluginCondition(
 			v1alpha1.RolloutPluginConditionCompleted,
 			corev1.ConditionTrue,

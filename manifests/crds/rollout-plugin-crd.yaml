@@ -654,10 +654,6 @@ spec:
                   In that situation, the pauseConditions would have been cleared, but controllerPause would
                   still be set to true.
                 type: boolean
-              currentRevision:
-                description: CurrentRevision is the hash/version of the current stable
-                  workload
-                type: string
               currentStepHash:
                 description: |-
                   CurrentStepHash is the hash of the steps the rollout is running. A change to the
@@ -666,6 +662,11 @@ spec:
               currentStepIndex:
                 description: CurrentStepIndex is the index of the current step in
                   the rollout
+                format: int32
+                type: integer
+              desiredReplicas:
+                description: DesiredReplicas is the total number of replicas targeted
+                  by the workload
                 format: int32
                 type: integer
               message:
@@ -714,11 +715,6 @@ spec:
                 description: ReadyReplicas is the number of replicas that are ready
                 format: int32
                 type: integer
-              replicas:
-                description: Replicas is the total number of replicas targeted by
-                  the workload
-                format: int32
-                type: integer
               restart:
                 description: |-
                   Restart when set to true will restart the rollout from step 0.
@@ -734,6 +730,9 @@ spec:
               restartedAt:
                 description: RestartedAt indicates when the last restart occurred
                 format: date-time
+                type: string
+              stableRevision:
+                description: StableRevision is the hash/version of the stable workload
                 type: string
               updatedReplicas:
                 description: UpdatedReplicas is the number of replicas that have been

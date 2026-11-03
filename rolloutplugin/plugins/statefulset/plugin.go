@@ -443,11 +443,11 @@ func (p *Plugin) GetResourceStatus(ctx context.Context, rolloutPlugin *v1alpha1.
 		(currentRevision == updateRevision || sts.Status.CurrentReplicas+sts.Status.UpdatedReplicas == replicas)
 
 	status := &rolloutplugin.ResourceStatus{
-		Replicas:                replicas,
+		DesiredReplicas:         replicas,
 		UpdatedReplicas:         updatedReplicas,
 		ReadyReplicas:           sts.Status.ReadyReplicas,
 		AvailableReplicas:       sts.Status.AvailableReplicas,
-		CurrentRevision:         currentRevision,
+		StableRevision:          currentRevision,
 		UpdatedRevision:         updateRevision,
 		Ready:                   ready,
 		ObservedResourceVersion: sts.ResourceVersion,

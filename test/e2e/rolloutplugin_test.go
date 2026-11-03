@@ -241,7 +241,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginBasicCanary() {
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 		})
 }
 
@@ -259,7 +259,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginCanaryNoSteps() {
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 		})
 }
 
@@ -316,8 +316,8 @@ func (s *RolloutPluginSuite) TestRolloutPluginInitialDeploy() {
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
-			assert.NotEmpty(s.T(), rp.Status.CurrentRevision)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.NotEmpty(s.T(), rp.Status.StableRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 		})
 }
 
@@ -603,7 +603,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginPromoteFull() {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
 			assert.False(s.T(), rp.Status.PromoteFull)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 		})
 }
 
@@ -658,7 +658,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginNewRevisionMidRollout() {
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 		})
 }
 
@@ -1743,8 +1743,8 @@ func (s *RolloutPluginSuite) TestRolloutPluginStatusFields() {
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			// Verify all key fields are populated after initial deploy
-			assert.NotEmpty(s.T(), rp.Status.CurrentRevision, "CurrentRevision should be set")
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision, "Revisions should match when healthy")
+			assert.NotEmpty(s.T(), rp.Status.StableRevision, "StableRevision should be set")
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision, "Revisions should match when healthy")
 			assert.Greater(s.T(), rp.Status.ObservedGeneration, int64(0), "ObservedGeneration should be > 0")
 			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
 			assert.False(s.T(), rp.Status.Aborted)
@@ -1759,7 +1759,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginStatusFields() {
 			rp := t.GetRolloutPlugin()
 			// During canary, verify mid-rollout fields
 			assert.Equal(s.T(), rov1.RolloutPluginPhasePaused, rp.Status.Phase)
-			assert.NotEqual(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision, "Revisions should differ during rollout")
+			assert.NotEqual(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision, "Revisions should differ during rollout")
 			assert.True(s.T(), rp.Status.ControllerPause)
 			assert.True(s.T(), len(rp.Status.PauseConditions) > 0)
 		}).
@@ -1858,13 +1858,13 @@ func (s *RolloutPluginSuite) TestRolloutPluginNoStepsBlocksPartition() {
 		When().
 		Then().
 		Assert(func(t *fixtures.Then) {
-			stableRevision = t.GetRolloutPlugin().Status.CurrentRevision
+			stableRevision = t.GetRolloutPlugin().Status.StableRevision
 		}).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
 		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
-			return rp.Status.Phase == rov1.RolloutPluginPhaseHealthy && rp.Status.CurrentRevision != stableRevision &&
-				rp.Status.CurrentRevision == rp.Status.UpdatedRevision
+			return rp.Status.Phase == rov1.RolloutPluginPhaseHealthy && rp.Status.StableRevision != stableRevision &&
+				rp.Status.StableRevision == rp.Status.UpdatedRevision
 		}, "healthy on the new revision", 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -1923,7 +1923,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginRevertToStable() {
 		When().
 		Then().
 		Assert(func(t *fixtures.Then) {
-			stableRevision = t.GetRolloutPlugin().Status.CurrentRevision
+			stableRevision = t.GetRolloutPlugin().Status.StableRevision
 		}).
 		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
@@ -1935,7 +1935,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginRevertToStable() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			assert.Equal(s.T(), stableRevision, rp.Status.CurrentRevision)
+			assert.Equal(s.T(), stableRevision, rp.Status.StableRevision)
 			assert.False(s.T(), rp.Status.Aborted)
 			sts := t.GetStatefulSet()
 			assert.Equal(s.T(), stableRevision, sts.Status.CurrentRevision)
@@ -1967,7 +1967,7 @@ func (s *RolloutPluginSuite) TestRolloutPluginPromoteFullAfterAbort() {
 			assert.False(s.T(), rp.Status.Aborted)
 			assert.Empty(s.T(), rp.Status.AbortedRevision)
 			assert.False(s.T(), rp.Status.PromoteFull)
-			assert.Equal(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision)
+			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
 			sts := t.GetStatefulSet()
 			assert.Equal(s.T(), "quay.io/prometheus/busybox:glibc", sts.Spec.Template.Spec.Containers[0].Image)
 			assert.Equal(s.T(), sts.Status.UpdateRevision, sts.Status.CurrentRevision)
@@ -2046,7 +2046,7 @@ spec:
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
 			assert.Equal(s.T(), rov1.RolloutPluginPhasePaused, rp.Status.Phase)
-			assert.NotEqual(s.T(), rp.Status.CurrentRevision, rp.Status.UpdatedRevision, "the rollout must not have been promoted")
+			assert.NotEqual(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision, "the rollout must not have been promoted")
 		}).
 		When().
 		PromoteRolloutPlugin().

@@ -89,8 +89,8 @@ A weight of 0 sets the partition to `2147483647` (the maximum), which is also ho
 between rollouts: any pod the StatefulSet controller creates, for example on a scale-up, then runs the stable
 revision.
 
-Revisions are the StatefulSet's controller revisions: `status.currentRevision` is the stable revision and
-`status.updateRevision` is the one being rolled out. Each pod carries its revision in the `controller-revision-hash`
+Revisions are the StatefulSet's controller revisions: its `status.currentRevision` is the stable revision (the
+RolloutPlugin's `stableRevision`) and its `status.updateRevision` is the one being rolled out (`updatedRevision`). Each pod carries its revision in the `controller-revision-hash`
 label, so an analysis can select the canary pods with the `podTemplateHashValue: Latest` argument.
 
 ## How each action is implemented

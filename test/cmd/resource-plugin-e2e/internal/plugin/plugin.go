@@ -76,11 +76,11 @@ func statefulSetResourceStatus(sts *appsv1.StatefulSet) *types.ResourceStatus {
 		replicas = *sts.Spec.Replicas
 	}
 	return &types.ResourceStatus{
-		Replicas:          sts.Status.Replicas,
+		DesiredReplicas:   replicas,
 		UpdatedReplicas:   sts.Status.UpdatedReplicas,
 		ReadyReplicas:     sts.Status.ReadyReplicas,
 		AvailableReplicas: sts.Status.AvailableReplicas,
-		CurrentRevision:   sts.Status.CurrentRevision,
+		StableRevision:    sts.Status.CurrentRevision,
 		UpdatedRevision:   sts.Status.UpdateRevision,
 		// Reads are live, so the status already reflects this plugin's own last patch.
 		Ready: sts.Status.ObservedGeneration == sts.Generation && sts.Status.ReadyReplicas == replicas &&

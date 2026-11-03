@@ -218,7 +218,7 @@ func (r *RolloutPluginReconciler) reconcileAnalysisRuns(ctx context.Context, rp 
 		}
 	}
 	liveRevisions := map[string]bool{
-		analysisutil.RolloutPluginRevisionLabelValue(rp.Status.CurrentRevision): true,
+		analysisutil.RolloutPluginRevisionLabelValue(rp.Status.StableRevision):  true,
 		analysisutil.RolloutPluginRevisionLabelValue(rp.Status.UpdatedRevision): true,
 	}
 	arsToDelete := analysisutil.FilterAnalysisRunsToDeleteByRevision(otherArs, liveRevisions, limitSucceedArs, limitFailedArs)
@@ -296,7 +296,7 @@ func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Con
 	}
 
 	// Do not create or keep a background run if the rollout is fully promoted
-	if rp.Status.CurrentRevision == rp.Status.UpdatedRevision {
+	if rp.Status.StableRevision == rp.Status.UpdatedRevision {
 		logCtx.Info("Rollout is fully promoted, not running background analysis")
 		return nil, "", nil
 	}
@@ -353,7 +353,7 @@ func convertAnalysisRunArgsToArguments(rp *v1alpha1.RolloutPlugin, args []v1alph
 			var value string
 			switch *arg.ValueFrom.PodTemplateHashValue {
 			case v1alpha1.Stable:
-				value = rp.Status.CurrentRevision
+				value = rp.Status.StableRevision
 			case v1alpha1.Latest:
 				value = rp.Status.UpdatedRevision
 			default:
@@ -556,7 +556,7 @@ func (r *RolloutPluginReconciler) emitSingleAnalysisRunStatusChange(rp *v1alpha1
 			eventType = corev1.EventTypeWarning
 		}
 		msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-		r.Recorder.Eventf(rp, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(ar.Status.Phase)}, msg)
+		r.Recorder.Eventf(rp, record.EventOptions{EventType: eventType, EventReason: "RolloutPluginAnalysisRun" + string(ar.Status.Phase)}, msg)
 	}
 }
 

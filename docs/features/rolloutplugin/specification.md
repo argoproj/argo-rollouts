@@ -132,7 +132,7 @@ acted on. Promote full clears it.
 the rollout resumes, the number of updated pods changes, fewer pods remain on the old revision, more pods become
 ready or available, or the stable revision changes. Paused time doesn't count.
 
-When the timeout is exceeded, the rollout is marked as timed out (`ProgressDeadlineExceeded`), the phase becomes
+When the timeout is exceeded, the rollout is marked as timed out (`RolloutPluginTimedOut`), the phase becomes
 `Degraded`, and the running analysis is stopped. The rollout holds where it is until a new revision is deployed, or
 it is promoted full, paused and resumed, or aborted and restarted. With `timeoutAbort: true` the rollout is aborted
 instead, also when `timeoutAbort` is set after the timeout.
@@ -190,17 +190,17 @@ message, and the workload isn't touched until the spec is fixed:
 The phase is shown by `kubectl get rolloutplugin`; see [Checking the status](index.md#checking-the-status). The main
 status fields are:
 
-| Field                                                               | Description                                                                                      |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `phase`, `message`                                                  | `Healthy`, `Progressing`, `Paused` or `Degraded`, and a human-readable message.                  |
-| `currentRevision`                                                   | The stable revision.                                                                             |
-| `updatedRevision`                                                   | The revision being rolled out. A rollout is in progress while it differs from `currentRevision`. |
-| `currentStepIndex`                                                  | Index of the current step.                                                                       |
-| `replicas`, `updatedReplicas`, `readyReplicas`, `availableReplicas` | Replica counts of the workload.                                                                  |
-| `pauseConditions`                                                   | Why the rollout is paused. Clear it to [promote](actions.md#promote).                            |
-| `abort`, `promoteFull`, `restart`                                   | Requests set by users; see [Actions and Lifecycle](actions.md).                                  |
-| `aborted`, `abortedAt`                                              | Set once an abort has rolled every pod back.                                                     |
-| `restartCount`                                                      | Number of restarts of the current revision.                                                      |
+| Field                                                                      | Description                                                                                     |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `phase`, `message`                                                         | `Healthy`, `Progressing`, `Paused` or `Degraded`, and a human-readable message.                 |
+| `stableRevision`                                                           | The stable revision.                                                                            |
+| `updatedRevision`                                                          | The revision being rolled out. A rollout is in progress while it differs from `stableRevision`. |
+| `currentStepIndex`                                                         | Index of the current step.                                                                      |
+| `desiredReplicas`, `updatedReplicas`, `readyReplicas`, `availableReplicas` | Desired, updated, ready and available replica counts of the workload.                           |
+| `pauseConditions`                                                          | Why the rollout is paused. Clear it to [promote](actions.md#promote).                           |
+| `abort`, `promoteFull`, `restart`                                          | Requests set by users; see [Actions and Lifecycle](actions.md).                                 |
+| `aborted`, `abortedAt`                                                     | Set once an abort has rolled every pod back.                                                    |
+| `restartCount`                                                             | Number of restarts of the current revision.                                                     |
 
 The RolloutPlugin also records Kubernetes events, for example when a rollout starts, pauses, completes or is aborted.
 They can be sent as [notifications](../notifications.md#rolloutplugin).

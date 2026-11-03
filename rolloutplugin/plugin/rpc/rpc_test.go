@@ -28,7 +28,7 @@ func (p *recordingPlugin) WatchedGVK() (types.WatchedGVK, types.RpcError) {
 }
 func (p *recordingPlugin) GetResourceStatus(rp *v1alpha1.RolloutPlugin) (*types.ResourceStatus, types.RpcError) {
 	p.record("GetResourceStatus", rp)
-	return &types.ResourceStatus{Replicas: 3, UpdatedRevision: "rev-2", Ready: true, ObservedResourceVersion: "42"}, types.RpcError{}
+	return &types.ResourceStatus{DesiredReplicas: 3, UpdatedRevision: "rev-2", Ready: true, ObservedResourceVersion: "42"}, types.RpcError{}
 }
 func (p *recordingPlugin) SetWeight(rp *v1alpha1.RolloutPlugin, weight int32) types.RpcError {
 	p.record("SetWeight", rp)
@@ -89,7 +89,7 @@ func TestRolloutPluginCrossesRPC(t *testing.T) {
 
 	status, rpcErr := plugin.GetResourceStatus(rp)
 	require.False(t, rpcErr.HasError())
-	assert.Equal(t, int32(3), status.Replicas)
+	assert.Equal(t, int32(3), status.DesiredReplicas)
 	assert.Equal(t, "rev-2", status.UpdatedRevision)
 	assert.Equal(t, "42", status.ObservedResourceVersion)
 	assert.False(t, plugin.SetWeight(rp, 25).HasError())

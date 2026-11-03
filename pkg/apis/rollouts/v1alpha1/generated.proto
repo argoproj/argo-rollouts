@@ -1652,9 +1652,9 @@ message RolloutPluginStatus {
   // +optional
   optional string message = 4;
 
-  // CurrentRevision is the hash/version of the current stable workload
+  // StableRevision is the hash/version of the stable workload
   // +optional
-  optional string currentRevision = 5;
+  optional string stableRevision = 5;
 
   // UpdatedRevision is the hash/version of the updated workload being rolled out
   // +optional
@@ -1708,9 +1708,9 @@ message RolloutPluginStatus {
   // +optional
   map<string, string> pluginStatus = 14;
 
-  // Replicas is the total number of replicas targeted by the workload
+  // DesiredReplicas is the total number of replicas targeted by the workload
   // +optional
-  optional int32 replicas = 15;
+  optional int32 desiredReplicas = 15;
 
   // UpdatedReplicas is the number of replicas that have been updated
   // +optional

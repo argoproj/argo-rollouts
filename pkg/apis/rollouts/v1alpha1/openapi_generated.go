@@ -4968,9 +4968,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"currentRevision": {
+					"stableRevision": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CurrentRevision is the hash/version of the current stable workload",
+							Description: "StableRevision is the hash/version of the stable workload",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5075,9 +5075,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutPluginStatus(ref common.ReferenceC
 							},
 						},
 					},
-					"replicas": {
+					"desiredReplicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the total number of replicas targeted by the workload",
+							Description: "DesiredReplicas is the total number of replicas targeted by the workload",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

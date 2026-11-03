@@ -36,7 +36,7 @@ const (
 	RolloutPluginUpdatedMessage = "RolloutPlugin updated to revision %s"
 
 	// RolloutPluginTimedOutReason indicates progress deadline exceeded
-	RolloutPluginTimedOutReason = "ProgressDeadlineExceeded"
+	RolloutPluginTimedOutReason = "RolloutPluginTimedOut"
 	// RolloutPluginTimedOutMessage is the message for timeout
 	RolloutPluginTimedOutMessage = "RolloutPlugin %q has timed out progressing."
 
@@ -45,13 +45,13 @@ const (
 	// RolloutPluginAbortedMessage is the message for abort
 	RolloutPluginAbortedMessage = "RolloutPlugin aborted"
 	// RolloutPluginAbortIgnoredReason indicates a user abort was ignored because there was nothing to roll back
-	RolloutPluginAbortIgnoredReason = "AbortIgnored"
+	RolloutPluginAbortIgnoredReason = "RolloutPluginAbortIgnored"
 
 	// RolloutPluginRestartedReason indicates the RolloutPlugin was restarted from step 0
 	RolloutPluginRestartedReason = "RolloutPluginRestarted"
 
 	// RolloutPluginInvalidSpecReason indicates the spec is invalid
-	RolloutPluginInvalidSpecReason = "InvalidSpec"
+	RolloutPluginInvalidSpecReason = "RolloutPluginInvalidSpec"
 
 	// RolloutPluginHealthyReason indicates the RolloutPlugin is healthy
 	RolloutPluginHealthyReason = "RolloutPluginHealthy"
@@ -71,12 +71,12 @@ const (
 	RolloutPluginNotCompletedMessage = "RolloutPlugin not completed, started update to revision %s"
 
 	// RolloutPluginAnalysisRunFailedReason indicates an owned AnalysisRun failed
-	RolloutPluginAnalysisRunFailedReason = "AnalysisRunFailed"
+	RolloutPluginAnalysisRunFailedReason = "RolloutPluginAnalysisRunFailed"
 	// RolloutPluginAnalysisRunFailedMessage is the message for analysis failure
 	RolloutPluginAnalysisRunFailedMessage = "AnalysisRun '%s' owned by the RolloutPlugin '%q' failed."
 
 	// RolloutPluginReconciliationErrorReason indicates a reconciliation error
-	RolloutPluginReconciliationErrorReason = "ReconciliationError"
+	RolloutPluginReconciliationErrorReason = "RolloutPluginReconciliationError"
 	// RolloutPluginReconciliationErrorMessage is the message for reconciliation error
 	RolloutPluginReconciliationErrorMessage = "Reconciliation failed with error: %v"
 )
@@ -201,11 +201,11 @@ func RolloutPluginMadeProgress(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus 
 	if newStatus.CurrentStepIndex != nil && oldStatus.CurrentStepIndex != nil {
 		stepChange = *newStatus.CurrentStepIndex != *oldStatus.CurrentStepIndex
 	}
-	strategySpecificProgress := newStatus.CurrentRevision != oldStatus.CurrentRevision ||
+	strategySpecificProgress := newStatus.StableRevision != oldStatus.StableRevision ||
 		stepChange || newStatus.CurrentStepHash != oldStatus.CurrentStepHash
 
-	oldStatusOldReplicas := oldStatus.Replicas - oldStatus.UpdatedReplicas
-	newStatusOldReplicas := newStatus.Replicas - newStatus.UpdatedReplicas
+	oldStatusOldReplicas := oldStatus.DesiredReplicas - oldStatus.UpdatedReplicas
+	newStatusOldReplicas := newStatus.DesiredReplicas - newStatus.UpdatedReplicas
 
 	return newStatus.UpdatedReplicas != oldStatus.UpdatedReplicas ||
 		newStatusOldReplicas < oldStatusOldReplicas ||
@@ -234,7 +234,7 @@ func RolloutPluginIsHealthy(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1
 	if IsRolloutPluginInProgress(newStatus) {
 		return false
 	}
-	if newStatus.CurrentRevision == "" || newStatus.CurrentRevision != newStatus.UpdatedRevision {
+	if newStatus.StableRevision == "" || newStatus.StableRevision != newStatus.UpdatedRevision {
 		return false
 	}
 	return true
