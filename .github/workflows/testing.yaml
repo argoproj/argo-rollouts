@@ -165,7 +165,6 @@ jobs:
     if: ${{ always() }}
     needs:
       - test-e2e
-      - changes
     runs-on: ubuntu-latest
     steps:
       - run: |
