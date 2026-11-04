@@ -1,4 +1,20 @@
 
+<a name="v1.10.2"></a>
+## [v1.10.2](https://github.com/argoproj/argo-rollouts/compare/v1.10.1...v1.10.2) (2026-11-03)
+
+### Chore
+
+* bump golang to 1.26.10 (cherry-pick [#5156](https://github.com/argoproj/argo-rollouts/issues/5156) for 1.10) ([#5161](https://github.com/argoproj/argo-rollouts/issues/5161))
+
+### Ci
+
+* Use a composite result for e2e tests (cherry-pick [#4843](https://github.com/argoproj/argo-rollouts/issues/4843) for 1.10) ([#5164](https://github.com/argoproj/argo-rollouts/issues/5164))
+
+### Test
+
+* do not hit the Github API in flaky test (cherry-pick [#5158](https://github.com/argoproj/argo-rollouts/issues/5158) for 1.10) ([#5163](https://github.com/argoproj/argo-rollouts/issues/5163))
+
+
 <a name="v1.10.1"></a>
 ## [v1.10.1](https://github.com/argoproj/argo-rollouts/compare/v1.10.0...v1.10.1) (2026-10-12)
 
@@ -46,7 +62,7 @@ Updated warning to important note and clarified dashboard binding behavior for a
 
 
 <a name="v1.10.0-rc1"></a>
-## [v1.10.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.9.2...v1.10.0-rc1) (2026-06-30)
+## [v1.10.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.9.3...v1.10.0-rc1) (2026-06-30)
 
 ### Build
 
@@ -118,6 +134,10 @@ Updated warning to important note and clarified dashboard binding behavior for a
 
 * **metricprovider:** make Datadog API request timeout configurable ([#4812](https://github.com/argoproj/argo-rollouts/issues/4812))
 
+### Feat!
+
+* update default Traefik API group to v3 ([#4572](https://github.com/argoproj/argo-rollouts/issues/4572))
+
 ### Fix
 
 * allow plugins to implement ping-pong (and not just ALB/Istio) ([#4740](https://github.com/argoproj/argo-rollouts/issues/4740))
@@ -171,6 +191,18 @@ Updated warning to important note and clarified dashboard binding behavior for a
 
 * use t.Log instead of fmt.Println ([#4735](https://github.com/argoproj/argo-rollouts/issues/4735))
 * make tests resilient to nil ptr ([#4782](https://github.com/argoproj/argo-rollouts/issues/4782))
+
+
+<a name="v1.9.3"></a>
+## [v1.9.3](https://github.com/argoproj/argo-rollouts/compare/v1.9.2...v1.9.3) (2026-11-03)
+
+### Chore
+
+* bump golang to 1.26.10 (cherry-pick [#5156](https://github.com/argoproj/argo-rollouts/issues/5156) for 1.9) ([#5162](https://github.com/argoproj/argo-rollouts/issues/5162))
+
+### Ci
+
+* Use a composite result for e2e tests (cherry-pick [#4843](https://github.com/argoproj/argo-rollouts/issues/4843) for 1.9) ([#5165](https://github.com/argoproj/argo-rollouts/issues/5165))
 
 
 <a name="v1.9.2"></a>
