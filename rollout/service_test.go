@@ -15,7 +15,11 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -313,6 +317,48 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
+}
+
+func TestBlueGreenAWSVerifyTargetGroupsListErrorMarksUnverified(t *testing.T) {
+	defaults.SetVerifyTargetGroup(true)
+	defer defaults.SetVerifyTargetGroup(false)
+
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 3, nil, "active", "")
+	r2 := bumpVersion(r1)
+	rs1 := newReplicaSetWithStatus(r1, 3, 3)
+	rs2 := newReplicaSetWithStatus(r2, 3, 3)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// active service already switched to the new ReplicaSet, which is not yet stable
+	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, svc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, svc)
+
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	tgbGVR, err := aws.GetTargetGroupBindingsGVR()
+	assert.NoError(t, err)
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(),
+		map[schema.GroupVersionResource]string{tgbGVR: "TargetGroupBindingList"})
+	dynamicClient.PrependReactor("list", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("failed to list targetgroupbindings")
+	})
+	ctrl.dynamicclientset = dynamicClient
+	roCtx, err := ctrl.newRolloutContext(r2)
+	assert.NoError(t, err)
+	roCtx.newRS = rs2
+
+	err = roCtx.awsVerifyTargetGroups(svc)
+	assert.Error(t, err)
+	assert.False(t, roCtx.areTargetsVerified(), "a failed verification must not read as verified")
 }
 
 // TestBlueGreenAWSVerifyTargetGroupsReady verifies we proceed with setting stable with
