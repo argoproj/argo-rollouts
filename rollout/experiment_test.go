@@ -515,7 +515,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectCreateReplicaSetAction(rs2)   // sync 1: create RS
-	f.expectUpdateRolloutAction(r2)       // sync 1: update revision
+	f.expectPatchRolloutObjectAction(r2)  // sync 1: patch revision
 	f.expectUpdateRolloutStatusAction(r2) // sync 1: update progressing condition
 	f.expectGetRolloutAction(r2)          // re-seed between syncs
 	f.expectPatchRolloutAction(r1)        // sync 2: patch status
