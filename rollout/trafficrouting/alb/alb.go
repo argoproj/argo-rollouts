@@ -114,7 +114,7 @@ func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string
 		}
 		if !modified {
 			r.log.Info("no changes to the ALB Ingress")
-			return nil
+			continue
 		}
 		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
 		r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
@@ -174,7 +174,7 @@ func (r *Reconciler) SetHeaderRoutePerIngress(headerRoute *v1alpha1.SetHeaderRou
 		}
 		if !modified {
 			r.log.Info("no changes to the ALB Ingress for header routing")
-			return nil
+			continue
 		}
 		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
 		r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to headerRoute '%d'", ingressName, headerRoute)
@@ -604,7 +604,7 @@ func (r *Reconciler) RemoveManagedRoutesPerIngress(ingresses []string) error {
 		}
 		if !modified {
 			r.log.Info("no changes to the ALB Ingress for header routing")
-			return nil
+			continue
 		}
 		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
 		r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` removing managed routes", ingressName)

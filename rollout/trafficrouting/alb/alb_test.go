@@ -595,6 +595,34 @@ func TestUpdateDesiredWeightMultiIngress(t *testing.T) {
 	assert.Len(t, client.Actions(), 2)
 }
 
+func TestUpdateDesiredWeightMultiIngressFirstUnchanged(t *testing.T) {
+	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
+	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
+	client := fake.NewSimpleClientset(i, mi)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
+	assert.Nil(t, err)
+	actions := client.Actions()
+	if assert.Len(t, actions, 1) {
+		assert.Equal(t, "multi-ingress", actions[0].(k8stesting.PatchAction).GetName())
+	}
+}
+
 // TestGetForwardActionStringMarshalsZeroCorrectly ensures that the annotation does not omit default value zero when marshalling
 // the forward action
 func TestGetForwardActionStringMarshalsZeroCorrectly(t *testing.T) {
@@ -2061,6 +2089,58 @@ func TestSetHeaderRouteMultiIngress(t *testing.T) {
 	assert.Len(t, client.Actions(), 2)
 }
 
+func TestSetHeaderRouteMultiIngressFirstUnchanged(t *testing.T) {
+	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress"}, 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, "action2", 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset(i, mi)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	indexer := k8sI.Networking().V1().Ingresses().Informer().GetIndexer()
+	indexer.Add(i)
+	indexer.Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	headerRoute := &v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName: "Agent",
+			HeaderValue: &v1alpha1.StringMatch{
+				Exact: "Chrome",
+			},
+		}},
+	}
+	err = r.SetHeaderRoute(headerRoute)
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+
+	// "multi-ingress" is added to the rollout after "ingress" already has the header route
+	patched, err := client.NetworkingV1().Ingresses(metav1.NamespaceDefault).Get(context.TODO(), "ingress", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NoError(t, indexer.Update(patched))
+	ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses = []string{"ingress", "multi-ingress"}
+	client.ClearActions()
+
+	err = r.SetHeaderRoute(headerRoute)
+	assert.Nil(t, err)
+	actions := client.Actions()
+	if assert.Len(t, actions, 1) {
+		assert.Equal(t, "multi-ingress", actions[0].(k8stesting.PatchAction).GetName())
+	}
+}
+
 func TestRemoveManagedRoutes(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
@@ -2277,6 +2357,47 @@ func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 	err = r.RemoveManagedRoutes()
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 4)
+}
+
+func TestRemoveManagedRoutesMultiIngressFirstUnchanged(t *testing.T) {
+	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		ro.Name: ingressutil.ManagedALBAnnotation{
+			"alb.ingress.kubernetes.io/actions.action1",
+			"alb.ingress.kubernetes.io/actions.header-route",
+			"alb.ingress.kubernetes.io/conditions.header-route",
+		},
+	}
+	mi.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
+	mi.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
+	mi.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
+	client := fake.NewSimpleClientset(i, mi)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	actions := client.Actions()
+	if assert.Len(t, actions, 1) {
+		assert.Equal(t, "multi-ingress", actions[0].(k8stesting.PatchAction).GetName())
+	}
 }
 
 func TestSetMirrorRoute(t *testing.T) {
