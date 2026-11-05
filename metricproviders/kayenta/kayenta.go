@@ -307,9 +307,18 @@ func scopeToScopeRequest(scope v1alpha1.KayentaScope) (ScopeRequest, error) {
 	}, nil
 }
 
-// Terminate should not be used the kayenta provider since all the work should occur in the Run method
+// Terminate marks an in-progress measurement Inconclusive when its AnalysisRun is terminated
+// early. The kayenta provider has no API integration to cancel an in-progress canary judgment,
+// so unlike Run/Resume it cannot produce a real result here. Previously this returned the
+// measurement unchanged, which left its Phase as Running forever: analysis.go only treats a
+// measurement as complete once its Phase reports Completed(), so a terminated-but-unresolved
+// measurement caused Terminate to be invoked again on every subsequent reconcile - an infinite
+// loop and resource leak (see #4815).
 func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
-	p.logCtx.Warn("kayenta provider should not execute the Terminate method")
+	p.logCtx.Warn("kayenta provider cannot cancel an in-progress canary judgment; marking measurement Inconclusive on terminate")
+	now := timeutil.MetaNow()
+	measurement.FinishedAt = &now
+	measurement.Phase = v1alpha1.AnalysisPhaseInconclusive
 	return measurement
 }
 
