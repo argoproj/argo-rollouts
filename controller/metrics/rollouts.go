@@ -127,7 +127,7 @@ func collectRollouts(ch chan<- prometheus.Metric, rollout *v1alpha1.Rollout) {
 		lv = append([]string{rollout.Namespace, rollout.Name}, lv...)
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
-	addGauge(MetricRolloutInfo, 1, strategyType, trafficRouter, string(calculatedPhase))
+	addGauge(MetricRolloutInfo, 1, strategyType, trafficRouter, string(calculatedPhase), rollout.Status.CurrentPodHash)
 	addGauge(MetricRolloutInfoReplicasAvailable, float64(rollout.Status.AvailableReplicas))
 	addGauge(MetricRolloutInfoReplicasUnavailable, float64(rollout.Status.Replicas-rollout.Status.AvailableReplicas))
 	addGauge(MetricRolloutInfoReplicasDesired, float64(defaults.GetReplicasOrDefault(rollout.Spec.Replicas)))
