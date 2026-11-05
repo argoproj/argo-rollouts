@@ -481,20 +481,37 @@ func (c *Common) applyObject(obj *unstructured.Unstructured) {
 	}
 	obj.SetLabels(labels)
 
+	out, err := c.kubectlApply(obj)
+	if err != nil {
+		c.log.Errorf("kubectl apply of %s %s failed: %s", obj.GetKind(), obj.GetName(), out)
+		c.t.FailNow()
+	}
+	c.log.Info(out)
+}
+
+// applyObjectExpectError applies the object and fails the test unless the API server rejects
+// it with a message that contains expectedError.
+func (c *Common) applyObjectExpectError(obj *unstructured.Unstructured, expectedError string) {
+	out, err := c.kubectlApply(obj)
+	if err == nil {
+		c.log.Errorf("kubectl apply of %s %s succeeded but was expected to be rejected", obj.GetKind(), obj.GetName())
+		c.t.FailNow()
+	}
+	if !strings.Contains(out, expectedError) {
+		c.log.Errorf("kubectl apply of %s %s was rejected without %q: %s", obj.GetKind(), obj.GetName(), expectedError, out)
+		c.t.FailNow()
+	}
+	c.log.Infof("kubectl apply of %s %s rejected as expected: %s", obj.GetKind(), obj.GetName(), strings.TrimSpace(out))
+}
+
+func (c *Common) kubectlApply(obj *unstructured.Unstructured) (string, error) {
 	objBytes, err := json.Marshal(obj)
 	c.CheckError(err)
 	cmd := exec.Command("kubectl", "apply", "-f", "-")
 	cmd.Env = os.Environ()
 	cmd.Stdin = bytes.NewReader(objBytes)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		gvk := obj.GetObjectKind().GroupVersionKind()
-		objMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		un := unstructured.Unstructured{Object: objMap}
-		c.log.Errorf("kubectl apply of %s %s failed: %s", gvk.Kind, un.GetName(), out)
-		c.t.FailNow()
-	}
-	c.log.Info(string(out))
+	return string(out), err
 }
 
 func (c *Common) deleteObject(kind, name string) {

@@ -77,6 +77,18 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 	return w
 }
 
+// ApplyManifestsExpectError applies the given objects and asserts that the API server rejects
+// each of them with a message that contains expectedError.
+func (w *When) ApplyManifestsExpectError(expectedError string) *When {
+	if len(w.objects) == 0 {
+		w.t.Fatal("No objects to apply")
+	}
+	for _, obj := range w.objects {
+		w.applyObjectExpectError(obj, expectedError)
+	}
+	return w
+}
+
 func (w *When) DeleteObject(kind, name string) *When {
 	w.deleteObject(kind, name)
 	return w
