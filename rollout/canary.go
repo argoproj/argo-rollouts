@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -17,14 +18,18 @@ import (
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
-// rolloutCanary is the top-level canary reconcile. It runs the canary stages in order, then syncs
-// status unless a stage ended the pass without one (stageStopNoStatus).
+// rolloutCanary runs the canary stages, then syncs status even if a stage failed. Only
+// stageStopNoStatus skips the sync.
 func (c *rolloutContext) rolloutCanary() error {
 	stageErr := c.runCanaryStages()
 	if c.skipStatusSync {
 		return stageErr
 	}
-	return c.syncRolloutStatusCanary()
+	if stageErr != nil {
+		c.carryOverUnreconciledStatus()
+	}
+	// errors.Join keeps errors.Is/As (e.g. k8serrors.IsNotFound) working on the combined error.
+	return errors.Join(stageErr, c.syncRolloutStatusCanary())
 }
 
 func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
@@ -228,6 +233,9 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 
 func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
+		return false
+	}
+	if c.progressionBlocked {
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
