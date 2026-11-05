@@ -261,11 +261,18 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 
-	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
-		if err != nil {
-			return err
+	if c.pauseContext != nil && c.pauseContext.IsAborted() {
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+			if err != nil {
+				return err
+			}
 		}
+		// With traffic routing, reconcileTrafficRouting() owns the canary Service selector while
+		// aborting: it resets the selector to stable once the desired canary weight has drained.
+		// Pointing the canary Service at the canary ReplicaSet here as well made the two
+		// reconcilers fight, re-patching the selector on every reconcile for the whole
+		// abortScaleDownDelaySeconds window. See #3078.
 		return nil
 	}
 
