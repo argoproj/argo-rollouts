@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -17,14 +18,18 @@ import (
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
-// rolloutCanary is the top-level canary reconcile. It runs the canary stages in order, then syncs
-// status unless a stage ended the pass without one (stageStopNoStatus).
+// rolloutCanary runs the canary stages, then syncs status even if a stage failed. Only
+// stageStopNoStatus skips the sync.
 func (c *rolloutContext) rolloutCanary() error {
 	stageErr := c.runCanaryStages()
 	if c.skipStatusSync {
 		return stageErr
 	}
-	return c.syncRolloutStatusCanary()
+	if stageErr != nil {
+		c.carryOverUnreconciledStatus()
+	}
+	// errors.Join keeps errors.Is/As (e.g. k8serrors.IsNotFound) working on the combined error.
+	return errors.Join(stageErr, c.syncRolloutStatusCanary())
 }
 
 func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
@@ -230,6 +235,9 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
+	if c.progressionBlocked {
+		return false
+	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
 		return false
@@ -296,11 +304,18 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		return c.persistRolloutStatus(&newStatus)
 	}
 
-	if c.rollout.Status.PromoteFull || c.isRollbackWithinWindow() {
+	// A stage failure still syncs status, but the cluster may not match a skipped-to-the-end
+	// step index. Leave the index, pauses, and abort alone until a later pass can promote.
+	if !c.progressionBlocked && (c.rollout.Status.PromoteFull || c.isRollbackWithinWindow()) {
 		c.pauseContext.ClearPauseConditions()
 		c.pauseContext.RemoveAbort()
 		if stepCount > 0 {
 			currentStepIndex = &stepCount
+			// currentStepIndex now points past the end, so the Experiment step is over. A rollback
+			// still inside the window may have just set currentExperiment to that Experiment's name.
+			// Leaving the name set would store two conflicting facts, so clear it. promote --full
+			// already left the name empty.
+			newStatus.Canary.CurrentExperiment = ""
 		}
 	}
 
@@ -327,6 +342,8 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 		stepStr := rolloututil.CanaryStepString(*currentStep)
 		*currentStepIndex++
 		newStatus.Canary.CurrentStepAnalysisRunStatus = nil
+		// The step is done; a finished Experiment for it is no longer current.
+		newStatus.Canary.CurrentExperiment = ""
 
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutStepCompletedReason}, conditions.RolloutStepCompletedMessage, int(*currentStepIndex), stepCount, stepStr)
 		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonCanaryPauseStep)
