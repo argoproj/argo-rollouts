@@ -1424,6 +1424,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoute
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
      */
     name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+     */
+    inheritFrom?: string;
 }
 /**
  * 
