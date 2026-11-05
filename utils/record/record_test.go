@@ -25,8 +25,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -672,6 +674,80 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			assert.Equal(t, test.expected(obj, arsObj), vars)
 		})
 	}
+}
+
+// TestNewAPIFactorySettingsForRolloutPlugin verifies notifications for a RolloutPlugin get the
+// AnalysisRuns it controls (by owner UID, newest first) and none of another's.
+func TestNewAPIFactorySettingsForRolloutPlugin(t *testing.T) {
+	rp := v1alpha1.RolloutPlugin{
+		ObjectMeta: metav1.ObjectMeta{Name: "rp", Namespace: "default", UID: "rp-uid"},
+	}
+	analysisRun := func(name, namespace string, age time.Duration, owner metav1.OwnerReference) *v1alpha1.AnalysisRun {
+		return &v1alpha1.AnalysisRun{ObjectMeta: metav1.ObjectMeta{
+			Name:              name,
+			Namespace:         namespace,
+			CreationTimestamp: metav1.NewTime(timeutil.Now().Add(-age)),
+			OwnerReferences:   []metav1.OwnerReference{owner},
+		}}
+	}
+	controlledBy := func(uid types.UID) metav1.OwnerReference {
+		return metav1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "RolloutPlugin", Name: "rp", UID: uid, Controller: ptr.To(true)}
+	}
+	older := analysisRun("rp-rev-1-0", "default", 2*time.Hour, controlledBy("rp-uid"))
+	newer := analysisRun("rp-rev-2-0", "default", time.Hour, controlledBy("rp-uid"))
+	// A name prefix or a recreated RolloutPlugin of the same name
+	// must not match.
+	otherRP := analysisRun("rp-rev-3-0", "default", 0, controlledBy("old-rp-uid"))
+	notController := analysisRun("rp-rev-4-0", "default", 0, metav1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "RolloutPlugin", Name: "rp", UID: "rp-uid"})
+	otherNamespace := analysisRun("rp-rev-5-0", "other", 0, controlledBy("rp-uid"))
+
+	secret := corev1.Secret{Data: map[string][]byte{"token": []byte("value")}}
+	configMap := corev1.ConfigMap{Data: map[string]string{"context": "environment: dev"}}
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&rp)
+	require.NoError(t, err)
+
+	for _, test := range []struct {
+		name       string
+		arInformer argoinformers.AnalysisRunInformer
+		want       []*v1alpha1.AnalysisRun
+		noARs      bool
+	}{
+		{
+			name:       "owned AnalysisRuns, newest first",
+			arInformer: createAnalysisRunInformer([]*v1alpha1.AnalysisRun{older, otherRP, newer, notController, otherNamespace}),
+			want:       []*v1alpha1.AnalysisRun{newer, older},
+		},
+		{
+			name:       "nil when none are owned",
+			arInformer: createAnalysisRunInformer([]*v1alpha1.AnalysisRun{otherRP, notController, otherNamespace}),
+		},
+		{
+			name:  "arInformer is nil",
+			noARs: true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			getVars, err := NewAPIFactorySettingsForRolloutPlugin(test.arInformer).InitGetVars(nil, &configMap, &secret)
+			require.NoError(t, err)
+
+			want := map[string]any{"rolloutPlugin": obj, "time": timeExprs, "secrets": secret.Data, "context": map[string]string{"environment": "dev"}}
+			if !test.noARs {
+				var arsObj any
+				if test.want != nil {
+					arBytes, err := json.Marshal(test.want)
+					require.NoError(t, err)
+					require.NoError(t, json.Unmarshal(arBytes, &arsObj))
+				}
+				want["analysisRuns"] = arsObj
+			}
+			assert.Equal(t, want, getVars(obj, services.Destination{}))
+		})
+	}
+
+	invalid := corev1.ConfigMap{Data: map[string]string{"context": "environment: [unclosed"}}
+	getVars, err := NewAPIFactorySettingsForRolloutPlugin(nil).InitGetVars(nil, &invalid, &secret)
+	require.Error(t, err)
+	assert.Nil(t, getVars)
 }
 
 func TestGetNotificationContext(t *testing.T) {

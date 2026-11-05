@@ -34,6 +34,8 @@ type Interface interface {
 	Experiments() ExperimentInformer
 	// Rollouts returns a RolloutInformer.
 	Rollouts() RolloutInformer
+	// RolloutPlugins returns a RolloutPluginInformer.
+	RolloutPlugins() RolloutPluginInformer
 }
 
 type version struct {
@@ -70,4 +72,9 @@ func (v *version) Experiments() ExperimentInformer {
 // Rollouts returns a RolloutInformer.
 func (v *version) Rollouts() RolloutInformer {
 	return &rolloutInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// RolloutPlugins returns a RolloutPluginInformer.
+func (v *version) RolloutPlugins() RolloutPluginInformer {
+	return &rolloutPluginInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

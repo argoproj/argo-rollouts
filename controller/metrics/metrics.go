@@ -3,13 +3,16 @@ package metrics
 import (
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
 	registry "k8s.io/component-base/metrics/legacyregistry"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/component-base/metrics/prometheus/workqueue"
@@ -34,10 +37,14 @@ type MetricsServer struct {
 
 	reconcileAnalysisRunHistogram *prometheus.HistogramVec
 	errorAnalysisRunCounter       *prometheus.CounterVec
-	successNotificationCounter    *prometheus.CounterVec
-	errorNotificationCounter      *prometheus.CounterVec
-	sendNotificationRunHistogram  *prometheus.HistogramVec
-	k8sRequestsCounter            *K8sRequestsCountProvider
+
+	reconcileRolloutPluginHistogram *prometheus.HistogramVec
+	errorRolloutPluginCounter       *prometheus.CounterVec
+
+	successNotificationCounter   *prometheus.CounterVec
+	errorNotificationCounter     *prometheus.CounterVec
+	sendNotificationRunHistogram *prometheus.HistogramVec
+	k8sRequestsCounter           *K8sRequestsCountProvider
 
 	rolloutDurationTotal       *prometheus.HistogramVec
 	rolloutDurationProgression *prometheus.HistogramVec
@@ -66,6 +73,7 @@ type ServerConfig struct {
 	AnalysisTemplateLister        rolloutlister.AnalysisTemplateLister
 	ClusterAnalysisTemplateLister rolloutlister.ClusterAnalysisTemplateLister
 	ExperimentLister              rolloutlister.ExperimentLister
+	RolloutPluginLister           rolloutlister.RolloutPluginLister
 	K8SRequestProvider            *K8sRequestsCountProvider
 }
 
@@ -109,6 +117,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	if cfg.ExperimentLister != nil {
 		reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
 	}
+	if cfg.RolloutPluginLister != nil {
+		reg.MustRegister(NewRolloutPluginCollector(cfg.RolloutPluginLister))
+	}
 	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister, cfg.AnalysisTemplateLister, cfg.ClusterAnalysisTemplateLister))
 	cfg.K8SRequestProvider.MustRegister(reg)
 	reg.MustRegister(MetricRolloutReconcile)
@@ -116,6 +127,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricRolloutEventsTotal)
 	reg.MustRegister(MetricExperimentReconcile)
 	reg.MustRegister(MetricExperimentReconcileError)
+	reg.MustRegister(MetricRolloutPluginReconcile)
+	reg.MustRegister(MetricRolloutPluginReconcileError)
+	reg.MustRegister(MetricRolloutPluginEventsTotal)
 	reg.MustRegister(MetricAnalysisRunReconcile)
 	reg.MustRegister(MetricAnalysisRunReconcileError)
 	reg.MustRegister(MetricNotificationSuccessTotal)
@@ -134,6 +148,17 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 		reg,
 		// contains process, golang and controller workqueues metrics
 		registry.DefaultGatherer,
+		// contains controller-runtime's built-in metrics. The RolloutPlugin manager runs with its own metrics
+		// server disabled (BindAddress "0") and shares this endpoint, so its
+		// controller_runtime_* metrics are only exposed by gathering this registry here.
+		//
+		// controller-runtime's registry also auto-registers the default Go runtime
+		// (go_*) and process (process_*) collectors, which are already provided by
+		// registry.DefaultGatherer above. Gathering both unfiltered makes
+		// prometheus.Gatherers.Gather() fail the entire scrape with duplicate-series
+		// errors, so we wrap it to expose only the controller_runtime_* families it
+		// uniquely owns.
+		filteredGatherer(ctrlmetrics.Registry, "controller_runtime_"),
 	}, promhttp.HandlerOpts{}))
 	return &MetricsServer{
 		Server: &http.Server{
@@ -149,9 +174,13 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 		reconcileAnalysisRunHistogram: MetricAnalysisRunReconcile,
 		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
-		successNotificationCounter:    MetricNotificationSuccessTotal,
-		errorNotificationCounter:      MetricNotificationFailedTotal,
-		sendNotificationRunHistogram:  MetricNotificationSend,
+
+		reconcileRolloutPluginHistogram: MetricRolloutPluginReconcile,
+		errorRolloutPluginCounter:       MetricRolloutPluginReconcileError,
+
+		successNotificationCounter:   MetricNotificationSuccessTotal,
+		errorNotificationCounter:     MetricNotificationFailedTotal,
+		sendNotificationRunHistogram: MetricNotificationSend,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 
@@ -159,6 +188,27 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 		rolloutDurationProgression: rolloutDurationProgression,
 		rolloutDurationManualPause: rolloutDurationManualPause,
 	}
+}
+
+// filteredGatherer wraps a prometheus.Gatherer and returns only the metric
+// families whose name starts with keepPrefix. It is used to expose the
+// controller_runtime_* families from controller-runtime's registry while
+// dropping the default go_*/process_* collectors it also registers, which would
+// otherwise collide with registry.DefaultGatherer and fail the whole scrape.
+func filteredGatherer(g prometheus.Gatherer, keepPrefix string) prometheus.Gatherer {
+	return prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+		mfs, err := g.Gather()
+		if err != nil {
+			return nil, err
+		}
+		filtered := mfs[:0]
+		for _, mf := range mfs {
+			if strings.HasPrefix(mf.GetName(), keepPrefix) {
+				filtered = append(filtered, mf)
+			}
+		}
+		return filtered, nil
+	})
 }
 
 // IncRolloutReconcile increments the reconcile counter for a Rollout
@@ -176,6 +226,11 @@ func (m *MetricsServer) IncAnalysisRunReconcile(ar *v1alpha1.AnalysisRun, durati
 	m.reconcileAnalysisRunHistogram.WithLabelValues(ar.Namespace, ar.Name).Observe(duration.Seconds())
 }
 
+// IncRolloutPluginReconcile increments the reconcile counter for a RolloutPlugin
+func (m *MetricsServer) IncRolloutPluginReconcile(rp *v1alpha1.RolloutPlugin, duration time.Duration) {
+	m.reconcileRolloutPluginHistogram.WithLabelValues(rp.Namespace, rp.Name).Observe(duration.Seconds())
+}
+
 // IncError increments the reconcile counter for an rollout
 func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	switch kind {
@@ -185,6 +240,8 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 		m.errorAnalysisRunCounter.WithLabelValues(namespace, name).Inc()
 	case log.ExperimentKey:
 		m.errorExperimentCounter.WithLabelValues(namespace, name).Inc()
+	case log.RolloutPluginKey:
+		m.errorRolloutPluginCounter.WithLabelValues(namespace, name).Inc()
 	}
 }
 
@@ -262,6 +319,18 @@ func (m *MetricsServer) Remove(namespace string, name string, kind string) {
 
 			MetricExperimentReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
 			MetricExperimentReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+
+		case log.RolloutPluginKey:
+			m.reconcileRolloutPluginHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+			m.errorRolloutPluginCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+			MetricRolloutPluginReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+			MetricRolloutPluginReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+			MetricRolloutPluginEventsTotal.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
 		}
 	}(namespace, name, kind)
 

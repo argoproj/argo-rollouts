@@ -194,3 +194,96 @@ The following prometheus metrics are emitted when notifications are enabled in a
 - `notification_send_success` is a counter that measures how many times the notification is sent successfully.
 - `notification_send_error` is a counter that measures how many times the notification failed to send.
 - `notification_send` is a histogram that measures performance of sending notification.
+
+## RolloutPlugin
+[RolloutPlugin](rolloutplugin/index.md) resources use the same `argo-rollouts-notification-configmap`, secret,
+services and subscription annotations as Rollouts. Namespace based configuration works the same way when
+`--self-service-notification-enabled` is set.
+
+There are no built-in templates or triggers for RolloutPlugin, so you need to define your own. The following triggers
+fire when the RolloutPlugin controller records the matching event:
+
+* `on-rollout-plugin-progressing` when a rollout starts for a new revision
+* `on-rollout-plugin-paused` when a rollout is paused, at a pause step or manually
+* `on-rollout-plugin-resumed` when a paused rollout continues: a pause step's duration elapses, the rollout is
+  promoted, or `spec.paused` is set back to `false`
+* `on-rollout-plugin-completed` when a rollout is finished and every pod runs the new revision
+* `on-rollout-plugin-aborted` when an abort has rolled every pod back to the stable revision
+* `on-rollout-plugin-abort-ignored` when an abort is ignored because every pod already runs the new revision
+* `on-rollout-plugin-timed-out` when a rollout times out
+* `on-rollout-plugin-invalid-spec` when the RolloutPlugin spec becomes invalid
+* `on-rollout-plugin-reconciliation-error` when an AnalysisRun can't be created or updated, or the plugin fails to
+  move the workload during a rollout or an abort
+* `on-rollout-plugin-promote-full-no-op` when promote full is requested with no rollout in progress
+* `on-rollout-plugin-analysis-run-<phase>` when an AnalysisRun changes phase, for example
+  `on-rollout-plugin-analysis-run-failed`
+* `on-rollout-plugin-deletion-cleanup-failed` when the plugin fails to release the workload while the RolloutPlugin is
+  deleted
+* `on-rollout-plugin-deleted` when a RolloutPlugin is deleted
+
+The invalid spec trigger fires once per distinct error, as does the reconciliation error trigger for AnalysisRun and
+abort errors. The reconciliation error trigger for other errors, and the deletion cleanup trigger, fire on every
+attempt: the controller retries every 30 seconds while the error persists. AnalysisRun triggers fire once per phase
+change.
+
+Each template has access to the following fields:
+
+- `rolloutPlugin` holds the RolloutPlugin object. For the triggers above, it is the object as it was before the change
+  that fired the trigger. For example, `status.message` and `status.phase` don't describe the abort yet when
+  `on-rollout-plugin-aborted` fires.
+- `analysisRuns` holds the AnalysisRuns owned by the RolloutPlugin, newest first. It is empty when there are none, so
+  guard it with `{{if .analysisRuns}}`.
+- `time` holds the `Parse` and `Now` time functions.
+- `secrets` holds the data of the `argo-rollouts-notification-secret` secret.
+- `context` holds the [user-defined context](#user-defined-context) from the notifications ConfigMap.
+
+For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  template.rollout-plugin-aborted: |
+    message: |
+      RolloutPlugin {{.rolloutPlugin.metadata.name}} was aborted and rolled back to revision {{.rolloutPlugin.status.stableRevision}}.
+      {{if .analysisRuns}}Latest AnalysisRun: {{(index .analysisRuns 0).metadata.name}} ({{(index .analysisRuns 0).status.phase}}){{end}}
+  trigger.on-rollout-plugin-aborted: |
+    - send: [rollout-plugin-aborted]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutPlugin
+metadata:
+  name: web-rollout
+  annotations:
+    notifications.argoproj.io/subscribe.on-rollout-plugin-aborted.slack: my-channel
+```
+
+An annotation name can't be longer than 63 characters after the `notifications.argoproj.io/` prefix, so
+`subscribe.<trigger>.<service>` doesn't fit for the longer triggers, such as
+`on-rollout-plugin-analysis-run-inconclusive`. Use the `subscriptions` annotation instead:
+
+```yaml
+metadata:
+  annotations:
+    notifications.argoproj.io/subscriptions: |
+      - trigger: [on-rollout-plugin-analysis-run-inconclusive, on-rollout-plugin-deletion-cleanup-failed]
+        destinations:
+          - service: slack
+            recipients: [my-channel]
+```
+
+[Custom triggers](#custom-triggers) with a `when` condition work as well, using the `rolloutPlugin` variable. They are
+evaluated against the current RolloutPlugin whenever it changes:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  trigger.on-rollout-plugin-degraded: |
+    - send: [rollout-plugin-aborted]
+      when: rolloutPlugin.status.phase == 'Degraded'
+```

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"regexp"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 
@@ -605,4 +607,13 @@ func FilterUniqueTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTempla
 		}
 	}
 	return uniqueTemplates, uniqueClusterTemplates
+}
+
+// RolloutPluginRevisionLabelValue returns the RolloutPluginRevisionLabel value for a workload
+// revision. Revisions are plugin-defined and may exceed the label value limit, so they are always
+// hashed, like pod-template-hash.
+func RolloutPluginRevisionLabelValue(revision string) string {
+	hasher := fnv.New32a()
+	hasher.Write([]byte(revision))
+	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 }

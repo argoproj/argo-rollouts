@@ -53,3 +53,11 @@ type RolloutListerExpansion interface{}
 // RolloutNamespaceListerExpansion allows custom methods to be added to
 // RolloutNamespaceLister.
 type RolloutNamespaceListerExpansion interface{}
+
+// RolloutPluginListerExpansion allows custom methods to be added to
+// RolloutPluginLister.
+type RolloutPluginListerExpansion interface{}
+
+// RolloutPluginNamespaceListerExpansion allows custom methods to be added to
+// RolloutPluginNamespaceLister.
+type RolloutPluginNamespaceListerExpansion interface{}

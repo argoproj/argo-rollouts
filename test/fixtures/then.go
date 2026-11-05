@@ -554,3 +554,113 @@ func (t *Then) ExpectDeploymentReplicasCount(expectation string, deploymentName 
 
 	return t
 }
+
+// RolloutPlugin Assertion Methods
+
+// GetRolloutPlugin returns the live RolloutPlugin from the cluster
+func (t *Then) GetRolloutPlugin() *rov1.RolloutPlugin {
+	return t.Common.GetRolloutPlugin()
+}
+
+// GetStatefulSet returns the live StatefulSet from the cluster
+func (t *Then) GetStatefulSet() *appsv1.StatefulSet {
+	return t.Common.GetStatefulSet()
+}
+
+// ExpectRolloutPluginStatus expects the RolloutPlugin to have the specified status
+func (t *Then) ExpectRolloutPluginStatus(expectedStatus rov1.RolloutPluginPhase) *Then {
+	rp := t.GetRolloutPlugin()
+	if rp.Status.Phase != expectedStatus {
+		t.log.Errorf("RolloutPlugin status expected to be '%s'. actual: %s", expectedStatus, rp.Status.Phase)
+		t.t.FailNow()
+	}
+	t.log.Infof("RolloutPlugin expectation status=%s met", expectedStatus)
+	return t
+}
+
+// ExpectStatefulSetPartition expects the StatefulSet's partition to match
+func (t *Then) ExpectStatefulSetPartition(expectedPartition int32) *Then {
+	t.t.Helper()
+	sts := t.GetStatefulSet()
+	var actualPartition int32 = 0
+	if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+		actualPartition = *sts.Spec.UpdateStrategy.RollingUpdate.Partition
+	}
+	if actualPartition != expectedPartition {
+		t.log.Errorf("StatefulSet partition expected to be %d. actual: %d", expectedPartition, actualPartition)
+		t.t.FailNow()
+	}
+	t.log.Infof("StatefulSet partition expectation %d met", expectedPartition)
+	return t
+}
+
+// ExpectRolloutPluginAnalysisRunCount expects the number of AnalysisRuns owned by the RolloutPlugin
+func (t *Then) ExpectRolloutPluginAnalysisRunCount(expectedCount int) *Then {
+	t.t.Helper()
+	checkAnalysisRunCount := func() (done bool, err error) {
+		aruns := t.Common.GetRolloutPluginAnalysisRuns()
+		if len(aruns.Items) == expectedCount {
+			t.log.Infof("RolloutPlugin AnalysisRun count expectation %d met", expectedCount)
+			return true, nil
+		}
+		t.log.Debugf("RolloutPlugin AnalysisRun count: expected %d, actual: %d", expectedCount, len(aruns.Items))
+		return false, nil
+	}
+
+	pollInterval := 5 * time.Second
+	pollTimeout := 1 * time.Minute
+	if err := wait.PollImmediate(pollInterval, pollTimeout, checkAnalysisRunCount); err != nil {
+		aruns := t.Common.GetRolloutPluginAnalysisRuns()
+		t.log.Errorf("RolloutPlugin AnalysisRun count expected to be %d. actual: %d", expectedCount, len(aruns.Items))
+		t.t.FailNow()
+	}
+
+	return t
+}
+
+// ExpectRolloutPluginCondition asserts that the RolloutPlugin has a condition of the given type
+func (t *Then) ExpectRolloutPluginCondition(condType rov1.RolloutPluginConditionType) *Then {
+	t.t.Helper()
+	rp := t.GetRolloutPlugin()
+	for _, cond := range rp.Status.Conditions {
+		if cond.Type == condType {
+			t.log.Infof("RolloutPlugin condition '%s' found", condType)
+			return t
+		}
+	}
+	t.log.Errorf("RolloutPlugin condition '%s' not found", condType)
+	t.t.FailNow()
+	return t
+}
+
+// ExpectNoRolloutPluginCondition asserts that the RolloutPlugin does NOT have a condition of the given type
+func (t *Then) ExpectNoRolloutPluginCondition(condType rov1.RolloutPluginConditionType) *Then {
+	t.t.Helper()
+	rp := t.GetRolloutPlugin()
+	for _, cond := range rp.Status.Conditions {
+		if cond.Type == condType {
+			t.log.Errorf("RolloutPlugin condition '%s' should not exist but found: %+v", condType, cond)
+			t.t.FailNow()
+		}
+	}
+	t.log.Infof("RolloutPlugin condition '%s' correctly absent", condType)
+	return t
+}
+
+// ExpectRolloutPluginEvents asserts that the RolloutPlugin events match exactly
+func (t *Then) ExpectRolloutPluginEvents(reasons []string) *Then {
+	t.t.Helper()
+	eventReasons := t.GetRolloutPluginEventReasons()
+	assert.Equal(t.Common.t, reasons, eventReasons)
+	return t
+}
+
+// ExpectRolloutPluginEventsContains asserts that the RolloutPlugin events contain all specified reasons
+func (t *Then) ExpectRolloutPluginEventsContains(reasons []string) *Then {
+	t.t.Helper()
+	eventReasons := t.GetRolloutPluginEventReasons()
+	for _, r := range reasons {
+		assert.Contains(t.Common.t, eventReasons, r)
+	}
+	return t
+}
