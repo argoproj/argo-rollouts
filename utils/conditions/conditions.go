@@ -179,6 +179,10 @@ const (
 	// TargetGroupVerifyErrorReason is emitted when we fail to verify the health of a target group due to error
 	TargetGroupVerifyErrorReason  = "TargetGroupVerifyError"
 	TargetGroupVerifyErrorMessage = "Failed to verify Service %s (TargetGroup %s): %s"
+	// CanaryTrafficNotShiftedReason is emitted while an aborted canary is held scaled up because the
+	// traffic router has not shifted away from it yet
+	CanaryTrafficNotShiftedReason  = "CanaryTrafficNotShifted"
+	CanaryTrafficNotShiftedMessage = "Delaying scale down of canary ReplicaSet %s on abort: traffic has not shifted away from it yet"
 	// WeightVerifyErrorReason is emitted when there is an error verifying the set weight
 	WeightVerifyErrorReason  = "WeightVerifyError"
 	WeightVerifyErrorMessage = "Failed to verify weight: %s"
