@@ -132,8 +132,7 @@ Available test suites [are the following](https://github.com/argoproj/argo-rollo
 * `TestAppMeshSuite`
 * `TestAWSSuite`
 * `StepPluginSuite`
-* `TestRolloutPluginSuite` (also run by `make test-e2e-rolloutplugin`)
-* `TestRolloutPluginRpcSuite`
+* `TestRolloutPluginSuite` and `TestRolloutPluginRpcSuite` (`make test-e2e-rolloutplugin` runs only these two)
 * `SMISuite` (SMI is [deprecated](https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/))
 * `SMIIngressSuite` (SMI is [deprecated](https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/))
 

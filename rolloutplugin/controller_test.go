@@ -66,7 +66,7 @@ func (s *stubPluginManager) EnabledPlugins() (map[string]ResourcePlugin, error) 
 	return map[string]ResourcePlugin{"stub": s.plugin}, nil
 }
 
-// validRolloutPlugin returns a spec that passes verifyRolloutPluginSpec.
+// validRolloutPlugin returns a spec that passes spec validation.
 func validRolloutPlugin(name string) *v1alpha1.RolloutPlugin {
 	return &v1alpha1.RolloutPlugin{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
@@ -102,6 +102,10 @@ type canaryWorkloadPlugin struct {
 	unready int32
 	// deletionCleanupErr is returned by DeletionCleanup.
 	deletionCleanupErr error
+	// setWeightErr is returned by SetWeight, simulating the plugin failing to move the workload.
+	setWeightErr error
+	// abortErr is returned by Abort, simulating the plugin failing to roll the workload back.
+	abortErr error
 
 	setWeightCalls []int32
 	// weightChanges records only the SetWeight calls that changed the weight. Pause and analysis
@@ -152,6 +156,9 @@ func (p *canaryWorkloadPlugin) Validate(ctx context.Context, rolloutPlugin *v1al
 
 func (p *canaryWorkloadPlugin) SetWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, weight int32) error {
 	p.setWeightCalls = append(p.setWeightCalls, weight)
+	if p.setWeightErr != nil {
+		return p.setWeightErr
+	}
 	if weight != p.weight {
 		p.weightChanges = append(p.weightChanges, weight)
 	}
@@ -174,6 +181,9 @@ func (p *canaryWorkloadPlugin) PromoteFull(ctx context.Context, rolloutPlugin *v
 
 func (p *canaryWorkloadPlugin) Abort(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
 	p.abortCalls++
+	if p.abortErr != nil {
+		return p.abortErr
+	}
 	p.weight = 0
 	return nil
 }
@@ -431,6 +441,8 @@ func TestManualPauseHoldsRollout(t *testing.T) {
 	rp.Spec.TimeoutSeconds = int32Ptr(30)
 	rp.Spec.TimeoutAbort = true
 	h := newReconcileHarness(t, rp)
+	recorder := record.NewFakeEventRecorder()
+	h.r.Recorder = recorder
 	h.reconcile()
 	h.plugin.deploy("rev-2")
 
@@ -450,8 +462,11 @@ func TestManualPauseHoldsRollout(t *testing.T) {
 	assert.Zero(t, h.plugin.promoteCalls)
 	assert.False(t, cur.Status.Aborted)
 
+	assert.Zero(t, countEvents(recorder.Events(), conditions.RolloutPluginResumedReason))
+
 	h.updateSpec(func(rp *v1alpha1.RolloutPlugin) { rp.Spec.Paused = false })
 	_, cur = h.reconcile()
+	assert.Equal(t, 1, countEvents(recorder.Events(), conditions.RolloutPluginResumedReason), "unpausing is reported like resuming a pause step")
 	assert.Equal(t, int32(2), stepIndex(t, cur), "resumes from the held step")
 	assert.Equal(t, []int32{20, 50}, h.plugin.setWeightCalls)
 	assert.Equal(t, conditions.RolloutPluginProgressingReason, progressingReason(t, cur))
@@ -595,6 +610,86 @@ func TestPluginValidationRejectsSpec(t *testing.T) {
 	assert.Nil(t, conditions.GetRolloutPluginCondition(cur.Status, v1alpha1.RolloutPluginConditionInvalidSpec))
 	assert.Equal(t, int32(1), stepIndex(t, cur))
 	assert.Equal(t, []int32{20}, h.plugin.setWeightCalls)
+}
+
+// TestInvalidSpecReportedOnce verifies each way a spec can be invalid sets InvalidSpec and is
+// reported by a single warning event while the same problem persists, and again when it changes.
+func TestInvalidSpecReportedOnce(t *testing.T) {
+	for name, tt := range map[string]struct {
+		setup   func(h *reconcileHarness)
+		message string
+		change  func(h *reconcileHarness)
+	}{
+		"plugin rejects the spec": {
+			setup:   func(h *reconcileHarness) { h.plugin.validateErr = errors.New("unsupported field") },
+			message: "Plugin 'argoproj/statefulset' rejected the spec: unsupported field",
+			change:  func(h *reconcileHarness) { h.plugin.validateErr = errors.New("another unsupported field") },
+		},
+		"plugin not enabled": {
+			setup: func(h *reconcileHarness) {
+				h.r.PluginManager.(*stubPluginManager).err = fmt.Errorf("plugin %q is %w", "argoproj/statefulset", ErrPluginNotEnabled)
+			},
+			message: "Plugin 'argoproj/statefulset' not found",
+		},
+		"missing analysis template": {
+			setup: func(h *reconcileHarness) {
+				h.updateSpec(func(rp *v1alpha1.RolloutPlugin) {
+					rp.Spec.Strategy.Canary.Steps = append(rp.Spec.Strategy.Canary.Steps, analysisStep())
+				})
+			},
+			message: "Failed to fetch analysis templates for step 1",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newReconcileHarness(t, canaryRolloutPlugin("invalid", v1alpha1.PluginCanaryStep{SetWeight: int32Ptr(50)}))
+			recorder := record.NewFakeEventRecorder()
+			h.r.Recorder = recorder
+			tt.setup(h)
+
+			var cur *v1alpha1.RolloutPlugin
+			for i := 0; i < 3; i++ {
+				h.advance(time.Minute)
+				_, cur = h.reconcile()
+			}
+			cond := conditions.GetRolloutPluginCondition(cur.Status, v1alpha1.RolloutPluginConditionInvalidSpec)
+			require.NotNil(t, cond)
+			assert.Contains(t, cond.Message, tt.message)
+			assert.Equal(t, 1, countEvents(recorder.Events(), conditions.RolloutPluginInvalidSpecReason))
+
+			if tt.change != nil {
+				tt.change(h)
+				h.reconcileN(2)
+				assert.Equal(t, 2, countEvents(recorder.Events(), conditions.RolloutPluginInvalidSpecReason), "a new problem is reported again")
+			}
+		})
+	}
+}
+
+// TestAbortFailureReported verifies a failed rollback is reported once as a ReconciliationError
+// while it repeats, and the abort completes once the plugin succeeds.
+func TestAbortFailureReported(t *testing.T) {
+	h := newReconcileHarness(t, canaryRolloutPlugin("abort-fails",
+		v1alpha1.PluginCanaryStep{SetWeight: int32Ptr(50)},
+		v1alpha1.PluginCanaryStep{Pause: &v1alpha1.RolloutPause{}},
+	))
+	recorder := record.NewFakeEventRecorder()
+	h.r.Recorder = recorder
+	h.reconcile()
+	h.plugin.deploy("rev-2")
+	h.reconcileN(2)
+
+	h.plugin.abortErr = errors.New("connection refused")
+	h.updateStatus(func(status *v1alpha1.RolloutPluginStatus) { status.Abort = true })
+	cur := h.reconcileN(3)
+	assert.Equal(t, conditions.RolloutPluginReconciliationErrorReason, progressingReason(t, cur))
+	assert.Contains(t, cur.Status.Message, "Failed to abort rollout: connection refused")
+	assert.False(t, cur.Status.Aborted)
+	assert.Equal(t, 1, countEvents(recorder.Events(), conditions.RolloutPluginReconciliationErrorReason), "one event while the same error repeats")
+
+	h.plugin.abortErr = nil
+	cur = h.reconcileN(2)
+	assert.True(t, cur.Status.Aborted)
+	assert.Equal(t, v1alpha1.RolloutPluginPhaseDegraded, cur.Status.Phase)
 }
 
 // TestPluginViewFence verifies the controller doesn't act on a plugin view of the workload older
@@ -798,15 +893,18 @@ func TestDeletionCleanupFinalizer(t *testing.T) {
 		h.plugin.deletionCleanupErr = errors.New("conflict patching the workload")
 		deleteRP(h)
 
-		_, err = h.reconcileRequest()
-		require.ErrorContains(t, err, "conflict patching the workload")
+		for i := 0; i < 2; i++ {
+			result, err := h.reconcileRequest()
+			require.NoError(t, err)
+			assert.Equal(t, errorRetryDelay, result.RequeueAfter)
+		}
 		assert.Equal(t, []string{DeletionCleanupFinalizer}, h.get().Finalizers)
-		assert.Contains(t, recorder.Events(), "RolloutPluginDeletionCleanupFailed")
+		assert.Equal(t, 2, countEvents(recorder.Events(), "RolloutPluginDeletionCleanupFailed"), "reported on every attempt")
 
 		h.plugin.deletionCleanupErr = nil
 		_, err = h.reconcileRequest()
 		require.NoError(t, err)
-		assert.Equal(t, 2, h.plugin.cleanupCalls)
+		assert.Equal(t, 3, h.plugin.cleanupCalls)
 		assert.True(t, isGone(h))
 	})
 
@@ -830,8 +928,9 @@ func TestDeletionCleanupFinalizer(t *testing.T) {
 		h.r.PluginManager.(*stubPluginManager).err = errors.New("plugin process exited")
 		deleteRP(h)
 
-		_, err = h.reconcileRequest()
-		require.ErrorContains(t, err, "plugin process exited")
+		result, err := h.reconcileRequest()
+		require.NoError(t, err)
+		assert.Equal(t, errorRetryDelay, result.RequeueAfter)
 		assert.Zero(t, h.plugin.cleanupCalls)
 		assert.Equal(t, []string{DeletionCleanupFinalizer}, h.get().Finalizers)
 		assert.Contains(t, recorder.Events(), "RolloutPluginDeletionCleanupFailed")
@@ -1117,4 +1216,84 @@ func TestShouldReconcileOnDeletion(t *testing.T) {
 	finalizerAdded.ResourceVersion = "2"
 	finalizerAdded.Finalizers = []string{DeletionCleanupFinalizer}
 	assert.False(t, shouldReconcileRolloutPluginUpdate(oldRP, finalizerAdded))
+}
+
+// TestSetWeightErrorReported verifies a SetWeight error is persisted in status.message, reported
+// as a warning event on every attempt and retried after errorRetryDelay, keeps the rollout
+// Progressing, and the rollout continues at the same step once the error clears. A conflict is
+// only retried, nothing is persisted.
+func TestSetWeightErrorReported(t *testing.T) {
+	rp := canaryRolloutPlugin("set-weight-error",
+		v1alpha1.PluginCanaryStep{SetWeight: int32Ptr(20)},
+		v1alpha1.PluginCanaryStep{SetWeight: int32Ptr(60)},
+	)
+	h := newReconcileHarness(t, rp)
+	recorder := record.NewFakeEventRecorder()
+	h.r.Recorder = recorder
+	h.reconcile()
+	h.plugin.deploy("rev-2")
+
+	h.plugin.setWeightErr = apierrors.NewConflict(v1alpha1.Resource("statefulsets"), "sts", errors.New("modified"))
+	_, err := h.r.reconcile(context.Background(), h.get(), log.WithField("test", t.Name()))
+	require.Error(t, err)
+	cur := h.get()
+	assert.Nil(t, cur.Status.CurrentStepIndex, "a conflict persists nothing")
+	assert.Zero(t, countEvents(recorder.Events(), conditions.RolloutPluginReconciliationErrorReason))
+	startEventsBefore := countEvents(recorder.Events(), conditions.RolloutPluginProgressingReason)
+
+	h.plugin.setWeightErr = errors.New("admission webhook denied the patch")
+	for i := 0; i < 2; i++ {
+		var result ctrl.Result
+		result, cur = h.reconcile()
+		assert.Equal(t, errorRetryDelay, result.RequeueAfter)
+		assert.Equal(t, int32(0), stepIndex(t, cur))
+		assert.Equal(t, v1alpha1.RolloutPluginPhaseProgressing, cur.Status.Phase)
+		assert.Equal(t, "Failed to set weight: admission webhook denied the patch", cur.Status.Message)
+		assert.Equal(t, conditions.RolloutPluginProgressingReason, progressingReason(t, cur))
+	}
+	assert.Equal(t, 2, countEvents(recorder.Events(), conditions.RolloutPluginReconciliationErrorReason), "reported on every attempt")
+	assert.Equal(t, 1, countEvents(recorder.Events(), conditions.RolloutPluginProgressingReason)-startEventsBefore, "the persisted rollout start is not re-reported on retries")
+
+	h.plugin.setWeightErr = nil
+	cur = h.reconcileN(2)
+	assert.Equal(t, []int32{20, 60}, h.plugin.weightChanges)
+	assert.Equal(t, int32(2), stepIndex(t, cur))
+}
+
+// TestBackgroundAnalysisCancelledWhenNotNeeded verifies a running background AnalysisRun is
+// cancelled, not just dropped from status, once every pod runs the updated revision mid-rollout
+// (a StatefulSet at setWeight: 100) or the background analysis is removed from the spec.
+func TestBackgroundAnalysisCancelledWhenNotNeeded(t *testing.T) {
+	setup := func(t *testing.T, name string) (*reconcileHarness, string) {
+		rp := canaryRolloutPlugin(name,
+			v1alpha1.PluginCanaryStep{SetWeight: int32Ptr(100)},
+			v1alpha1.PluginCanaryStep{Pause: &v1alpha1.RolloutPause{}},
+		)
+		rp.Spec.Strategy.Canary.Analysis = backgroundAnalysis()
+		h := newReconcileHarness(t, rp, successTemplate())
+		h.reconcile()
+		h.plugin.deploy("rev-2")
+		cur := h.reconcileN(2)
+		require.NotNil(t, cur.Status.Canary.CurrentBackgroundAnalysisRunStatus)
+		name = cur.Status.Canary.CurrentBackgroundAnalysisRunStatus.Name
+		require.False(t, h.analysisRun(name).Spec.Terminate)
+		return h, name
+	}
+
+	t.Run("every pod runs the updated revision", func(t *testing.T) {
+		h, backgroundAR := setup(t, "bg-converged")
+		h.plugin.stableRevision = "rev-2"
+		cur := h.reconcileN(2)
+		assert.Nil(t, cur.Status.Canary.CurrentBackgroundAnalysisRunStatus)
+		assert.True(t, h.analysisRun(backgroundAR).Spec.Terminate)
+	})
+
+	t.Run("background analysis removed", func(t *testing.T) {
+		h, backgroundAR := setup(t, "bg-removed")
+		h.updateSpec(func(rp *v1alpha1.RolloutPlugin) { rp.Spec.Strategy.Canary.Analysis = nil })
+		cur := h.reconcileN(2)
+		assert.Nil(t, cur.Status.Canary.CurrentBackgroundAnalysisRunStatus)
+		assert.True(t, h.analysisRun(backgroundAR).Spec.Terminate)
+		assert.Equal(t, v1alpha1.RolloutPluginPhasePaused, cur.Status.Phase, "the rollout itself continues")
+	})
 }

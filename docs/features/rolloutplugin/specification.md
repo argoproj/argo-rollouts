@@ -157,7 +157,8 @@ Editing the steps while a rollout is in progress restarts it from the first step
 ### strategy.canary.analysis
 
 A background analysis is created when the rollout reaches `startingStep` and runs until the rollout
-completes, is aborted, or is promoted full. A failed or errored run aborts the rollout; an inconclusive run pauses it,
+completes, is aborted, or is promoted full. For a StatefulSet it also stops once every pod runs the new revision, for
+example after a `setWeight: 100` step. A failed or errored run aborts the rollout; an inconclusive run pauses it,
 and promoting starts a new run. Unlike step analysis, a background metric may run indefinitely (no `count`).
 
 ### Analysis fields

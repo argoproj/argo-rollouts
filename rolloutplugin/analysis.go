@@ -290,15 +290,22 @@ func (r *RolloutPluginReconciler) reconcileStepBasedAnalysisRun(ctx context.Cont
 
 // reconcileBackgroundAnalysisRun reconciles background analysis for canary strategy. Returns a
 // non-empty abortMessage if the analysis run failed and the rollout should be aborted.
+// Whenever no background run should exist, the current one is cancelled rather than just dropped
+// from status: nothing else would reconcile it until it finishes on its own.
 func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Context, rp *v1alpha1.RolloutPlugin, currentAr *v1alpha1.AnalysisRun, pCtx *pauseContext, logCtx *log.Entry) (*v1alpha1.AnalysisRun, string, error) {
-	if rp.Spec.Strategy.Canary == nil || rp.Spec.Strategy.Canary.Analysis == nil {
-		return nil, "", nil
+	cancelCurrent := func() (*v1alpha1.AnalysisRun, string, error) {
+		return nil, "", r.cancelAnalysisRuns(ctx, []*v1alpha1.AnalysisRun{currentAr}, logCtx)
 	}
 
-	// Do not create or keep a background run if the rollout is fully promoted
+	if rp.Spec.Strategy.Canary == nil || rp.Spec.Strategy.Canary.Analysis == nil {
+		return cancelCurrent()
+	}
+
+	// Do not create or keep a background run if the rollout is fully promoted, e.g. at a
+	// setWeight: 100 step, where the StatefulSet's current revision already is the updated one.
 	if rp.Status.StableRevision == rp.Status.UpdatedRevision {
 		logCtx.Info("Rollout is fully promoted, not running background analysis")
-		return nil, "", nil
+		return cancelCurrent()
 	}
 
 	// Do not create background analysis before the configured starting step. CurrentStepIndex
@@ -310,7 +317,7 @@ func (r *RolloutPluginReconciler) reconcileBackgroundAnalysisRun(ctx context.Con
 			currentStepIndex = *rp.Status.CurrentStepIndex
 		}
 		if currentStepIndex < *rp.Spec.Strategy.Canary.Analysis.StartingStep {
-			return nil, "", nil
+			return cancelCurrent()
 		}
 	}
 

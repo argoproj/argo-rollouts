@@ -247,19 +247,32 @@ func (s *RolloutPluginSuite) TestRolloutPluginBasicCanary() {
 
 // TestRolloutPluginCanaryNoSteps tests a canary rollout with no steps (immediate promotion).
 func (s *RolloutPluginSuite) TestRolloutPluginCanaryNoSteps() {
+	var initialRevision string
 	s.Given().
 		RolloutPluginObjects(rpCanary2Replicas).
 		When().
 		ApplyManifests().
 		WaitForStatefulSetReady().
 		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			initialRevision = t.GetRolloutPlugin().Status.StableRevision
+			assert.NotEmpty(s.T(), initialRevision)
+		}).
+		When().
 		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
-		WaitForRolloutPluginStatus(rov1.RolloutPluginPhaseHealthy, 300*time.Second).
+		// The phase is already Healthy before the update, so wait for the new revision to be the stable one.
+		WaitForRolloutPluginCondition(func(rp *rov1.RolloutPlugin) bool {
+			return rp.Status.Phase == rov1.RolloutPluginPhaseHealthy &&
+				rp.Status.UpdatedRevision != initialRevision &&
+				rp.Status.StableRevision == rp.Status.UpdatedRevision
+		}, "Healthy on the new revision", 300*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rp := t.GetRolloutPlugin()
-			assert.Equal(s.T(), rov1.RolloutPluginPhaseHealthy, rp.Status.Phase)
-			assert.Equal(s.T(), rp.Status.StableRevision, rp.Status.UpdatedRevision)
+			sts := t.GetStatefulSet()
+			assert.Equal(s.T(), rp.Status.UpdatedRevision, sts.Status.CurrentRevision)
+			assert.Equal(s.T(), int32(2), sts.Status.UpdatedReplicas)
 		})
 }
 
@@ -1876,14 +1889,9 @@ func (s *RolloutPluginSuite) TestRolloutPluginNoStepsBlocksPartition() {
 }
 
 // TestRolloutPluginDeletionReleasesPartition tests that deleting a RolloutPlugin mid-rollout
-// leaves the StatefulSet as it is and drops the plugin's partition ownership, so another
-// manager can server-side apply the partition without a conflict.
+// removes the partition the plugin alone owned, so the StatefulSet's rolling update finishes the
+// rollout.
 func (s *RolloutPluginSuite) TestRolloutPluginDeletionReleasesPartition() {
-	pluginOwnsFields := func(sts *appsv1.StatefulSet) bool {
-		return slices.ContainsFunc(sts.ManagedFields, func(e metav1.ManagedFieldsEntry) bool {
-			return e.Manager == statefulset.FieldManager
-		})
-	}
 	s.Given().
 		HealthyRolloutPlugin(rpCanary4Replicas, `
 - setWeight: 50
@@ -1895,21 +1903,51 @@ func (s *RolloutPluginSuite) TestRolloutPluginDeletionReleasesPartition() {
 		ExpectStatefulSetPartition(2).
 		Assert(func(t *fixtures.Then) {
 			assert.Contains(s.T(), t.GetRolloutPlugin().Finalizers, rolloutplugin.DeletionCleanupFinalizer)
-			assert.True(s.T(), pluginOwnsFields(t.GetStatefulSet()), "plugin should own the partition mid-rollout")
+			assert.True(s.T(), pluginOwnsStatefulSetFields(t.GetStatefulSet()), "plugin should own the partition mid-rollout")
 		}).
 		When().
+		DeleteRolloutPlugin().
+		Then().
+		ExpectStatefulSetPartition(0).
+		Assert(func(t *fixtures.Then) {
+			assert.False(s.T(), pluginOwnsStatefulSetFields(t.GetStatefulSet()), "plugin should no longer own any StatefulSet field")
+			assert.Eventually(s.T(), func() bool {
+				sts := t.GetStatefulSet()
+				return sts.Status.UpdatedReplicas == 4 && sts.Status.CurrentRevision == sts.Status.UpdateRevision
+			}, 300*time.Second, 2*time.Second, "the StatefulSet's rolling update should finish the rollout")
+		})
+}
+
+// TestRolloutPluginDeletionKeepsSharedPartition tests that deleting a RolloutPlugin keeps a
+// partition another manager also applied, and drops only the plugin's ownership, so that manager
+// can then apply its own value without a conflict.
+func (s *RolloutPluginSuite) TestRolloutPluginDeletionKeepsSharedPartition() {
+	s.Given().
+		HealthyRolloutPlugin(rpCanary4Replicas, `
+- setWeight: 50
+- pause: {}`).
+		When().
+		UpdateStatefulSetImage("quay.io/prometheus/busybox:glibc").
+		WaitForRolloutPluginCanaryStepIndex(1, 300*time.Second).
+		ApplyStatefulSetPartition(2, "rp-e2e-user").
 		DeleteRolloutPlugin().
 		Then().
 		ExpectStatefulSetPartition(2).
 		Assert(func(t *fixtures.Then) {
 			sts := t.GetStatefulSet()
-			assert.False(s.T(), pluginOwnsFields(sts), "plugin should no longer own any StatefulSet field")
+			assert.False(s.T(), pluginOwnsStatefulSetFields(sts), "plugin should no longer own any StatefulSet field")
 			assert.Equal(s.T(), int32(2), sts.Status.UpdatedReplicas, "deletion should not move any pod")
 		}).
 		When().
 		ApplyStatefulSetPartition(0, "rp-e2e-user").
 		Then().
 		ExpectStatefulSetPartition(0)
+}
+
+func pluginOwnsStatefulSetFields(sts *appsv1.StatefulSet) bool {
+	return slices.ContainsFunc(sts.ManagedFields, func(e metav1.ManagedFieldsEntry) bool {
+		return e.Manager == statefulset.FieldManager
+	})
 }
 
 // TestRolloutPluginRevertToStable tests that reverting the StatefulSet to the stable template

@@ -285,7 +285,7 @@ test-e2e: install-devtools-local
 
 .PHONY: test-e2e-rolloutplugin
 test-e2e-rolloutplugin: install-devtools-local ## run RolloutPlugin E2E tests only
-	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-rolloutplugin-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e -run 'TestRolloutPluginSuite' $${E2E_TEST_OPTIONS}
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit-e2e-rolloutplugin-test.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e -run 'TestRolloutPlugin(Rpc)?Suite' ${E2E_TEST_OPTIONS}
 
 .PHONY: test-unit
  test-unit: install-devtools-local ## run unit tests

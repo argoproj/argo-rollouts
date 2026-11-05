@@ -72,15 +72,27 @@ The Argo Rollouts controller publishes the following prometheus metrics about Ar
 When the [RolloutPlugin](rolloutplugin/index.md) controller is enabled, the controller also publishes the following
 metrics. Each has `namespace` and `name` labels.
 
-| Name                                      | Description                                                                                              |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `rolloutplugin_info`                      | Information about the RolloutPlugin, with `strategy`, `plugin_name`, `workload_kind` and `phase` labels. |
-| `rolloutplugin_workload_replicas_desired` | The number of desired replicas of the workload.                                                          |
-| `rolloutplugin_workload_replicas_updated` | The number of updated replicas of the workload.                                                          |
-| `rolloutplugin_workload_replicas_ready`   | The number of ready replicas of the workload.                                                            |
-| `rolloutplugin_reconcile`                 | RolloutPlugin reconciliation performance.                                                                |
-| `rolloutplugin_reconcile_error`           | Error occurring during the RolloutPlugin reconciliation.                                                 |
-| `rolloutplugin_events_total`              | Count of RolloutPlugin events, with `type` and `reason` labels.                                          |
+| Name                                          | Description                                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `rolloutplugin_info`                          | Information about the RolloutPlugin, with `strategy` (`canary`), `plugin_name`, `workload_kind` and `phase` labels. |
+| `rolloutplugin_workload_replicas_desired`     | The number of desired replicas of the workload.                                                                     |
+| `rolloutplugin_workload_replicas_updated`     | The number of updated replicas of the workload.                                                                     |
+| `rolloutplugin_workload_replicas_ready`       | The number of ready replicas of the workload.                                                                       |
+| `rolloutplugin_workload_replicas_available`   | The number of available replicas of the workload.                                                                   |
+| `rolloutplugin_workload_replicas_unavailable` | The number of desired replicas of the workload that are not available.                                              |
+| `rolloutplugin_reconcile`                     | RolloutPlugin reconciliation performance.                                                                           |
+| `rolloutplugin_reconcile_error`               | Error occurring during the RolloutPlugin reconciliation.                                                            |
+| `rolloutplugin_events_total`                  | Count of RolloutPlugin events, with `type` and `reason` labels.                                                     |
+
+The `phase` label of `rolloutplugin_info` is one of:
+
+* `Healthy`: no rollout is in progress and the workload is healthy.
+* `Progressing`: a rollout is in progress.
+* `Paused`: the rollout is paused.
+* `Aborted`: the rollout was aborted.
+* `Timeout`: the rollout timed out.
+* `Error`: the controller failed to reconcile the rollout, or an AnalysisRun failed.
+* `InvalidSpec`: the spec is invalid. This takes precedence over the other values.
 
 The RolloutPlugin controller is built on [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime),
 so the controller also publishes its `controller_runtime_*` metrics, such as `controller_runtime_reconcile_total` and

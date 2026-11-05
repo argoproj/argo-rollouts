@@ -118,15 +118,21 @@ type ResourcePlugin interface {
 	Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
 
 	// DeletionCleanup is called when the RolloutPlugin is deleted, and retried until it succeeds
-	// since the deletion waits for it. It must leave the workload's spec as it is and only drop the
-	// plugin's claim on it (e.g. its Server-Side Apply field ownership), so another owner such as
-	// Argo CD sees the values the plugin left as drift. It is called even if Validate never
-	// passed, so a workloadRef the plugin doesn't manage, or a missing workload, isn't an error and doesn't block deletion.
+	// since the deletion waits for it. It must release the plugin's hold on the workload so the
+	// workload's own update strategy takes over, without overwriting values another owner such as
+	// Argo CD also manages (e.g. by dropping its Server-Side Apply field ownership). It is called
+	// even if Validate never passed, so a workloadRef the plugin doesn't manage, or a missing
+	// workload, isn't an error and doesn't block deletion.
 	DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error
 }
 
 // DeletionCleanupFinalizer keeps a deleted RolloutPlugin until its plugin's DeletionCleanup succeeds.
 const DeletionCleanupFinalizer = "rolloutplugin.argoproj.io/deletion-cleanup"
+
+// errorRetryDelay is how long a rollout processing or deletion cleanup error waits before it is
+// retried. These errors are reported on every attempt, so like Rollouts' step plugins they're
+// retried after a fixed delay rather than the work queue's backoff, which starts within milliseconds.
+const errorRetryDelay = 30 * time.Second
 
 // abortRollback calls plugin.Abort (which may only complete one unit of work, e.g. one pod of a
 // multi-replica StatefulSet rollback) and reports whether the rollback has fully converged, along
@@ -183,13 +189,8 @@ func (r *RolloutPluginReconciler) reconcileAbort(ctx context.Context, rolloutPlu
 	doneRollback, abortedRevision, abortErr := abortRollback(ctx, plugin, rolloutPlugin)
 	if abortErr != nil {
 		logCtx.WithError(abortErr).Error("Failed to abort rollout")
-		newStatus.Message = fmt.Sprintf("Failed to abort rollout: %v", abortErr)
-		condition := conditions.NewRolloutPluginCondition(
-			v1alpha1.RolloutPluginConditionProgressing,
-			corev1.ConditionFalse,
-			conditions.RolloutPluginReconciliationErrorReason,
-			newStatus.Message)
-		conditions.SetRolloutPluginCondition(newStatus, *condition)
+		r.setReconciliationError(rolloutPlugin, newStatus, fmt.Errorf("failed to abort rollout: %w", abortErr),
+			fmt.Sprintf("Failed to abort rollout: %v", abortErr))
 		return false, ctrl.Result{RequeueAfter: 1 * time.Second}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 	if !doneRollback {
@@ -342,7 +343,7 @@ func (r *RolloutPluginReconciler) handleDeletion(ctx context.Context, rolloutPlu
 		if r.Recorder != nil {
 			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: "RolloutPluginDeletionCleanupFailed"}, msg)
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: errorRetryDelay}, nil
 	}
 
 	finalizers := slices.DeleteFunc(slices.Clone(rolloutPlugin.Finalizers), func(f string) bool { return f == DeletionCleanupFinalizer })
@@ -380,18 +381,9 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	pCtx := &pauseContext{rolloutPlugin: rolloutPlugin, log: logCtx}
 
 	prevInvalidSpecCond := conditions.GetRolloutPluginCondition(rolloutPlugin.Status, v1alpha1.RolloutPluginConditionInvalidSpec)
-	invalidSpecCond := verifyRolloutPluginSpec(rolloutPlugin, prevInvalidSpecCond)
-	if invalidSpecCond != nil {
-		logCtx.WithField("reason", invalidSpecCond.Message).Warn("RolloutPlugin spec validation failed")
-
-		if r.Recorder != nil {
-			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{
-				EventReason: conditions.RolloutPluginInvalidSpecReason,
-			}, invalidSpecCond.Message)
-		}
-
-		newStatus.Message = invalidSpecCond.Message
-		conditions.SetRolloutPluginCondition(newStatus, *invalidSpecCond)
+	if msg := validation.ValidateRolloutPlugin(rolloutPlugin); msg != "" {
+		logCtx.WithField("reason", msg).Warn("RolloutPlugin spec validation failed")
+		r.setInvalidSpec(rolloutPlugin, newStatus, msg)
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 
@@ -416,14 +408,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 			conditions.SetRolloutPluginCondition(newStatus, *condition)
 			return ctrl.Result{RequeueAfter: 1 * time.Second}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 		}
-		newStatus.Message = fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'resourcePlugins'", rolloutPlugin.Spec.Plugin.Name)
-		pluginNotFoundCond := conditions.NewRolloutPluginCondition(
-			v1alpha1.RolloutPluginConditionInvalidSpec,
-			corev1.ConditionTrue,
-			conditions.RolloutPluginInvalidSpecReason,
-			newStatus.Message,
-		)
-		conditions.SetRolloutPluginCondition(newStatus, *pluginNotFoundCond)
+		r.setInvalidSpec(rolloutPlugin, newStatus, fmt.Sprintf("Plugin '%s' not found. Ensure the plugin is registered in the argo-rollouts-config ConfigMap under 'resourcePlugins'", rolloutPlugin.Spec.Plugin.Name))
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 
@@ -435,16 +420,7 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 	if err != nil {
 		msg := fmt.Sprintf("Plugin '%s' rejected the spec: %s", rolloutPlugin.Spec.Plugin.Name, err.Error())
 		logCtx.WithField("reason", msg).Warn("RolloutPlugin spec validation by plugin failed")
-		// Reuse the previous condition when unchanged so re-validation doesn't churn its timestamps.
-		invalidCond := prevInvalidSpecCond
-		if invalidCond == nil || invalidCond.Message != msg {
-			invalidCond = conditions.NewRolloutPluginCondition(v1alpha1.RolloutPluginConditionInvalidSpec, corev1.ConditionTrue, conditions.RolloutPluginInvalidSpecReason, msg)
-			if r.Recorder != nil {
-				r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginInvalidSpecReason}, msg)
-			}
-		}
-		newStatus.Message = msg
-		conditions.SetRolloutPluginCondition(newStatus, *invalidCond)
+		r.setInvalidSpec(rolloutPlugin, newStatus, msg)
 		return ctrl.Result{}, r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx)
 	}
 
@@ -542,6 +518,11 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		}
 	} else if newStatus.Phase == v1alpha1.RolloutPluginPhasePaused && !rolloutPlugin.Spec.Paused && len(newStatus.PauseConditions) == 0 {
 		logCtx.Info("Manual resume detected, clearing pause state")
+		if r.Recorder != nil {
+			r.Recorder.Eventf(rolloutPlugin, record.EventOptions{
+				EventReason: conditions.RolloutPluginResumedReason,
+			}, conditions.RolloutPluginResumedMessage)
+		}
 		newStatus.Message = "Rollout resumed"
 	}
 
@@ -814,7 +795,25 @@ func (r *RolloutPluginReconciler) reconcile(ctx context.Context, rolloutPlugin *
 		result, err := r.processRollout(ctx, rolloutPlugin, newStatus, plugin, pCtx, logCtx)
 		if err != nil {
 			logCtx.WithError(err).Error("Failed to process rollout")
-			return result, err
+			if apierrors.IsConflict(err) {
+				return result, err
+			}
+			// Persist the error message and the progress made before the
+			// error (e.g. a rollout that just started), then retry. The rollout stays Progressing,
+			// so spec.timeoutSeconds still applies to an error that persists.
+			if r.Recorder != nil {
+				r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginReconciliationErrorReason},
+					conditions.RolloutPluginReconciliationErrorMessage, err)
+			}
+			pCtx.CalculatePauseStatus(newStatus)
+			if updateErr := r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx); updateErr != nil {
+				return ctrl.Result{}, updateErr
+			}
+			// Not returned as an error, which would retry with backoff instead, so count it here.
+			if r.MetricsServer != nil {
+				r.MetricsServer.IncError(rolloutPlugin.Namespace, rolloutPlugin.Name, logutil.RolloutPluginKey)
+			}
+			return ctrl.Result{RequeueAfter: errorRetryDelay}, nil
 		}
 		pCtx.CalculatePauseStatus(newStatus)
 		if err := r.updateStatus(ctx, rolloutPlugin, newStatus, logCtx); err != nil {
@@ -927,6 +926,27 @@ func checkPausedConditions(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1a
 	return nil
 }
 
+// setReconciliationError sets status.message to msg and the Progressing condition to
+// ReconciliationError, and reports err as a warning event unless the persisted condition already
+// records the same error. Like setInvalidSpec, comparing with the persisted condition reports an
+// error once while it repeats, and keeps the condition's timestamps.
+func (r *RolloutPluginReconciler) setReconciliationError(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, err error, msg string) {
+	newStatus.Message = msg
+	condition := *conditions.NewRolloutPluginCondition(
+		v1alpha1.RolloutPluginConditionProgressing,
+		corev1.ConditionFalse,
+		conditions.RolloutPluginReconciliationErrorReason,
+		msg)
+	if prev := conditions.GetRolloutPluginCondition(rolloutPlugin.Status, v1alpha1.RolloutPluginConditionProgressing); prev != nil &&
+		prev.Reason == condition.Reason && prev.Message == condition.Message {
+		condition = *prev
+	} else if r.Recorder != nil {
+		r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginReconciliationErrorReason},
+			conditions.RolloutPluginReconciliationErrorMessage, err)
+	}
+	conditions.SetRolloutPluginCondition(newStatus, condition)
+}
+
 // processRollout processes the rollout steps based on strategy
 func (r *RolloutPluginReconciler) processRollout(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, plugin ResourcePlugin, pCtx *pauseContext, logCtx *log.Entry) (ctrl.Result, error) {
 	strategy := rolloutPlugin.Spec.Strategy
@@ -954,22 +974,9 @@ func (r *RolloutPluginReconciler) processCanaryRollout(ctx context.Context, roll
 	// rejects) is surfaced in status, like a failed GetResourceStatus, and retried.
 	analysisAbortMessage, err := r.reconcileAnalysisRunsForStatus(ctx, rolloutPlugin, newStatus, pCtx, logCtx)
 	if err != nil {
-		newStatus.Message = fmt.Sprintf("Failed to reconcile AnalysisRuns: %v", err)
-		condition := *conditions.NewRolloutPluginCondition(
-			v1alpha1.RolloutPluginConditionProgressing,
-			corev1.ConditionFalse,
-			conditions.RolloutPluginReconciliationErrorReason,
-			newStatus.Message)
-		// The stale-error clear above resets this condition on every reconcile, so keep the
-		// persisted one while the same error repeats rather than rewriting it and re-emitting.
-		if prev := conditions.GetRolloutPluginCondition(rolloutPlugin.Status, v1alpha1.RolloutPluginConditionProgressing); prev != nil &&
-			prev.Reason == condition.Reason && prev.Message == condition.Message {
-			condition = *prev
-		} else if r.Recorder != nil {
-			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginReconciliationErrorReason},
-				conditions.RolloutPluginReconciliationErrorMessage, err)
-		}
-		conditions.SetRolloutPluginCondition(newStatus, condition)
+		// The stale-error clear above resets the condition on every reconcile;
+		// setReconciliationError keeps the persisted one while the same error repeats.
+		r.setReconciliationError(rolloutPlugin, newStatus, err, fmt.Sprintf("Failed to reconcile AnalysisRuns: %v", err))
 		return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 	}
 
@@ -1398,13 +1405,7 @@ func (r *RolloutPluginReconciler) validateReferencedResources(ctx context.Contex
 			if err != nil {
 				logCtx.WithError(err).Error("Failed to fetch step analysis templates")
 				msg := fmt.Sprintf("Failed to fetch analysis templates for step %d: %v", i, err)
-				invalidCond := conditions.NewRolloutPluginCondition(
-					v1alpha1.RolloutPluginConditionInvalidSpec,
-					corev1.ConditionTrue,
-					conditions.RolloutPluginInvalidSpecReason,
-					msg)
-				conditions.SetRolloutPluginCondition(newStatus, *invalidCond)
-				newStatus.Message = msg
+				r.setInvalidSpec(rolloutPlugin, newStatus, msg)
 				return fmt.Errorf("%s", msg)
 			}
 			allTemplatesWithType = append(allTemplatesWithType, *templatesWithType)
@@ -1416,13 +1417,7 @@ func (r *RolloutPluginReconciler) validateReferencedResources(ctx context.Contex
 		if err != nil {
 			logCtx.WithError(err).Error("Failed to fetch background analysis templates")
 			msg := fmt.Sprintf("Failed to fetch background analysis templates: %v", err)
-			invalidCond := conditions.NewRolloutPluginCondition(
-				v1alpha1.RolloutPluginConditionInvalidSpec,
-				corev1.ConditionTrue,
-				conditions.RolloutPluginInvalidSpecReason,
-				msg)
-			conditions.SetRolloutPluginCondition(newStatus, *invalidCond)
-			newStatus.Message = msg
+			r.setInvalidSpec(rolloutPlugin, newStatus, msg)
 			return fmt.Errorf("%s", msg)
 		}
 		allTemplatesWithType = append(allTemplatesWithType, *templatesWithType)
@@ -1439,18 +1434,7 @@ func (r *RolloutPluginReconciler) validateReferencedResources(ctx context.Contex
 	if len(errs) > 0 {
 		msg := errs[0].Error()
 		logCtx.WithField("error", msg).Warn("Reference validation failed")
-		invalidCond := conditions.NewRolloutPluginCondition(
-			v1alpha1.RolloutPluginConditionInvalidSpec,
-			corev1.ConditionTrue,
-			conditions.RolloutPluginInvalidSpecReason,
-			msg)
-		conditions.SetRolloutPluginCondition(newStatus, *invalidCond)
-		newStatus.Message = msg
-		if r.Recorder != nil {
-			r.Recorder.Warnf(rolloutPlugin, record.EventOptions{
-				EventReason: conditions.RolloutPluginInvalidSpecReason,
-			}, msg)
-		}
+		r.setInvalidSpec(rolloutPlugin, newStatus, msg)
 		return fmt.Errorf("%s", msg)
 	}
 	return nil
@@ -1756,15 +1740,12 @@ func (r *RolloutPluginReconciler) findRolloutPluginsForWorkload(ctx context.Cont
 	return requests
 }
 
-// verifyRolloutPluginSpec validates the RolloutPlugin spec and returns an InvalidSpec condition if invalid.
-func verifyRolloutPluginSpec(rolloutPlugin *v1alpha1.RolloutPlugin, prevCond *v1alpha1.RolloutPluginCondition) *v1alpha1.RolloutPluginCondition {
-	msg := validation.ValidateRolloutPlugin(rolloutPlugin)
-	if msg == "" {
-		return nil
+// setInvalidSpec marks the spec invalid with msg. The warning event, and so the invalid-spec
+// notification, is sent only when the condition is new or its message changed, not on every reconcile.
+func (r *RolloutPluginReconciler) setInvalidSpec(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus, msg string) {
+	newStatus.Message = msg
+	cond := conditions.NewRolloutPluginCondition(v1alpha1.RolloutPluginConditionInvalidSpec, corev1.ConditionTrue, conditions.RolloutPluginInvalidSpecReason, msg)
+	if conditions.SetRolloutPluginCondition(newStatus, *cond) && r.Recorder != nil {
+		r.Recorder.Warnf(rolloutPlugin, record.EventOptions{EventReason: conditions.RolloutPluginInvalidSpecReason}, msg)
 	}
-	if prevCond != nil && prevCond.Message == msg {
-		prevCond.LastUpdateTime = timeutil.MetaNow()
-		return prevCond
-	}
-	return conditions.NewRolloutPluginCondition(v1alpha1.RolloutPluginConditionInvalidSpec, corev1.ConditionTrue, conditions.RolloutPluginInvalidSpecReason, msg)
 }

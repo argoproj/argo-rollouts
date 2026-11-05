@@ -2,12 +2,13 @@ package statefulset
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -226,6 +228,57 @@ func terminating(pod client.Object) client.Object {
 	p.DeletionTimestamp = &now
 	p.Finalizers = []string{"test/keep"}
 	return p
+}
+
+// TestSetWeight_WarnsWhenPartitionOverridden verifies SetWeight logs a warning naming the other
+// field manager once when the partition it applied was changed, and restores the partition. The
+// applied partition is read from the StatefulSet, so another Plugin instance (e.g. after a
+// controller restart) detects the change too.
+func TestSetWeight_WarnsWhenPartitionOverridden(t *testing.T) {
+	c := fake.NewClientBuilder().
+		WithScheme(testScheme(t)).
+		WithObjects(newSts(withReplicas(4))).
+		WithReturnManagedFields().
+		Build()
+	logger, hook := logtest.NewNullLogger()
+	p := &Plugin{logCtx: log.NewEntry(logger), client: c, apiReader: c}
+	ctx := context.Background()
+	warnings := func() []*log.Entry {
+		var entries []*log.Entry
+		for _, e := range hook.AllEntries() {
+			if e.Level == log.WarnLevel {
+				entries = append(entries, e)
+			}
+		}
+		return entries
+	}
+	get := func() *appsv1.StatefulSet {
+		var sts appsv1.StatefulSet
+		require.NoError(t, c.Get(ctx, client.ObjectKey{Namespace: "default", Name: "sts"}, &sts))
+		return &sts
+	}
+
+	require.NoError(t, p.SetWeight(ctx, testRP, 50))
+	require.NoError(t, p.SetWeight(ctx, testRP, 75), "a step change is the plugin's own write")
+	assert.Empty(t, warnings())
+	assert.Equal(t, "1", get().Annotations[PartitionAnnotation])
+
+	override := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "StatefulSet",
+		"metadata":   map[string]any{"name": "sts", "namespace": "default"},
+		"spec":       map[string]any{"updateStrategy": map[string]any{"rollingUpdate": map[string]any{"partition": int64(0)}}},
+	}}
+	require.NoError(t, c.Patch(ctx, override, client.Apply, client.ForceOwnership, client.FieldOwner("argocd-controller")))
+
+	p = &Plugin{logCtx: log.NewEntry(logger), client: c, apiReader: c}
+	require.NoError(t, p.SetWeight(ctx, testRP, 75))
+	require.NoError(t, p.SetWeight(ctx, testRP, 75))
+	require.Len(t, warnings(), 1)
+	assert.Equal(t, []string{"argocd-controller"}, warnings()[0].Data["managers"])
+	assert.Equal(t, int32(1), warnings()[0].Data["appliedPartition"])
+	assert.Equal(t, int32(0), warnings()[0].Data["partition"])
+	assert.Equal(t, int32(1), *get().Spec.UpdateStrategy.RollingUpdate.Partition)
 }
 
 func TestVerifyWeight(t *testing.T) {
@@ -484,150 +537,155 @@ func TestRestart_BlocksPartition(t *testing.T) {
 		"restart must block the partition so recreated pods land on CurrentRevision")
 }
 
-// TestDeletionCleanup verifies the plugin drops only its own Server-Side Apply ownership of the
-// partition on deletion: other owners' entries and the partition value are left as they are, and
-// a workload it doesn't manage or that is gone is not an error.
+// TestDeletionCleanup verifies the plugin releases the partition with an empty Server-Side Apply
+// on deletion: as the only owner the partition is removed (the API server defaults it to 0), while
+// a value another manager also applied is kept. A workload it doesn't manage or that is gone is
+// not an error.
 func TestDeletionCleanup(t *testing.T) {
 	stsRef := v1alpha1.WorkloadRef{APIVersion: "apps/v1", Kind: "StatefulSet", Name: "sts"}
-	entry := func(manager string, op metav1.ManagedFieldsOperationType) metav1.ManagedFieldsEntry {
-		return metav1.ManagedFieldsEntry{
-			Manager: manager, Operation: op, APIVersion: "apps/v1", FieldsType: "FieldsV1",
-			FieldsV1: &metav1.FieldsV1{Raw: []byte(`{"f:spec":{"f:updateStrategy":{"f:rollingUpdate":{"f:partition":{}}}}}`)},
+	applyPartition := func(t *testing.T, c client.Client, manager string) {
+		t.Helper()
+		if manager == FieldManager {
+			require.NoError(t, (&Plugin{logCtx: log.WithField("test", t.Name()), client: c}).patchPartition(context.Background(), "sts", "default", 2))
+			return
 		}
-	}
-	argocd := entry("argocd-controller", metav1.ManagedFieldsOperationApply)
-	plugin := entry(FieldManager, metav1.ManagedFieldsOperationApply)
-
-	// patchMetadata is the metadata a cleanup patch writes; the patch must not touch the spec.
-	type patchMetadata struct {
-		Metadata struct {
-			ManagedFields   []metav1.ManagedFieldsEntry `json:"managedFields"`
-			ResourceVersion string                      `json:"resourceVersion"`
-		} `json:"metadata"`
-		Spec map[string]any `json:"spec"`
+		u := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata":   map[string]any{"name": "sts", "namespace": "default"},
+			"spec":       map[string]any{"updateStrategy": map[string]any{"rollingUpdate": map[string]any{"partition": int64(2)}}},
+		}}
+		require.NoError(t, c.Patch(context.Background(), u, client.Apply, client.FieldOwner(manager)))
 	}
 
 	tests := []struct {
 		name        string
 		workloadRef v1alpha1.WorkloadRef
-		sts         *appsv1.StatefulSet
-		getErr      error
-		patchErr    error
-		// wantManagedFields is the managedFields the patch sets; nil means no patch is expected.
-		wantManagedFields []metav1.ManagedFieldsEntry
-		wantErr           string
+		// managers apply partition 2, in order, before the cleanup.
+		managers      []string
+		noWorkload    bool
+		getErr        error
+		patchErr      error
+		wantPatch     bool
+		wantPartition *int32
+		wantErr       string
 	}{
 		{
-			name:              "drops only the plugin's entry",
-			workloadRef:       stsRef,
-			sts:               newSts(withPartition(2)),
-			wantManagedFields: []metav1.ManagedFieldsEntry{argocd},
-		},
-		{
-			name:        "sole entry is cleared with a single empty entry",
+			name:        "sole owner removes the partition",
 			workloadRef: stsRef,
-			sts: func() *appsv1.StatefulSet {
-				sts := newSts(withPartition(2))
-				sts.ManagedFields = []metav1.ManagedFieldsEntry{plugin}
-				return sts
-			}(),
-			wantManagedFields: []metav1.ManagedFieldsEntry{{}},
+			managers:    []string{FieldManager},
+			wantPatch:   true,
 		},
 		{
-			name:        "no entry of the plugin is a no-op",
-			workloadRef: stsRef,
-			sts: func() *appsv1.StatefulSet {
-				sts := newSts(withPartition(2))
-				sts.ManagedFields = []metav1.ManagedFieldsEntry{argocd}
-				return sts
-			}(),
+			name:          "value another manager also applied is kept",
+			workloadRef:   stsRef,
+			managers:      []string{"argocd-controller", FieldManager},
+			wantPatch:     true,
+			wantPartition: ptr.To(int32(2)),
 		},
 		{
-			name:        "workloadRef the plugin doesn't manage is a no-op",
-			workloadRef: v1alpha1.WorkloadRef{APIVersion: "apps/v1", Kind: "Deployment", Name: "sts"},
-			sts:         newSts(withPartition(2)),
+			name:          "no entry of the plugin is a no-op",
+			workloadRef:   stsRef,
+			managers:      []string{"argocd-controller"},
+			wantPartition: ptr.To(int32(2)),
+		},
+		{
+			name:          "workloadRef the plugin doesn't manage is a no-op",
+			workloadRef:   v1alpha1.WorkloadRef{APIVersion: "apps/v1", Kind: "Deployment", Name: "sts"},
+			managers:      []string{FieldManager},
+			wantPartition: ptr.To(int32(2)),
 		},
 		{
 			name:        "missing workload is a no-op",
 			workloadRef: stsRef,
+			noWorkload:  true,
 		},
 		{
-			name:        "read error is returned",
-			workloadRef: stsRef,
-			sts:         newSts(withPartition(2)),
-			getErr:      fmt.Errorf("connection refused"),
-			wantErr:     "failed to get StatefulSet: connection refused",
+			name:          "read error is returned",
+			workloadRef:   stsRef,
+			managers:      []string{FieldManager},
+			getErr:        fmt.Errorf("connection refused"),
+			wantErr:       "failed to get StatefulSet: connection refused",
+			wantPartition: ptr.To(int32(2)),
 		},
 		{
-			name:              "patch error is returned",
-			workloadRef:       stsRef,
-			sts:               newSts(withPartition(2)),
-			patchErr:          apierrors.NewConflict(appsv1.Resource("statefulsets"), "sts", fmt.Errorf("modified")),
-			wantManagedFields: []metav1.ManagedFieldsEntry{argocd},
-			wantErr:           "failed to drop partition ownership",
+			name:          "patch error is returned",
+			workloadRef:   stsRef,
+			managers:      []string{FieldManager},
+			patchErr:      fmt.Errorf("connection refused"),
+			wantPatch:     true,
+			wantErr:       "failed to release partition: connection refused",
+			wantPartition: ptr.To(int32(2)),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			objs := []client.Object{}
-			if tt.sts != nil {
-				if tt.sts.ManagedFields == nil {
-					tt.sts.ManagedFields = []metav1.ManagedFieldsEntry{argocd, plugin}
-				}
-				objs = append(objs, tt.sts)
+			var objs []client.Object
+			if !tt.noWorkload {
+				objs = append(objs, newSts())
 			}
-			var patches []patchMetadata
+			cleaningUp := false
+			var patchTypes []types.PatchType
 			c := fake.NewClientBuilder().
 				WithScheme(testScheme(t)).
 				WithObjects(objs...).
 				WithReturnManagedFields().
 				WithInterceptorFuncs(interceptor.Funcs{
 					Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if tt.getErr != nil {
+						if cleaningUp && tt.getErr != nil {
 							return tt.getErr
 						}
 						return cl.Get(ctx, key, obj, opts...)
 					},
 					Patch: func(ctx context.Context, cl client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						assert.Equal(t, types.MergePatchType, patch.Type())
-						data, err := patch.Data(obj)
-						require.NoError(t, err)
-						var p patchMetadata
-						require.NoError(t, json.Unmarshal(data, &p))
-						patches = append(patches, p)
-						if tt.patchErr != nil {
-							return tt.patchErr
+						if cleaningUp {
+							patchTypes = append(patchTypes, patch.Type())
+							if tt.patchErr != nil {
+								return tt.patchErr
+							}
 						}
 						return cl.Patch(ctx, obj, patch, opts...)
 					},
 				}).
 				Build()
+			for _, m := range tt.managers {
+				applyPartition(t, c, m)
+			}
 			p := &Plugin{logCtx: log.WithField("test", t.Name()), client: c, apiReader: c}
 
+			cleaningUp = true
 			err := p.DeletionCleanup(context.Background(), rolloutPluginFor("default", tt.workloadRef))
+			cleaningUp = false
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}
-
-			if tt.wantManagedFields == nil {
-				assert.Empty(t, patches, "no patch expected")
-				return
+			if tt.wantPatch {
+				assert.Equal(t, []types.PatchType{types.ApplyPatchType}, patchTypes)
+			} else {
+				assert.Empty(t, patchTypes, "no patch expected")
 			}
-			require.Len(t, patches, 1)
-			assert.Equal(t, tt.wantManagedFields, patches[0].Metadata.ManagedFields)
-			assert.NotEmpty(t, patches[0].Metadata.ResourceVersion, "the patch must be guarded by an optimistic lock")
-			assert.Nil(t, patches[0].Spec, "the partition value must be left as it is")
-			if tt.patchErr != nil {
+			if tt.noWorkload {
 				return
 			}
 
 			var got appsv1.StatefulSet
 			require.NoError(t, c.Get(context.Background(), client.ObjectKey{Namespace: "default", Name: "sts"}, &got))
-			assert.Equal(t, int32(2), *got.Spec.UpdateStrategy.RollingUpdate.Partition)
-			for _, e := range got.ManagedFields {
-				assert.NotEqual(t, FieldManager, e.Manager, "the plugin must no longer own any field")
+			var partition *int32
+			if got.Spec.UpdateStrategy.RollingUpdate != nil {
+				partition = got.Spec.UpdateStrategy.RollingUpdate.Partition
+			}
+			assert.Equal(t, tt.wantPartition, partition)
+			if tt.wantPatch && tt.patchErr == nil {
+				assert.NotContains(t, got.Annotations, PartitionAnnotation)
+				for _, e := range got.ManagedFields {
+					assert.NotEqual(t, FieldManager, e.Manager, "the plugin must no longer own any field")
+				}
+				for _, m := range tt.managers[:len(tt.managers)-1] {
+					assert.True(t, slices.ContainsFunc(got.ManagedFields, func(e metav1.ManagedFieldsEntry) bool { return e.Manager == m }),
+						"%s must keep its ownership", m)
+				}
 			}
 		})
 	}

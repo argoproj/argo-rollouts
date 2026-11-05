@@ -39,7 +39,7 @@ type RpcResourcePlugin interface {
 	Abort(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Restart prepares an aborted rollout to start again from step 0.
 	Restart(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
-	// DeletionCleanup drops the plugin's claim on the workload when the RolloutPlugin is deleted.
+	// DeletionCleanup releases the plugin's hold on the workload when the RolloutPlugin is deleted.
 	DeletionCleanup(rolloutPlugin *v1alpha1.RolloutPlugin) RpcError
 	// Type returns a name for the plugin.
 	Type() string
@@ -81,10 +81,14 @@ Every workload method receives the whole RolloutPlugin, including its namespace,
 The controller completes a rollout when `StableRevision` equals `UpdatedRevision`, `UpdatedReplicas` equals
 `DesiredReplicas` and `Ready` is true. It completes an abort when `UpdatedReplicas` is 0 and `Ready` is true. If
 `Ready` is reported too early, for example from a cache that hasn't seen the plugin's own last write, the controller
-may complete before the workload has.
+may complete before the workload has. Like a Rollout, the RolloutPlugin is only `Healthy` while `UpdatedReplicas` and
+`AvailableReplicas` are at least `DesiredReplicas`, so a plugin must report `AvailableReplicas`.
 
-Revision values are free-form strings, but they appear in AnalysisRun names and in the `podTemplateHashValue`
-analysis arguments, so keep them short and stable, for example a hash of the workload's template.
+Revision values appear in AnalysisRun names (`<rolloutplugin-name>-<revision>-<suffix>`) and in the
+`podTemplateHashValue` analysis arguments. Use only characters that are valid in a Kubernetes object name (lowercase
+letters, digits, `-` and `.`), and keep them short and stable, for example a hash of the workload's template. If an
+AnalysisRun can't be created, for example because of an invalid name, the controller sets
+`RolloutPluginReconciliationError` and retries.
 
 ## When each method is called
 
@@ -97,11 +101,15 @@ analysis arguments, so keep them short and stable, for example a hash of the wor
 | `SetWeight`         | Every reconcile of a step: with the step's weight for `setWeight`, and the last `setWeight` (0 if none) for `pause` and `analysis` steps. | Move `weight`% of the workload to `UpdatedRevision`, and the rest to `StableRevision`. 0 means none. Keep converging the workload toward the weight on later calls, for example after a scale-up.            |
 | `VerifyWeight`      | After `SetWeight` on a `setWeight` step, until it returns `true`.                                              | Return `true` once the weight has been reached and is healthy enough to move on. The step stalls until then.                                                                                                                      |
 | `PromoteFull`       | Every reconcile after the last step or a promote full, until the rollout completes.                           | Move the whole workload to `UpdatedRevision`. If the workload's latest revision isn't the RolloutPlugin's `status.updatedRevision`, don't roll it out: a newer revision gets its own rollout.                                  |
-| `Abort`             | Every reconcile of an abort, until it completes. Not called when `StableRevision` already equals `UpdatedRevision`: there is nothing to roll back to. | Move the whole workload back to `StableRevision`. An error sets `RolloutPluginReconciliationError`; the controller retries.                                                                                                                  |
+| `Abort`             | Every reconcile of an abort, until it completes. Not called when `StableRevision` already equals `UpdatedRevision`: there is nothing to roll back to. | Move the whole workload back to `StableRevision`. An error sets `RolloutPluginReconciliationError`, is reported once as a warning event, and is retried.                                                     |
 | `Restart`           | Once, when a user restarts an aborted rollout.                                                                 | Undo anything that would skip steps, so the rollout starts again from 0% on the new revision. An error is reported in `status.message` and the restart is cleared.                                                               |
 | `DeletionCleanup`   | When the RolloutPlugin is deleted, until it succeeds.                                                          | See [Deleting](#deleting).                                                                                                                                                                                                        |
 
-Other errors make the controller retry the reconcile with backoff.
+An error from `SetWeight`, `VerifyWeight` or `PromoteFull` is reported as a `RolloutPluginReconciliationError` warning
+event on every attempt and, unless the rollout is paused, shown in `status.message`. The controller retries every 30
+seconds. The
+rollout stays `Progressing`, so [`timeoutSeconds`](specification.md#timeoutseconds-and-timeoutabort) still applies if
+the error persists. Other errors make the controller retry the reconcile with backoff.
 
 ## Design rules
 
@@ -126,8 +134,10 @@ Other errors make the controller retry the reconcile with backoff.
 The controller holds a deleted RolloutPlugin with the `rolloutplugin.argoproj.io/deletion-cleanup` finalizer until
 `DeletionCleanup` succeeds. It must:
 
-* leave the workload's spec as it is, and only drop the plugin's claim on it, for example its Server-Side Apply field
-  ownership, so the workload's owner (such as Argo CD) sees the plugin's values as drift and can restore its own;
+* release the plugin's hold on the workload so its own update strategy takes over, without overwriting values another
+  owner such as Argo CD also manages. With Server-Side Apply, an apply from the plugin's field manager that sets no
+  fields does this: the API server removes the fields only the plugin owned and keeps those another manager also
+  applied;
 * return no error for a missing workload or a `workloadRef` the plugin doesn't manage: it is called even if `Validate`
   never passed.
 

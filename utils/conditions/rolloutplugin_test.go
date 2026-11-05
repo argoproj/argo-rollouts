@@ -101,3 +101,37 @@ func TestRolloutPluginMadeProgress(t *testing.T) {
 		})
 	}
 }
+
+// TestRolloutPluginIsHealthy verifies health requires a finished rollout with every replica on
+// the stable revision and available.
+func TestRolloutPluginIsHealthy(t *testing.T) {
+	converged := v1alpha1.RolloutPluginStatus{
+		DesiredReplicas:   3,
+		UpdatedReplicas:   3,
+		AvailableReplicas: 3,
+		StableRevision:    "rev-2",
+		UpdatedRevision:   "rev-2",
+	}
+	tests := []struct {
+		name   string
+		mutate func(s *v1alpha1.RolloutPluginStatus)
+		want   bool
+	}{
+		{name: "converged and available", mutate: func(s *v1alpha1.RolloutPluginStatus) {}, want: true},
+		{name: "aborted", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.Aborted = true }, want: false},
+		{name: "rollout in progress", mutate: func(s *v1alpha1.RolloutPluginStatus) {
+			s.Conditions = []v1alpha1.RolloutPluginCondition{{Type: v1alpha1.RolloutPluginConditionProgressing, Status: corev1.ConditionTrue}}
+		}, want: false},
+		{name: "no revision reported yet", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.StableRevision, s.UpdatedRevision = "", "" }, want: false},
+		{name: "stable behind updated", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.StableRevision = "rev-1" }, want: false},
+		{name: "replicas not updated", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.UpdatedReplicas = 2 }, want: false},
+		{name: "replica became unavailable", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.AvailableReplicas = 2 }, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status := converged.DeepCopy()
+			tt.mutate(status)
+			assert.Equal(t, tt.want, RolloutPluginIsHealthy(&v1alpha1.RolloutPlugin{}, status))
+		})
+	}
+}

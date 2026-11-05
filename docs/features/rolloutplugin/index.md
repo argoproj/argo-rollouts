@@ -171,8 +171,8 @@ my-app   Progressing   argoproj/statefulset   3m
 
 | Phase         | Meaning                                                                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Healthy`     | No rollout in progress; every pod runs the stable revision.                                                                                     |
-| `Progressing` | A rollout is executing its steps, or pods are being updated to a revision.                                                                      |
+| `Healthy`     | No rollout in progress; every pod runs the stable revision and is available.                                                                    |
+| `Progressing` | A rollout is executing its steps, or pods are being updated to a revision or becoming available.                                               |
 | `Paused`      | Paused at a pause step, manually paused (`spec.paused`), or paused by an inconclusive analysis.                                                 |
 | `Degraded`    | The spec is invalid, the rollout was aborted (manually, by a failed analysis or by `timeoutAbort`), timed out, or hit an error that is retried. |
 
@@ -250,8 +250,9 @@ data:
         return obj
 ```
 
-This example disables `promoteFull` for an aborted rollout; remove `or aborted` from its rule to allow promoting an
-aborted rollout, which the controller supports. If your Argo CD installation restricts RBAC, grant the
+This example disables `promoteFull` for an aborted rollout. To allow promoting an aborted rollout, which the controller
+supports, change its rule to `not (active or aborted)`: an aborted rollout is `Degraded`, so `active` is false. If your
+Argo CD installation restricts RBAC, grant the
 `argocd-server` and `argocd-application-controller` service accounts `get`, `list`, `watch`, `update` and `patch` on
 `rolloutplugins` and `rolloutplugins/status`.
 

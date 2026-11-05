@@ -165,7 +165,7 @@ func (c *PluginRPCClient) Restart(rolloutPlugin *v1alpha1.RolloutPlugin) types.R
 	return resp
 }
 
-// DeletionCleanup drops the plugin's claim on the workload of a deleted RolloutPlugin
+// DeletionCleanup releases the plugin's hold on the workload of a deleted RolloutPlugin
 func (c *PluginRPCClient) DeletionCleanup(rolloutPlugin *v1alpha1.RolloutPlugin) types.RpcError {
 	var resp types.RpcError
 	var args any = RolloutPluginArgs{RolloutPlugin: *rolloutPlugin}

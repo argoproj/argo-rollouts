@@ -96,7 +96,8 @@ label, so an analysis can select the canary pods with the `podTemplateHashValue:
 ## How each action is implemented
 
 The plugin only writes the partition, using Server-Side Apply with the field manager
-`argo-rollouts-statefulset-plugin`, and deletes pods when they need to move back to an older revision. It changes one
+`argo-rollouts-statefulset-plugin`, and deletes pods when they need to move back to an older revision. Each partition
+write also sets the `rolloutplugin.argoproj.io/partition` annotation to the value written. It changes one
 thing at a time, the partition or a single pod, and waits for each change to take effect before the next.
 
 | Action                       | What the plugin does                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -148,11 +149,13 @@ the stable revision.
 
 ## Argo CD
 
-The plugin only writes the partition. Leave `partition` out of the StatefulSet in git, as you would leave out
-`replicas` for a workload scaled by an HPA, and Argo CD neither tracks nor resets it.
+The plugin only writes the partition and its `rolloutplugin.argoproj.io/partition` annotation. Leave `partition` out
+of the StatefulSet in git, as you would leave out `replicas` for a workload scaled by an HPA, and Argo CD neither
+tracks nor resets it.
 
-If git does set `partition` (for example, a Helm chart renders it), ignore the fields the plugin owns on ArgoCD, so that Argo CD
-neither reports the partition as drift nor resets it on sync:
+If git does set `partition` (for example, a Helm chart renders it), ignore the fields the plugin owns, and add
+`RespectIgnoreDifferences=true`: `ignoreDifferences` alone only hides the drift, and a sync would still write the git
+value. This applies to both client-side and server-side apply:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -168,14 +171,30 @@ spec:
     - RespectIgnoreDifferences=true
 ```
 
+* The rule only hides the partition while the plugin owns it. Once the RolloutPlugin is deleted, Argo CD compares it
+  with git again.
+* Don't use the `Replace=true` sync option for the StatefulSet: a replace resets the partition, and with `Force=true`
+  it recreates every pod.
+* Removing `partition` from git can make the next sync remove it from the StatefulSet, which resets it to 0 and
+  updates the remaining pods. Do it only when no rollout is in progress, then check the live value.
+
+If another tool changes the partition during a rollout, so it no longer matches the annotation, the plugin sets it
+back and logs a warning naming that tool's field manager.
+
 See [Argo CD integration](index.md#argo-cd) for the RolloutPlugin health check and actions.
 
 ## Deleting a RolloutPlugin
 
-When a RolloutPlugin is deleted, the plugin gives up its ownership of the partition field, and leaves the partition
-value as it is. If git sets the partition, the StatefulSet then shows as OutOfSync with the Argo CD settings above,
-and a sync restores it. Otherwise, set the partition yourself (for example to 0) if you stop using a RolloutPlugin for
-the StatefulSet.
+When a RolloutPlugin is deleted, the plugin releases the partition and removes its annotation. The API server removes
+the partition unless another field manager also owns it:
+
+* If only the plugin owns the partition, it defaults to 0 and the StatefulSet's rolling update takes over. Deleting a
+  RolloutPlugin mid-rollout therefore updates the remaining pods.
+* If another manager also owns the partition, its value is kept. For example, a server-side apply sync by Argo CD
+  with the settings above, run after the plugin last changed the partition, shares its ownership. Argo CD then shows
+  the partition as drift if it differs from git, and a sync applies the git value.
+
+Check the partition after deleting a RolloutPlugin, and set it yourself if you need another value.
 
 ## RBAC
 
@@ -186,7 +205,8 @@ The plugin uses the controller's service account, which needs `get`, `list`, `wa
 ## Limitations
 
 * Only `apps/v1` StatefulSets with the `RollingUpdate` update strategy. With `OnDelete`, the RolloutPlugin reports an
-  error.
+  error. To switch a StatefulSet to `OnDelete`, delete the RolloutPlugin first and remove
+  `spec.updateStrategy.rollingUpdate`: the API server rejects `OnDelete` while it is set.
 * The weight is a percentage of pods, rounded up; there is no traffic routing. The canary pods are always the
   highest indexes.
 * Pods are rolled back one at a time, and each must become ready before the next.

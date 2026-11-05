@@ -226,7 +226,8 @@ func IsRolloutPluginInProgress(status *v1alpha1.RolloutPluginStatus) bool {
 		(cond.Status == corev1.ConditionUnknown && cond.Reason == RolloutPluginPausedReason)
 }
 
-// RolloutPluginIsHealthy returns true if the RolloutPlugin is considered healthy.
+// RolloutPluginIsHealthy returns true if the RolloutPlugin is considered healthy: no rollout in
+// progress, and, like a Rollout, every replica runs the stable revision and is available.
 func RolloutPluginIsHealthy(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1alpha1.RolloutPluginStatus) bool {
 	if newStatus.Aborted {
 		return false
@@ -237,5 +238,5 @@ func RolloutPluginIsHealthy(rolloutPlugin *v1alpha1.RolloutPlugin, newStatus *v1
 	if newStatus.StableRevision == "" || newStatus.StableRevision != newStatus.UpdatedRevision {
 		return false
 	}
-	return true
+	return newStatus.UpdatedReplicas >= newStatus.DesiredReplicas && newStatus.AvailableReplicas >= newStatus.DesiredReplicas
 }

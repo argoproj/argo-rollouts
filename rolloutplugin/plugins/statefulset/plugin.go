@@ -2,11 +2,13 @@ package statefulset
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +34,10 @@ import (
 const (
 	// FieldManager is the field manager name used for Server-Side Apply
 	FieldManager = "argo-rollouts-statefulset-plugin"
+
+	// PartitionAnnotation records the partition the plugin last applied, in the same apply, so a
+	// change by another field manager can be told apart from the plugin's own writes.
+	PartitionAnnotation = "rolloutplugin.argoproj.io/partition"
 
 	// blockedPartition holds every pod on CurrentRevision. It is far above any replica count so
 	// pods added by a scale-up are also created on CurrentRevision, not on the UpdateRevision.
@@ -130,17 +136,18 @@ func (p *Plugin) Validate(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPl
 	return nil
 }
 
-// patchPartition sets spec.updateStrategy.rollingUpdate.partition on the StatefulSet using
-// Server-Side Apply. The patch carries ONLY the partition field so it does not fight with
-// other owners (e.g. ArgoCD) over the rest of the spec.
+// patchPartition sets spec.updateStrategy.rollingUpdate.partition, and PartitionAnnotation, on the
+// StatefulSet using Server-Side Apply. The patch carries ONLY these fields so it does not fight
+// with other owners (e.g. ArgoCD) over the rest of the spec.
 func (p *Plugin) patchPartition(ctx context.Context, name, namespace string, partition int32) error {
 	stsPatch := &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": "apps/v1",
 			"kind":       "StatefulSet",
 			"metadata": map[string]any{
-				"name":      name,
-				"namespace": namespace,
+				"name":        name,
+				"namespace":   namespace,
+				"annotations": map[string]any{PartitionAnnotation: strconv.Itoa(int(partition))},
 			},
 			"spec": map[string]any{
 				"updateStrategy": map[string]any{
@@ -157,6 +164,49 @@ func (p *Plugin) patchPartition(ctx context.Context, name, namespace string, par
 	// The patch response carries the StatefulSet's post-write resourceVersion.
 	p.recordWrite(stsPatch)
 	return nil
+}
+
+// warnIfPartitionOverridden logs a warning when the partition is no longer the value recorded in
+// PartitionAnnotation, i.e. another field manager changed it mid-rollout. Both are written by
+// the same apply, so a cached StatefulSet that predates the plugin's latest write still matches.
+func (p *Plugin) warnIfPartitionOverridden(ctx context.Context, sts *appsv1.StatefulSet, current int32) {
+	applied, err := strconv.ParseInt(sts.Annotations[PartitionAnnotation], 10, 32)
+	if err != nil || int32(applied) == current {
+		return
+	}
+	logCtx := p.logCtx.WithFields(log.Fields{
+		"name":             sts.Name,
+		"namespace":        sts.Namespace,
+		"appliedPartition": int32(applied),
+		"partition":        current,
+	})
+	live := &appsv1.StatefulSet{}
+	if err := p.apiReader.Get(ctx, client.ObjectKeyFromObject(sts), live); err == nil {
+		var managers []string
+		for _, e := range live.ManagedFields {
+			if e.Manager != FieldManager && e.FieldsV1 != nil && ownsPartition(e.FieldsV1.Raw) {
+				managers = append(managers, e.Manager)
+			}
+		}
+		logCtx = logCtx.WithField("managers", managers)
+	}
+	logCtx.Warn("Partition was changed by another field manager during the rollout, restoring it")
+}
+
+// ownsPartition reports whether a managedFields entry's FieldsV1 includes the partition.
+func ownsPartition(raw []byte) bool {
+	var fields map[string]any
+	if json.Unmarshal(raw, &fields) != nil {
+		return false
+	}
+	for _, key := range []string{"f:spec", "f:updateStrategy", "f:rollingUpdate", "f:partition"} {
+		next, ok := fields[key].(map[string]any)
+		if !ok {
+			return false
+		}
+		fields = next
+	}
+	return true
 }
 
 func (p *Plugin) getVersionTracker() *resourceversion.Tracker {
@@ -479,6 +529,7 @@ func (p *Plugin) SetWeight(ctx context.Context, rolloutPlugin *v1alpha1.RolloutP
 	if currentPartition == partition {
 		return p.syncPodsToPartition(ctx, sts, partition)
 	}
+	p.warnIfPartitionOverridden(ctx, sts, currentPartition)
 
 	p.logCtx.WithFields(log.Fields{
 		"currentPartition": currentPartition,
@@ -706,9 +757,12 @@ func (p *Plugin) Restart(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlu
 	return nil
 }
 
-// DeletionCleanup drops this plugin's Server-Side Apply ownership of the partition and leaves its
-// value as it is. Another owner (e.g. Argo CD, ignoring fields this plugin manages) then sees the
-// partition as drift and can restore its own value.
+// DeletionCleanup releases this plugin's partition and PartitionAnnotation with a Server-Side
+// Apply that sets no fields.
+// The API server removes a field its last applier no longer sets unless another manager also owns
+// it: if the plugin was the only owner, the partition is removed and defaults to 0, so the
+// StatefulSet's standard rolling update takes over; if another owner (e.g. Argo CD) also applied
+// it, its value is kept.
 func (p *Plugin) DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.RolloutPlugin) error {
 	ref := rolloutPlugin.Spec.WorkloadRef
 	if ref.APIVersion != appsv1.SchemeGroupVersion.String() || ref.Kind != "StatefulSet" {
@@ -721,25 +775,24 @@ func (p *Plugin) DeletionCleanup(ctx context.Context, rolloutPlugin *v1alpha1.Ro
 		}
 		return fmt.Errorf("failed to get StatefulSet: %w", err)
 	}
-	managedFields := slices.DeleteFunc(slices.Clone(sts.ManagedFields), func(e metav1.ManagedFieldsEntry) bool {
-		return e.Manager == FieldManager
-	})
-	if len(managedFields) == len(sts.ManagedFields) {
+	if !slices.ContainsFunc(sts.ManagedFields, func(e metav1.ManagedFieldsEntry) bool { return e.Manager == FieldManager }) {
 		return nil
 	}
-	if len(managedFields) == 0 {
-		// The API server ignores an empty list; a single empty entry clears them all.
-		managedFields = []metav1.ManagedFieldsEntry{{}}
+	release := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "StatefulSet",
+			"metadata": map[string]any{
+				"name":      sts.Name,
+				"namespace": sts.Namespace,
+			},
+		},
 	}
-	// A non-apply write that only changes managedFields replaces them as given and records no
-	// new owner.
-	patch := client.MergeFromWithOptions(sts.DeepCopy(), client.MergeFromWithOptimisticLock{})
-	sts.ManagedFields = managedFields
-	if err := p.client.Patch(ctx, sts, patch); err != nil {
-		return fmt.Errorf("failed to drop partition ownership: %w", err)
+	if err := p.client.Patch(ctx, release, client.Apply, client.FieldOwner(FieldManager)); err != nil {
+		return fmt.Errorf("failed to release partition: %w", err)
 	}
-	p.recordWrite(sts)
-	p.logCtx.WithFields(log.Fields{"name": sts.Name, "namespace": sts.Namespace}).Info("Dropped partition ownership")
+	p.recordWrite(release)
+	p.logCtx.WithFields(log.Fields{"name": sts.Name, "namespace": sts.Namespace}).Info("Released partition")
 	return nil
 }
 

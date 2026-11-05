@@ -201,13 +201,15 @@ The controller adds a finalizer to every RolloutPlugin, so that on deletion the 
 (see [Deleting a RolloutPlugin](statefulset.md#deleting-a-rolloutplugin) for the StatefulSet plugin). The workload
 itself is not deleted; the RolloutPlugin's AnalysisRuns are.
 
-If the cleanup fails, a warning event is recorded and the cleanup is retried. If the plugin is no longer enabled, the
-cleanup is skipped. If the RolloutPlugin controller isn't running, the deletion waits; remove the finalizer to let it
-go:
+If the cleanup fails, a warning event is recorded and the cleanup is retried every 30 seconds. If the plugin is no
+longer enabled, the cleanup is skipped. If the RolloutPlugin controller isn't running, the deletion waits; remove the
+finalizer to let it go:
 
 ```bash
 kubectl patch rolloutplugin my-app-rollout --type json -p '[{"op":"remove","path":"/metadata/finalizers"}]'
 ```
+
+The plugin's cleanup then doesn't run. For the StatefulSet plugin, set the partition yourself, for example to 0.
 
 ## When requests conflict
 

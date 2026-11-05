@@ -32,8 +32,17 @@ func CalculateRolloutPluginPhase(spec v1alpha1.RolloutPluginSpec, status v1alpha
 	if progCond := conditions.GetRolloutPluginCondition(status, v1alpha1.RolloutPluginConditionProgressing); progCond != nil && progCond.Status == corev1.ConditionTrue {
 		return v1alpha1.RolloutPluginPhaseProgressing, status.Message
 	}
+	if status.StableRevision == "" {
+		return v1alpha1.RolloutPluginPhaseProgressing, "waiting for the workload's revision"
+	}
 	if status.StableRevision != status.UpdatedRevision {
 		return v1alpha1.RolloutPluginPhaseProgressing, "waiting for pods to converge"
+	}
+	if status.UpdatedReplicas < status.DesiredReplicas {
+		return v1alpha1.RolloutPluginPhaseProgressing, "more replicas need to be updated"
+	}
+	if status.AvailableReplicas < status.DesiredReplicas {
+		return v1alpha1.RolloutPluginPhaseProgressing, "updated replicas are still becoming available"
 	}
 	return v1alpha1.RolloutPluginPhaseHealthy, ""
 }

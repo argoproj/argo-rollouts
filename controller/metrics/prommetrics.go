@@ -197,7 +197,7 @@ var (
 	MetricRolloutPluginReconcileError = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "rolloutplugin_reconcile_error",
-			Help: "Error occurring during the rolloutplugin",
+			Help: "Error occurring during the RolloutPlugin reconciliation",
 		},
 		namespaceNameLabels,
 	)
@@ -226,6 +226,20 @@ var (
 	MetricRolloutPluginWorkloadReplicasReady = prometheus.NewDesc(
 		"rolloutplugin_workload_replicas_ready",
 		"The number of ready replicas for the workload managed by rolloutplugin.",
+		namespaceNameLabels,
+		nil,
+	)
+
+	MetricRolloutPluginWorkloadReplicasAvailable = prometheus.NewDesc(
+		"rolloutplugin_workload_replicas_available",
+		"The number of available replicas for the workload managed by rolloutplugin.",
+		namespaceNameLabels,
+		nil,
+	)
+
+	MetricRolloutPluginWorkloadReplicasUnavailable = prometheus.NewDesc(
+		"rolloutplugin_workload_replicas_unavailable",
+		"The number of unavailable replicas for the workload managed by rolloutplugin.",
 		namespaceNameLabels,
 		nil,
 	)

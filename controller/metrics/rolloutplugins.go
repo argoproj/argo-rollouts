@@ -20,14 +20,14 @@ const (
 	RolloutPluginPaused RolloutPluginPhase = "Paused"
 	// RolloutPluginHealthy means the rolloutplugin has successfully completed
 	RolloutPluginHealthy RolloutPluginPhase = "Healthy"
-	// RolloutPluginDegraded means the rolloutplugin has encountered issues
-	RolloutPluginDegraded RolloutPluginPhase = "Degraded"
 	// RolloutPluginError means the rolloutplugin has encountered an error
 	RolloutPluginError RolloutPluginPhase = "Error"
 	// RolloutPluginTimeout means the rolloutplugin has timed out
 	RolloutPluginTimeout RolloutPluginPhase = "Timeout"
 	// RolloutPluginAborted means the rolloutplugin was aborted
 	RolloutPluginAborted RolloutPluginPhase = "Aborted"
+	// RolloutPluginInvalidSpec means the rolloutplugin has an invalid spec
+	RolloutPluginInvalidSpec RolloutPluginPhase = "InvalidSpec"
 )
 
 type rolloutPluginCollector struct {
@@ -47,6 +47,8 @@ func (c *rolloutPluginCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- MetricRolloutPluginWorkloadReplicasDesired
 	ch <- MetricRolloutPluginWorkloadReplicasUpdated
 	ch <- MetricRolloutPluginWorkloadReplicasReady
+	ch <- MetricRolloutPluginWorkloadReplicasAvailable
+	ch <- MetricRolloutPluginWorkloadReplicasUnavailable
 }
 
 // Collect implements the prometheus.Collector interface
@@ -61,34 +63,32 @@ func (c *rolloutPluginCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-// Determines the phase of a RolloutPlugin from conditions
+// calculateRolloutPluginPhase returns a more detailed phase than status.phase, in the same way as
+// the Rollout metrics. Later checks take priority: Healthy follows status.phase, and InvalidSpec wins.
 func calculateRolloutPluginPhase(rp *v1alpha1.RolloutPlugin) RolloutPluginPhase {
 	phase := RolloutPluginProgressing
 
 	progressing := conditions.GetRolloutPluginCondition(rp.Status, v1alpha1.RolloutPluginConditionProgressing)
 	if progressing != nil {
-		if progressing.Reason == conditions.RolloutPluginPausedReason {
+		switch progressing.Reason {
+		case conditions.RolloutPluginPausedReason:
 			phase = RolloutPluginPaused
-		}
-		if progressing.Reason == conditions.RolloutPluginReconciliationErrorReason || progressing.Reason == conditions.RolloutPluginAnalysisRunFailedReason {
+		case conditions.RolloutPluginReconciliationErrorReason, conditions.RolloutPluginAnalysisRunFailedReason:
 			phase = RolloutPluginError
-		}
-		if progressing.Reason == conditions.RolloutPluginTimedOutReason {
+		case conditions.RolloutPluginTimedOutReason:
 			phase = RolloutPluginTimeout
-		}
-		if progressing.Reason == conditions.RolloutPluginAbortedReason {
+		case conditions.RolloutPluginAbortedReason:
 			phase = RolloutPluginAborted
 		}
 	}
 
-	invalidSpec := conditions.GetRolloutPluginCondition(rp.Status, v1alpha1.RolloutPluginConditionInvalidSpec)
-	if invalidSpec != nil && invalidSpec.Status == corev1.ConditionTrue {
-		phase = RolloutPluginError
+	if rp.Status.Phase == v1alpha1.RolloutPluginPhaseHealthy {
+		phase = RolloutPluginHealthy
 	}
 
-	completedCond := conditions.GetRolloutPluginCondition(rp.Status, v1alpha1.RolloutPluginConditionCompleted)
-	if completedCond != nil && completedCond.Status == corev1.ConditionTrue {
-		phase = RolloutPluginHealthy
+	invalidSpec := conditions.GetRolloutPluginCondition(rp.Status, v1alpha1.RolloutPluginConditionInvalidSpec)
+	if invalidSpec != nil && invalidSpec.Status == corev1.ConditionTrue {
+		phase = RolloutPluginInvalidSpec
 	}
 
 	return phase
@@ -98,7 +98,7 @@ func calculateRolloutPluginPhase(rp *v1alpha1.RolloutPlugin) RolloutPluginPhase 
 func getRolloutPluginStrategyType(rp *v1alpha1.RolloutPlugin) string {
 	// Only Canary strategy is supported for RolloutPlugin
 	if rp.Spec.Strategy.Canary != nil {
-		return "Canary"
+		return "canary"
 	}
 	return "none"
 }
@@ -119,5 +119,6 @@ func collectRolloutPlugins(ch chan<- prometheus.Metric, rp *v1alpha1.RolloutPlug
 	addGauge(MetricRolloutPluginWorkloadReplicasDesired, float64(rp.Status.DesiredReplicas))
 	addGauge(MetricRolloutPluginWorkloadReplicasUpdated, float64(rp.Status.UpdatedReplicas))
 	addGauge(MetricRolloutPluginWorkloadReplicasReady, float64(rp.Status.ReadyReplicas))
-
+	addGauge(MetricRolloutPluginWorkloadReplicasAvailable, float64(rp.Status.AvailableReplicas))
+	addGauge(MetricRolloutPluginWorkloadReplicasUnavailable, float64(max(rp.Status.DesiredReplicas-rp.Status.AvailableReplicas, 0)))
 }
