@@ -1466,6 +1466,10 @@ func TestRequeueStuckRollout(t *testing.T) {
 		rollout            *v1alpha1.Rollout
 		requeueImmediately bool
 		noRequeue          bool
+		// otherRSScaleDownDeadlineOffset, when non-nil, causes an "other" ReplicaSet (neither
+		// newRS nor stableRS) to be created and attached to the rollout, annotated with a
+		// scale-down-deadline computed as timeutil.MetaNow() + the offset.
+		otherRSScaleDownDeadlineOffset *time.Duration
 	}{
 		{
 			name:      "No Progressing Condition",
@@ -1496,6 +1500,16 @@ func TestRequeueStuckRollout(t *testing.T) {
 			name:    "More than a second",
 			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](20)),
 		},
+		{
+			// A live scale-down-deadline on an orphaned ("other") ReplicaSet means the rollout
+			// is still waiting for that RS to scale down, so requeueStuckRollout must not
+			// requeue the rollout for a progress-deadline check. See
+			// https://github.com/argoproj/argo-rollouts/issues/4971
+			name:                           "Other RS with live scale-down deadline blocks requeue",
+			rollout:                        rollout(conditions.ReplicaSetUpdatedReason, false, false, ptr.To[int32](10)),
+			otherRSScaleDownDeadlineOffset: ptr.To(time.Hour),
+			noRequeue:                      true,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -1503,6 +1517,14 @@ func TestRequeueStuckRollout(t *testing.T) {
 			savedRollout := test.rollout.DeepCopy()
 			f := newFixture(t)
 			defer f.Close()
+			if test.otherRSScaleDownDeadlineOffset != nil {
+				otherRS := newReplicaSet(test.rollout, 1)
+				otherRS.Name = test.rollout.Name + "-other"
+				otherRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "orphanedhash"
+				otherRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.MetaNow().Add(*test.otherRSScaleDownDeadlineOffset).UTC().Format(time.RFC3339)
+				f.kubeobjects = append(f.kubeobjects, otherRS)
+				f.replicaSetLister = append(f.replicaSetLister, otherRS)
+			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
 			f.client.PrependReactor("*", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
 				savedRollout.DeepCopyInto(test.rollout)
