@@ -204,6 +204,8 @@ func NewAnalysisManager(
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
+	analysisSharedSecretNamespace string,
+	analysisSharedSecretMode analysis.SharedSecretMode,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -212,15 +214,17 @@ func NewAnalysisManager(
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil)
 	analysisController := analysis.NewController(analysis.ControllerConfig{
-		KubeClientSet:        kubeclientset,
-		ArgoProjClientset:    argoprojclientset,
-		AnalysisRunInformer:  analysisRunInformer,
-		JobInformer:          jobInformer,
-		JobPodsInformer:      jobPodsInformer,
-		ResyncPeriod:         resyncPeriod,
-		AnalysisRunWorkQueue: analysisRunWorkqueue,
-		MetricsServer:        metricsServer,
-		Recorder:             recorder,
+		KubeClientSet:                 kubeclientset,
+		ArgoProjClientset:             argoprojclientset,
+		AnalysisRunInformer:           analysisRunInformer,
+		JobInformer:                   jobInformer,
+		JobPodsInformer:               jobPodsInformer,
+		ResyncPeriod:                  resyncPeriod,
+		AnalysisRunWorkQueue:          analysisRunWorkqueue,
+		MetricsServer:                 metricsServer,
+		Recorder:                      recorder,
+		AnalysisSharedSecretNamespace: analysisSharedSecretNamespace,
+		SharedSecretMode:              analysisSharedSecretMode,
 	})
 
 	cm := &Manager{
@@ -296,6 +300,8 @@ func NewManager(
 	ephemeralMetadataThreads int,
 	ephemeralMetadataPodRetries int,
 	selfServiceNotificationEnabled bool,
+	analysisSharedSecretNamespace string,
+	analysisSharedSecretMode analysis.SharedSecretMode,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -365,15 +371,17 @@ func NewManager(
 	})
 
 	analysisController := analysis.NewController(analysis.ControllerConfig{
-		KubeClientSet:        kubeclientset,
-		ArgoProjClientset:    argoprojclientset,
-		AnalysisRunInformer:  analysisRunInformer,
-		JobInformer:          jobInformer,
-		JobPodsInformer:      jobPodsInformer,
-		ResyncPeriod:         resyncPeriod,
-		AnalysisRunWorkQueue: analysisRunWorkqueue,
-		MetricsServer:        metricsServer,
-		Recorder:             recorder,
+		KubeClientSet:                 kubeclientset,
+		ArgoProjClientset:             argoprojclientset,
+		AnalysisRunInformer:           analysisRunInformer,
+		JobInformer:                   jobInformer,
+		JobPodsInformer:               jobPodsInformer,
+		ResyncPeriod:                  resyncPeriod,
+		AnalysisRunWorkQueue:          analysisRunWorkqueue,
+		MetricsServer:                 metricsServer,
+		Recorder:                      recorder,
+		AnalysisSharedSecretNamespace: analysisSharedSecretNamespace,
+		SharedSecretMode:              analysisSharedSecretMode,
 	})
 
 	serviceController := service.NewController(service.ControllerConfig{

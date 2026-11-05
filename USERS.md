@@ -12,6 +12,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ambassador Labs](https://www.getambassador.io)
 1. [Ant Group](https://www.antgroup.com/)
 1. [AppsFlyer](https://www.appsflyer.com/)
+1. [Argyle](https://argyle.com)
 1. [Batumbu](https://batumbu.id/)
 1. [Bloomberg](https://www.bloomberg.com/)
 1. [Bucketplace](https://www.bucketplace.co.kr/)

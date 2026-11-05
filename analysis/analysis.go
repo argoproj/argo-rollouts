@@ -31,7 +31,32 @@ const (
 	// SuccessfulAssessmentRunTerminatedResult is used for logging purposes when the metrics evaluation
 	// is successful and the run is terminated.
 	SuccessfulAssessmentRunTerminatedResult = "Metric Assessment Result - Successful: Run Terminated"
+
+	sharedSecretLabel = "argo-rollouts.argoproj.io/shared-secret"
 )
+
+type SharedSecretMode string
+
+const (
+	// SharedSecretModeLabelFilter (the default) only allows reading secrets that carry the
+	// argo-rollouts.argoproj.io/shared-secret: "true" label.
+	SharedSecretModeLabelFilter SharedSecretMode = "LabelFilter"
+	// SharedSecretModeAllSecrets allows reading any secret in the configured shared-secret namespace.
+	SharedSecretModeAllSecrets SharedSecretMode = "AllSecrets"
+)
+
+// DefaultSharedSecretMode is the mode used when the flag is not set.
+const DefaultSharedSecretMode = SharedSecretModeLabelFilter
+
+// ValidSharedSecretMode reports whether mode is a recognized shared-secret mode.
+func ValidSharedSecretMode(mode SharedSecretMode) bool {
+	switch mode {
+	case SharedSecretModeLabelFilter, SharedSecretModeAllSecrets:
+		return true
+	default:
+		return false
+	}
+}
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
 // an in-progress measurement
@@ -269,15 +294,34 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 		//if secret specified in valueFrom, replace value with secret value
 		//error if arg has both value and valueFrom
 		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
-			name := arg.ValueFrom.SecretKeyRef.Name
-			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			ref := arg.ValueFrom.SecretKeyRef
+			secretNamespace := namespace
+			if ref.SharedSecret {
+				if c.analysisSharedSecretNamespace == "" {
+					return nil, nil, fmt.Errorf("failed to resolve analysis argument %q: shared-secret references are disabled", arg.Name)
+				}
+
+				secretNamespace = c.analysisSharedSecretNamespace
+			}
+
+			secret, err := c.kubeclientset.CoreV1().Secrets(secretNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, nil, fmt.Errorf("secret %s not found in namespace %s", ref.Name, secretNamespace)
+				}
 				return nil, nil, err
 			}
 
-			secretContentBytes, ok := secret.Data[arg.ValueFrom.SecretKeyRef.Key]
+			if ref.SharedSecret && c.sharedSecretMode == SharedSecretModeLabelFilter {
+				if secret.Labels[sharedSecretLabel] != "true" {
+					return nil, nil, fmt.Errorf(
+						"failed to resolve analysis argument %q: secret %q in shared secret namespace %q is not labeled for use by AnalysisRuns", arg.Name, ref.Name, secretNamespace)
+				}
+			}
+
+			secretContentBytes, ok := secret.Data[ref.Key]
 			if !ok {
-				err := fmt.Errorf("key '%s' does not exist in secret '%s'", arg.ValueFrom.SecretKeyRef.Key, arg.ValueFrom.SecretKeyRef.Name)
+				err := fmt.Errorf("key '%s' does not exist in secret '%s'", ref.Key, ref.Name)
 				return nil, nil, err
 			}
 			secretContent := string(secretContentBytes)
