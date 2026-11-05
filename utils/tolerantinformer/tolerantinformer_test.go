@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -511,6 +513,53 @@ func TestPoisonedCacheListRecovers(t *testing.T) {
 			annotations, err = tc.get(t, fi, tc.obj.GetName())
 			require.NoError(t, err)
 			assert.Equal(t, "1", annotations["poison"])
+		})
+	}
+}
+
+// TestTransformStripsManagedFields verifies the tolerant informers drop
+// metadata.managedFields from cached objects, both for objects delivered by the
+// informer (SetTransform path) and for objects written via GetStore() (e.g. by
+// notifications-engine), while preserving other metadata.
+func TestTransformStripsManagedFields(t *testing.T) {
+	managedFields := []metav1.ManagedFieldsEntry{{
+		Manager:    "kubectl",
+		Operation:  metav1.ManagedFieldsOperationApply,
+		APIVersion: "argoproj.io/v1alpha1",
+		FieldsType: "FieldsV1",
+		FieldsV1:   &metav1.FieldsV1{Raw: []byte(`{"f:spec":{}}`)},
+	}}
+	assertStripped := func(t *testing.T, raw any, annotationKey string) {
+		t.Helper()
+		accessor, err := meta.Accessor(raw)
+		require.NoError(t, err)
+		assert.Nil(t, accessor.GetManagedFields())
+		assert.Equal(t, "1", accessor.GetAnnotations()[annotationKey])
+	}
+
+	for _, tc := range storeUpdateCases(t) {
+		t.Run(tc.name, func(t *testing.T) {
+			obj := tc.obj.DeepCopy()
+			obj.SetAnnotations(map[string]string{"initial": "1"})
+			obj.SetManagedFields(managedFields)
+			fi := newFakeDynamicInformer(obj)
+
+			raw, exists, err := tc.rawIndexer(fi).GetByKey(tc.cacheKey)
+			require.NoError(t, err)
+			require.True(t, exists)
+			tc.assertTyped(t, raw)
+			assertStripped(t, raw, "initial")
+
+			patched := obj.DeepCopy()
+			patched.SetAnnotations(map[string]string{"notified": "1"})
+			patched.SetManagedFields(managedFields)
+			require.NoError(t, tc.wrappedStore(fi).Update(patched))
+
+			raw, exists, err = tc.rawIndexer(fi).GetByKey(tc.cacheKey)
+			require.NoError(t, err)
+			require.True(t, exists)
+			tc.assertTyped(t, raw)
+			assertStripped(t, raw, "notified")
 		})
 	}
 }
