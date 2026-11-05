@@ -245,8 +245,15 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 }
 
 func (c *rolloutContext) reconcilePingAndPongService() error {
-	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
-		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
+	if !trafficrouting.IsPingPongEnabled(c.rollout) {
+		return nil
+	}
+	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout, true)
+	// Without this the stable service keeps its original selector and also matches the canary pods.
+	if err := c.ensureSVCTargets(stableService, c.stableRS, true); err != nil {
+		return err
+	}
+	if !rolloututils.IsFullyPromoted(c.rollout) {
 		return c.ensureSVCTargets(canaryService, c.newRS, false)
 	}
 	return nil
