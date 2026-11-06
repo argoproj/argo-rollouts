@@ -1145,6 +1145,25 @@ func TestNextScaleDownBatch(t *testing.T) {
 		roCtx.kubeclientset = k8sfake.NewSimpleClientset()
 		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
 	})
+
+	t.Run("does not wait for pods that were terminating before the previous batch", func(t *testing.T) {
+		roCtx, _ := newGradualScaleDownContext(&v1alpha1.OldReplicaSetScaleDown{WaitForPodTermination: true})
+		oldRS := rs("foo-v1", 8, nil, noTimestamp, nil)
+		oldRS.Status.Replicas = 8
+		oldRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey] = timeutil.Now().UTC().Format(time.RFC3339Nano)
+		deleting := metav1.NewTime(timeutil.Now().Add(-time.Minute))
+		stuckPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name:              "foo-v1-stuck",
+			Namespace:         oldRS.Namespace,
+			Labels:            oldRS.Spec.Selector.MatchLabels,
+			DeletionTimestamp: &deleting,
+			Finalizers:        []string{"example.com/stuck"},
+			OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(oldRS, appsv1.SchemeGroupVersion.WithKind("ReplicaSet"))},
+		}}
+		roCtx.kubeclientset = k8sfake.NewSimpleClientset(stuckPod)
+
+		assert.Equal(t, int32(7), roCtx.nextScaleDownBatch(oldRS))
+	})
 }
 
 func TestScaleReplicaSetRecordsScaleDownBatch(t *testing.T) {
