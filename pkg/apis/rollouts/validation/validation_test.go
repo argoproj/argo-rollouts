@@ -1246,3 +1246,65 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		assert.Equal(t, 0, len(allErrs))
 	})
 }
+
+func TestCanaryOldReplicaSetScaleDown(t *testing.T) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"key": "value"},
+	}
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Selector: selector,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable",
+					CanaryService: "canary",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						SMI: &v1alpha1.SMITrafficRouting{},
+					},
+					OldReplicaSetScaleDown: &v1alpha1.OldReplicaSetScaleDown{
+						MaxUnavailable:  ptr.To(intstr.FromInt(1)),
+						IntervalSeconds: ptr.To[int32](30),
+					},
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Resources: corev1.ResourceRequirements{},
+						Image:     "foo",
+						Name:      "image-name",
+					}},
+				},
+			},
+		},
+	}
+	errorMessages := func(errs field.ErrorList) string {
+		return errs.ToAggregate().Error()
+	}
+	t.Run("valid with traffic routing", func(t *testing.T) {
+		assert.Empty(t, ValidateRollout(ro.DeepCopy()))
+	})
+	t.Run("requires traffic routing", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting = nil
+		assert.Contains(t, errorMessages(ValidateRollout(ro)), InvalidCanaryOldReplicaSetScaleDown)
+	})
+	t.Run("not with dynamicStableScale", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.DynamicStableScale = true
+		assert.Contains(t, errorMessages(ValidateRollout(ro)), InvalidCanaryOldReplicaSetScaleDown)
+	})
+	t.Run("maxUnavailable must be positive", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.OldReplicaSetScaleDown.MaxUnavailable = ptr.To(intstr.FromString("0%"))
+		assert.Contains(t, errorMessages(ValidateRollout(ro)), InvalidCanaryOldReplicaSetScaleDownMaxUnavailable)
+	})
+	t.Run("intervalSeconds must not be negative", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.OldReplicaSetScaleDown.IntervalSeconds = ptr.To[int32](-1)
+		assert.Contains(t, errorMessages(ValidateRollout(ro)), InvalidCanaryOldReplicaSetScaleDownInterval)
+	})
+}
