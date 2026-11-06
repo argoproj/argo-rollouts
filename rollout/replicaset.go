@@ -508,8 +508,14 @@ func (c *rolloutContext) isReplicaSetReferencedByIstioDestinationRule(rsPodHash 
 	return false
 }
 
-// hasTerminatingPods returns whether pods of the ReplicaSet are still terminating.
+// hasTerminatingPods returns whether pods of the ReplicaSet removed by the previous scale-down batch are still
+// terminating. Pods that started terminating before that batch, e.g. deleted by hand, are not waited for.
 func (c *rolloutContext) hasTerminatingPods(rs *appsv1.ReplicaSet) (bool, error) {
+	var lastBatchTime time.Time
+	if lastBatch, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownBatchAnnotationKey]; ok {
+		// An unparsable time leaves lastBatchTime zero, so every terminating pod is waited for.
+		lastBatchTime, _ = time.Parse(time.RFC3339Nano, lastBatch)
+	}
 	selector, err := metav1.LabelSelectorAsSelector(rs.Spec.Selector)
 	if err != nil {
 		return false, err
@@ -519,7 +525,8 @@ func (c *rolloutContext) hasTerminatingPods(rs *appsv1.ReplicaSet) (bool, error)
 		return false, err
 	}
 	for i := range pods.Items {
-		if pods.Items[i].DeletionTimestamp != nil && metav1.IsControlledBy(&pods.Items[i], rs) {
+		pod := &pods.Items[i]
+		if pod.DeletionTimestamp != nil && !pod.DeletionTimestamp.Time.Before(lastBatchTime) && metav1.IsControlledBy(pod, rs) {
 			return true, nil
 		}
 	}
