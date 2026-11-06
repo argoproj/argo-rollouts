@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -272,6 +273,42 @@ func TestHasRuleWithService(t *testing.T) {
 									},
 								},
 							}},
+						},
+					},
+				}},
+			},
+		}
+		i := NewIngress(ingress)
+
+		// then
+		assert.False(t, HasRuleWithService(i, "not-found"))
+		assert.True(t, HasRuleWithService(i, "test"))
+	})
+	t.Run("will skip paths without a service backend", func(t *testing.T) {
+		// given
+		t.Parallel()
+		ingress := &networkingv1.Ingress{
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Backend: networkingv1.IngressBackend{
+										Resource: &corev1.TypedLocalObjectReference{
+											Kind: "StorageBucket",
+											Name: "static-assets",
+										},
+									},
+								},
+								{
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: "test",
+										},
+									},
+								},
+							},
 						},
 					},
 				}},
