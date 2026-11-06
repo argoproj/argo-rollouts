@@ -73,7 +73,10 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 			} else {
 				rolloutUpdates := make(chan *rollout.RolloutInfo)
 				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
-					rolloutUpdates <- roInfo
+					select {
+					case rolloutUpdates <- roInfo:
+					case <-ctx.Done():
+					}
 				})
 				go controller.Run(ctx)
 				statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
