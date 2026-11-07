@@ -854,6 +854,20 @@ func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
 // intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating a traffic routed
 // canary going from V1 -> V2 (i.e. because we haven't shifted traffic away from V2 yet).
 func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
+	testCanaryDontScaleDownReferencedIntermediateRs(t, 5, 5)
+}
+
+// TestCanaryDontScaleDownReferencedRsWithUnavailablePods tests that the referenced intermediate V2
+// ReplicaSet is not scaled down either when some of its pods are ready but not yet available
+// (inside minReadySeconds). Scaling it to its available count lets the ReplicaSet controller
+// delete available pods too, since it ranks victims by readiness, not availability; the next
+// reconcile then scales it to the new, lower available count, until it reaches zero while the
+// canary Service and weight still point at it.
+func TestCanaryDontScaleDownReferencedRsWithUnavailablePods(t *testing.T) {
+	testCanaryDontScaleDownReferencedIntermediateRs(t, 5, 2)
+}
+
+func testCanaryDontScaleDownReferencedIntermediateRs(t *testing.T, rs2Ready, rs2Available int) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -879,57 +893,8 @@ func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	r3.Status.StableRS = r1.Status.CurrentPodHash
 
 	rs1 := newReplicaSetWithStatus(r1, 5, 5)
-	rs2 := newReplicaSetWithStatus(r2, 5, 5)
-	rs3 := newReplicaSetWithStatus(r3, 5, 0)
-	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
-		Canary: v1alpha1.WeightDestination{
-			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs2),
-		},
-	}
-
-	f.objects = append(f.objects, r3)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
-	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
-
-	f.expectPatchRolloutAction(r3)
-	f.run(getKey(r3, t))
-}
-
-// TestCanaryDontScaleDownReferencedRsWithUnavailablePods tests that an intermediate V2 ReplicaSet
-// still referenced by traffic routing is not scaled down when some of its pods are ready but not
-// yet available (inside minReadySeconds). Scaling it to its available count lets the ReplicaSet
-// controller delete available pods too, since it ranks victims by readiness, not availability; the
-// next reconcile then scales it to the new, lower available count, until it reaches zero while
-// the canary Service and weight still point at it.
-func TestCanaryDontScaleDownReferencedRsWithUnavailablePods(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	steps := []v1alpha1.CanaryStep{
-		{
-			SetWeight: ptr.To[int32](100),
-		},
-		{
-			Pause: &v1alpha1.RolloutPause{},
-		},
-	}
-	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](1), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-		SMI: &v1alpha1.SMITrafficRouting{},
-	}
-	r1.Spec.Strategy.Canary.StableService = "stable-svc"
-	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
-	r2 := bumpVersion(r1)
-	r3 := bumpVersion(r2)
-
-	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
-	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r2.Status.CurrentPodHash}, r2)
-	r3.Status.StableRS = r1.Status.CurrentPodHash
-
-	rs1 := newReplicaSetWithStatus(r1, 5, 5)
-	rs2 := newReplicaSetWithStatus(r2, 5, 2)
-	rs2.Status.ReadyReplicas = 5
+	rs2 := newReplicaSetWithStatus(r2, 5, rs2Available)
+	rs2.Status.ReadyReplicas = int32(rs2Ready)
 	rs3 := newReplicaSetWithStatus(r3, 5, 0)
 	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
 		Canary: v1alpha1.WeightDestination{
