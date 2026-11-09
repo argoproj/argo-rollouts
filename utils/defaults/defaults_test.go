@@ -211,6 +211,10 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 			},
 		}
 		assert.Equal(t, time.Duration(scaleDownDelaySeconds)*time.Second, GetScaleDownDelaySecondsOrDefault(canaryWithTrafficRouting))
+
+		canaryWithTrafficRouting.Spec.Strategy.Canary.DynamicStableScale = true
+		canaryWithTrafficRouting.Spec.Strategy.Canary.StableScaleDownPolicy = &v1alpha1.StableScaleDownPolicy{DelaySeconds: ptr.To[int32](90)}
+		assert.Equal(t, 90*time.Second, GetScaleDownDelaySecondsOrDefault(canaryWithTrafficRouting))
 	}
 }
 
