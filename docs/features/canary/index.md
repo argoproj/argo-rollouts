@@ -196,8 +196,8 @@ The hold does not block the rollout from moving through its steps. It costs extr
 steps are shorter than `delaySeconds`, each one restarts the hold, so the stable keeps its
 pre-update count through the whole ramp and for `delaySeconds` after the last step, next to a
 canary that grows to full size (up to twice `spec.replicas` pods). After promotion the previous
-stable stays for another `delaySeconds`. The field requires `dynamicStableScale: true` and
-`trafficRouting`.
+stable is kept for `delaySeconds` counted from promotion; that replaces what is left of the hold
+rather than adding to it. The field requires `dynamicStableScale: true` and `trafficRouting`.
 
 ```yaml
 spec:
