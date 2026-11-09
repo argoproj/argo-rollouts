@@ -825,8 +825,9 @@ spec:
                           StableScaleDownPolicy delays stable ReplicaSet scale-down when using dynamicStableScale, so that traffic
                           routers which apply weight changes asynchronously can converge before pods are removed. While the update
                           is in progress, the stable ReplicaSet keeps its replica count until DelaySeconds have passed since its
-                          desired count last dropped. After promotion, the previous stable ReplicaSet is kept for DelaySeconds
-                          before it is scaled to zero, as scaleDownDelaySeconds does without dynamicStableScale.
+                          desired count last dropped, and is not scaled down while an aborted rollout still sends traffic to the
+                          canary. After promotion, older ReplicaSets (usually the previous stable) are kept for DelaySeconds before
+                          they are scaled to zero, as scaleDownDelaySeconds does without dynamicStableScale.
                         properties:
                           delaySeconds:
                             description: DelaySeconds is the number of seconds a stable

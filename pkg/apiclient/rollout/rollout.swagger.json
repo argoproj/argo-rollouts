@@ -1129,7 +1129,7 @@
         },
         "stableScaleDownPolicy": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StableScaleDownPolicy",
-          "title": "StableScaleDownPolicy delays stable ReplicaSet scale-down when using dynamicStableScale, so that traffic\nrouters which apply weight changes asynchronously can converge before pods are removed. While the update\nis in progress, the stable ReplicaSet keeps its replica count until DelaySeconds have passed since its\ndesired count last dropped. After promotion, the previous stable ReplicaSet is kept for DelaySeconds\nbefore it is scaled to zero, as scaleDownDelaySeconds does without dynamicStableScale.\n+optional"
+          "title": "StableScaleDownPolicy delays stable ReplicaSet scale-down when using dynamicStableScale, so that traffic\nrouters which apply weight changes asynchronously can converge before pods are removed. While the update\nis in progress, the stable ReplicaSet keeps its replica count until DelaySeconds have passed since its\ndesired count last dropped, and is not scaled down while an aborted rollout still sends traffic to the\ncanary. After promotion, older ReplicaSets (usually the previous stable) are kept for DelaySeconds before\nthey are scaled to zero, as scaleDownDelaySeconds does without dynamicStableScale.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"

@@ -183,12 +183,20 @@ fail, for example with `503` errors.
 `stableScaleDownPolicy.delaySeconds` holds these scale-downs:
 
 * During the update, the stable ReplicaSet keeps its replica count until `delaySeconds` have passed
-  since its desired count last dropped. A step that lowers the count again during a hold restarts it.
-* After promotion, the previous stable ReplicaSet is kept for `delaySeconds` before it is scaled to
-  zero, the way `scaleDownDelaySeconds` works without `dynamicStableScale`.
+  since its desired count last dropped. Any drop during a hold restarts it, including a scale-in by
+  a HorizontalPodAutoscaler. While an aborted rollout still sends traffic to the canary, the stable
+  is not scaled down at all.
+* After promotion, older ReplicaSets are kept for `delaySeconds` before they are scaled to zero, the
+  way `scaleDownDelaySeconds` works without `dynamicStableScale`. Usually that is the previous
+  stable, but it also covers a canary left behind by a rollback to the stable revision, and an
+  aborted canary superseded by a new revision when `abortScaleDownDelaySeconds` is set explicitly
+  (it is kept until its abort deadline).
 
-The hold does not block the rollout from moving through its steps. It costs extra stable pods for
-up to `delaySeconds` after each scale-down. The field requires `dynamicStableScale: true` and
+The hold does not block the rollout from moving through its steps. It costs extra stable pods: when
+steps are shorter than `delaySeconds`, each one restarts the hold, so the stable keeps its
+pre-update count through the whole ramp and for `delaySeconds` after the last step, next to a
+canary that grows to full size (up to twice `spec.replicas` pods). After promotion the previous
+stable stays for another `delaySeconds`. The field requires `dynamicStableScale: true` and
 `trafficRouting`.
 
 ```yaml
