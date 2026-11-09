@@ -172,6 +172,42 @@ spec:
       abortScaleDownDelaySeconds: 600
 ```
 
+### Stable Scale-Down Policy
+
+When `dynamicStableScale` is enabled, the controller scales the stable ReplicaSet down as soon as
+the traffic router reports the new weights, and scales the previous stable ReplicaSet to zero right
+after promotion. Traffic routers that apply weight changes asynchronously (service mesh proxies,
+load balancer nodes) can keep sending requests to those pods for a short time, and those requests
+fail, for example with `503` errors.
+
+`stableScaleDownPolicy.delaySeconds` holds these scale-downs:
+
+* During the update, the stable ReplicaSet keeps its replica count until `delaySeconds` have passed
+  since its desired count last dropped. A step that lowers the count again during a hold restarts it.
+* After promotion, the previous stable ReplicaSet is kept for `delaySeconds` before it is scaled to
+  zero, the way `scaleDownDelaySeconds` works without `dynamicStableScale`.
+
+The hold does not block the rollout from moving through its steps. It costs extra stable pods for
+up to `delaySeconds` after each scale-down. The field requires `dynamicStableScale: true` and
+`trafficRouting`.
+
+```yaml
+spec:
+  strategy:
+    canary:
+      dynamicStableScale: true
+      stableScaleDownPolicy:
+        delaySeconds: 60
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc
+          destinationRule:
+            name: rollouts-demo-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+```
+
 ## Mimicking Rolling Update
 
 !!! important

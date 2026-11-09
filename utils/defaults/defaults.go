@@ -200,6 +200,9 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration 
 			if rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
 				delaySeconds = *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
 			}
+			if stableDelay := GetStableScaleDownDelaySeconds(rollout); stableDelay != nil {
+				return *stableDelay
+			}
 		}
 	}
 	return time.Duration(delaySeconds) * time.Second
@@ -247,6 +250,21 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Du
 func HasExplicitAbortScaleDownDelay(rollout *v1alpha1.Rollout) bool {
 	abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rollout)
 	return wasSet && abortDelay != nil
+}
+
+// GetStableScaleDownDelaySeconds returns the configured stable scale-down delay when
+// stableScaleDownPolicy is set with dynamicStableScale. Returns nil if the policy is
+// not configured or delaySeconds is zero.
+func GetStableScaleDownDelaySeconds(rollout *v1alpha1.Rollout) *time.Duration {
+	if rollout == nil || rollout.Spec.Strategy.Canary == nil || !rollout.Spec.Strategy.Canary.DynamicStableScale {
+		return nil
+	}
+	policy := rollout.Spec.Strategy.Canary.StableScaleDownPolicy
+	if policy == nil || policy.DelaySeconds == nil || *policy.DelaySeconds <= 0 {
+		return nil
+	}
+	dur := time.Duration(*policy.DelaySeconds) * time.Second
+	return &dur
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
