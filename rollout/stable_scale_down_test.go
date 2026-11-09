@@ -33,7 +33,9 @@ func TestReconcileCanaryStableReplicaSetWithStableScaleDownPolicy(t *testing.T) 
 	tests := []struct {
 		name             string
 		noPolicy         bool
+		abort            bool
 		hold             string
+		stableReplicas   int32
 		stableWeight     int32
 		expectedReplicas int32
 		// expectedHold is the replica count of the hold left on the stable RS, nil for no hold
@@ -45,6 +47,10 @@ func TestReconcileCanaryStableReplicaSetWithStableScaleDownPolicy(t *testing.T) 
 		{name: "first scale-down is held", stableWeight: 50, expectedReplicas: 10, expectedHold: ptr.To[int32](5), expectRestamp: true},
 		{name: "held until the deadline", hold: hold(30*time.Second, 5), stableWeight: 50, expectedReplicas: 10, expectedHold: ptr.To[int32](5)},
 		{name: "lower desired count restarts the hold", hold: hold(5*time.Second, 5), stableWeight: 0, expectedReplicas: 10, expectedHold: ptr.To[int32](0), expectRestamp: true},
+		{name: "higher desired count keeps the deadline", hold: hold(30*time.Second, 5), stableWeight: 80, expectedReplicas: 10, expectedHold: ptr.To[int32](8)},
+		{name: "drop after a rise restarts the hold", hold: hold(30*time.Second, 8), stableWeight: 70, expectedReplicas: 10, expectedHold: ptr.To[int32](7), expectRestamp: true},
+		{name: "abort shifting back to stable drops an expired hold", abort: true, hold: hold(-time.Second, 5), stableWeight: 80, expectedReplicas: 10},
+		{name: "abort with traffic back on stable holds a scale-in", abort: true, stableReplicas: 12, stableWeight: 100, expectedReplicas: 12, expectedHold: ptr.To[int32](10), expectRestamp: true},
 		{name: "scales down after the deadline and drops the hold", hold: hold(-time.Second, 0), stableWeight: 0, expectedReplicas: 0},
 		{name: "partial scale-down after the deadline drops the hold", hold: hold(-time.Second, 5), stableWeight: 50, expectedReplicas: 5},
 		{name: "withdrawn scale-down drops the hold", hold: hold(30*time.Second, 5), stableWeight: 100, expectedReplicas: 10},
@@ -58,7 +64,11 @@ func TestReconcileCanaryStableReplicaSetWithStableScaleDownPolicy(t *testing.T) 
 			if !test.noPolicy {
 				ro.Spec.Strategy.Canary.StableScaleDownPolicy = &v1alpha1.StableScaleDownPolicy{DelaySeconds: ptr.To(int32(delay.Seconds()))}
 			}
-			stableRS := newStableScaleDownTestRS("foo-stable", 10)
+			if test.abort {
+				ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](20)}, {SetWeight: ptr.To[int32](50)}}
+				ro.Status.Abort = true
+			}
+			stableRS := newStableScaleDownTestRS("foo-stable", max(test.stableReplicas, 10))
 			newRS := newStableScaleDownTestRS("foo-canary", 10)
 			if test.hold != "" {
 				stableRS.Annotations[v1alpha1.DefaultStableScaleDownHoldAnnotationKey] = test.hold
@@ -105,7 +115,9 @@ func TestReconcileCanaryStableReplicaSetWithStableScaleDownPolicy(t *testing.T) 
 			if test.expectRestamp {
 				assert.WithinDuration(t, timeutil.Now().Add(delay), liveHold.Deadline.Time, 2*time.Second)
 			} else {
-				assert.Equal(t, test.hold, live.Annotations[v1alpha1.DefaultStableScaleDownHoldAnnotationKey])
+				var initial stableScaleDownHold
+				require.NoError(t, json.Unmarshal([]byte(test.hold), &initial))
+				assert.True(t, initial.Deadline.Equal(&liveHold.Deadline))
 			}
 		})
 	}

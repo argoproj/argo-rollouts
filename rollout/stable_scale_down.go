@@ -25,6 +25,7 @@ type stableScaleDownHold struct {
 // the count to scale to. A scale-down is held at the current count until delaySeconds have passed
 // since the desired count last dropped: a lower count requested during a hold restarts the clock, so
 // the final traffic shift gets the full delay even when the steps before it were shorter than it.
+// An abort that is still moving traffic back to the stable drops the hold and keeps the stable's pods.
 func (c *rolloutContext) holdStableScaleDown(desired int32) (int32, error) {
 	delay := defaults.GetStableScaleDownDelaySeconds(c.rollout)
 	if delay == nil {
@@ -32,12 +33,18 @@ func (c *rolloutContext) holdStableScaleDown(desired int32) (int32, error) {
 	}
 	rs := c.stableRS
 	current := *rs.Spec.Replicas
-	if desired >= current {
-		return desired, c.setStableScaleDownHold(rs, nil)
+	weights := c.rollout.Status.Canary.Weights
+	abortShifting := c.rollout.Status.Abort && (weights == nil || weights.Canary.Weight > 0)
+	if desired >= current || abortShifting {
+		return max(desired, current), c.setStableScaleDownHold(rs, nil)
 	}
 	hold := getStableScaleDownHold(rs)
-	if hold == nil || desired < hold.Replicas {
-		hold = &stableScaleDownHold{Deadline: metav1.NewTime(timeutil.Now().Add(*delay)), Replicas: desired}
+	if hold == nil || desired != hold.Replicas {
+		// A rise keeps the deadline: only a drop moves traffic off the stable.
+		if hold == nil || desired < hold.Replicas {
+			hold = &stableScaleDownHold{Deadline: metav1.NewTime(timeutil.Now().Add(*delay))}
+		}
+		hold.Replicas = desired
 		if err := c.setStableScaleDownHold(rs, hold); err != nil {
 			return current, err
 		}

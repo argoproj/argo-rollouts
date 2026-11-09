@@ -233,6 +233,8 @@ func TestGetStableScaleDownDelaySeconds(t *testing.T) {
 	assert.Equal(t, 30*time.Second, *dur)
 
 	assert.Nil(t, GetStableScaleDownDelaySeconds(nil))
+	withPolicy.Spec.Strategy.Canary.StableScaleDownPolicy.DelaySeconds = ptr.To[int32](0)
+	assert.Nil(t, GetStableScaleDownDelaySeconds(withPolicy))
 	assert.Nil(t, GetStableScaleDownDelaySeconds(&v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
