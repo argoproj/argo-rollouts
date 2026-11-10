@@ -288,11 +288,39 @@ func RolloutScalingProgress(rollout *v1alpha1.Rollout, newStatus *v1alpha1.Rollo
 
 // RolloutReadinessProgress returns true when pods have become ready or available compared to
 // the last observed status. This type of progress does NOT reset the progress deadline when
-// the Progressing condition already exists, to prevent crash-looping pods from indefinitely
-// resetting the deadline through ReadyReplicas/AvailableReplicas oscillation.
+// the deadline is already being tracked (see ReadinessProgressPreservesDeadline), to prevent
+// crash-looping pods from indefinitely resetting the deadline through
+// ReadyReplicas/AvailableReplicas oscillation.
 func RolloutReadinessProgress(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	return newStatus.ReadyReplicas > rollout.Status.ReadyReplicas ||
 		newStatus.AvailableReplicas > rollout.Status.AvailableReplicas
+}
+
+// ReadinessProgressPreservesDeadline returns true when readiness-only progress must keep the
+// LastUpdateTime of the given (current) Progressing condition instead of resetting it, i.e. when
+// the controller is already tracking the progress deadline of an in-flight update.
+func ReadinessProgressPreservesDeadline(progressingCond *v1alpha1.RolloutCondition) bool {
+	return progressingCond != nil && progressingCond.Reason == ReplicaSetUpdatedReason
+}
+
+// RolloutProgressingWithinDeadline is like RolloutProgressing, but it does not count readiness-only
+// progress once the progress deadline that this progress preserves has already expired. Otherwise,
+// readiness-only progress observed on every reconciliation (e.g. several crash-looping pods
+// restarting at different times) would keep the deadline frozen in the past while also skipping
+// every timeout check, so the rollout would never time out or be aborted.
+func RolloutProgressingWithinDeadline(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+	if RolloutScalingProgress(rollout, newStatus) {
+		return true
+	}
+	if !RolloutReadinessProgress(rollout, newStatus) {
+		return false
+	}
+	currentCond := GetRolloutCondition(rollout.Status, v1alpha1.RolloutProgressing)
+	if !ReadinessProgressPreservesDeadline(currentCond) {
+		// Readiness progress resets the deadline in this case, so it always counts as progress.
+		return true
+	}
+	return !RolloutTimedOut(rollout, &rollout.Status)
 }
 
 // RolloutHealthy considers a rollout to be healthy once all of its desired replicas

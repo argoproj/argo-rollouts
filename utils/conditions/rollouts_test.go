@@ -450,6 +450,158 @@ func TestRolloutProgressSplit(t *testing.T) {
 	})
 }
 
+func TestReadinessProgressPreservesDeadline(t *testing.T) {
+	assert.False(t, ReadinessProgressPreservesDeadline(nil), "no condition: nothing to preserve")
+
+	for _, tc := range []struct {
+		reason   string
+		expected bool
+	}{
+		{ReplicaSetUpdatedReason, true},
+		{NewReplicaSetReason, false},
+		{NewRSAvailableReason, false},
+		{ReplicaSetNotAvailableReason, false},
+		{TimedOutReason, false},
+		{RolloutAbortedReason, false},
+		{RolloutPausedReason, false},
+		{RolloutResumedReason, false},
+		{RolloutRetryReason, false},
+	} {
+		t.Run(tc.reason, func(t *testing.T) {
+			cond := NewRolloutCondition(v1alpha1.RolloutProgressing, v1.ConditionTrue, tc.reason, "")
+			assert.Equal(t, tc.expected, ReadinessProgressPreservesDeadline(cond))
+		})
+	}
+}
+
+func TestRolloutProgressingWithinDeadline(t *testing.T) {
+	const (
+		fresh   = -1 * time.Minute  // well within the default 600s deadline
+		expired = -20 * time.Minute // well past the default 600s deadline
+	)
+
+	// Old (persisted) status: an in-flight canary update with 7/10 pods ready and available.
+	canaryRollout := func(progressingReason string, lastUpdateAgo time.Duration, deadline *int32) *v1alpha1.Rollout {
+		ro := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				ProgressDeadlineSeconds: deadline,
+				Strategy:                v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}},
+			},
+			Status: v1alpha1.RolloutStatus{
+				Replicas:          10,
+				UpdatedReplicas:   10,
+				ReadyReplicas:     7,
+				AvailableReplicas: 7,
+				StableRS:          "stable",
+				CurrentStepIndex:  ptr.To[int32](1),
+				CurrentStepHash:   "abc",
+			},
+		}
+		if progressingReason != "" {
+			lastUpdate := metav1.NewTime(time.Now().Add(lastUpdateAgo))
+			ro.Status.Conditions = []v1alpha1.RolloutCondition{{
+				Type:               v1alpha1.RolloutProgressing,
+				Status:             v1.ConditionTrue,
+				Reason:             progressingReason,
+				LastUpdateTime:     lastUpdate,
+				LastTransitionTime: lastUpdate,
+			}}
+		}
+		return ro
+	}
+	blueGreenRollout := func(lastUpdateAgo time.Duration) *v1alpha1.Rollout {
+		ro := canaryRollout(ReplicaSetUpdatedReason, lastUpdateAgo, nil)
+		ro.Spec.Strategy = v1alpha1.RolloutStrategy{BlueGreen: &v1alpha1.BlueGreenStrategy{}}
+		ro.Status.BlueGreen.ActiveSelector = "active"
+		ro.Status.BlueGreen.PreviewSelector = "preview"
+		return ro
+	}
+
+	withOldReplicas := func(ro *v1alpha1.Rollout, oldReplicas int32) *v1alpha1.Rollout {
+		ro.Status.Replicas = ro.Status.UpdatedReplicas + oldReplicas
+		return ro
+	}
+
+	readyUp := func(s *v1alpha1.RolloutStatus) { s.ReadyReplicas++ }
+	availableUp := func(s *v1alpha1.RolloutStatus) { s.AvailableReplicas++ }
+	bothUp := func(s *v1alpha1.RolloutStatus) { s.ReadyReplicas++; s.AvailableReplicas++ }
+	readyUpAvailableDown := func(s *v1alpha1.RolloutStatus) { s.ReadyReplicas++; s.AvailableReplicas-- }
+	bothDown := func(s *v1alpha1.RolloutStatus) { s.ReadyReplicas--; s.AvailableReplicas-- }
+	noChange := func(s *v1alpha1.RolloutStatus) {}
+
+	tests := []struct {
+		name    string
+		rollout *v1alpha1.Rollout
+		mutate  func(*v1alpha1.RolloutStatus)
+		// expected result of RolloutProgressingWithinDeadline
+		expected bool
+		// expected result of RolloutProgressing, documenting where the two diverge
+		expectedProgressing bool
+	}{
+		// No progress at all
+		{"no progress, deadline not expired", canaryRollout(ReplicaSetUpdatedReason, fresh, nil), noChange, false, false},
+		{"no progress, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil), noChange, false, false},
+		{"readiness decrease (crash), deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil), bothDown, false, false},
+
+		// Scaling progress always counts, regardless of the deadline
+		{"updated replicas change, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil),
+			func(s *v1alpha1.RolloutStatus) { s.UpdatedReplicas-- }, true, true},
+		{"old replicas scaled down, deadline expired", withOldReplicas(canaryRollout(ReplicaSetUpdatedReason, expired, nil), 2),
+			func(s *v1alpha1.RolloutStatus) { s.Replicas = s.UpdatedReplicas }, true, true},
+		{"step index change, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil),
+			func(s *v1alpha1.RolloutStatus) { s.CurrentStepIndex = ptr.To[int32](2) }, true, true},
+		{"step hash change, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil),
+			func(s *v1alpha1.RolloutStatus) { s.CurrentStepHash = "def" }, true, true},
+		{"stable RS change, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil),
+			func(s *v1alpha1.RolloutStatus) { s.StableRS = "canary" }, true, true},
+		{"scaling and readiness progress, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil),
+			func(s *v1alpha1.RolloutStatus) { s.UpdatedReplicas--; s.ReadyReplicas++ }, true, true},
+
+		// Readiness-only progress while the preserved deadline has not expired yet
+		{"ready increase, deadline not expired", canaryRollout(ReplicaSetUpdatedReason, fresh, nil), readyUp, true, true},
+		{"available increase, deadline not expired", canaryRollout(ReplicaSetUpdatedReason, fresh, nil), availableUp, true, true},
+		{"ready and available increase, deadline not expired", canaryRollout(ReplicaSetUpdatedReason, fresh, nil), bothUp, true, true},
+
+		// Readiness-only progress after the preserved deadline has expired: this is the fix
+		{"ready increase, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil), readyUp, false, true},
+		{"available increase, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil), availableUp, false, true},
+		{"ready and available increase, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil), bothUp, false, true},
+		{"ready increase while available drops, deadline expired", canaryRollout(ReplicaSetUpdatedReason, expired, nil), readyUpAvailableDown, false, true},
+
+		// The deadline is taken from spec.progressDeadlineSeconds
+		{"ready increase, 20m old, custom 1h deadline not expired", canaryRollout(ReplicaSetUpdatedReason, expired, ptr.To[int32](3600)), readyUp, true, true},
+		{"ready increase, 1m old, custom 30s deadline expired", canaryRollout(ReplicaSetUpdatedReason, fresh, ptr.To[int32](30)), readyUp, false, true},
+
+		// Readiness progress resets the deadline (nothing is preserved), so it always counts
+		{"ready increase, no progressing condition", canaryRollout("", 0, nil), readyUp, true, true},
+		{"ready increase, expired " + NewReplicaSetReason, canaryRollout(NewReplicaSetReason, expired, nil), readyUp, true, true},
+		{"ready increase, expired " + NewRSAvailableReason, canaryRollout(NewRSAvailableReason, expired, nil), readyUp, true, true},
+		{"ready increase, expired " + ReplicaSetNotAvailableReason, canaryRollout(ReplicaSetNotAvailableReason, expired, nil), readyUp, true, true},
+		{"ready increase, expired " + RolloutResumedReason, canaryRollout(RolloutResumedReason, expired, nil), readyUp, true, true},
+		{"ready increase, expired " + RolloutRetryReason, canaryRollout(RolloutRetryReason, expired, nil), readyUp, true, true},
+		{"ready increase, expired " + RolloutPausedReason, canaryRollout(RolloutPausedReason, expired, nil), readyUp, true, true},
+		{"ready increase, expired " + RolloutAbortedReason, canaryRollout(RolloutAbortedReason, expired, nil), readyUp, true, true},
+		{"ready increase, already " + TimedOutReason, canaryRollout(TimedOutReason, expired, nil), readyUp, true, true},
+
+		// Blue-green
+		{"blue-green active selector change, deadline expired", blueGreenRollout(expired),
+			func(s *v1alpha1.RolloutStatus) { s.BlueGreen.ActiveSelector = "preview" }, true, true},
+		{"blue-green preview selector change, deadline expired", blueGreenRollout(expired),
+			func(s *v1alpha1.RolloutStatus) { s.BlueGreen.PreviewSelector = "new" }, true, true},
+		{"blue-green ready increase, deadline not expired", blueGreenRollout(fresh), readyUp, true, true},
+		{"blue-green ready increase, deadline expired", blueGreenRollout(expired), readyUp, false, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			newStatus := tc.rollout.Status.DeepCopy()
+			tc.mutate(newStatus)
+			assert.Equal(t, tc.expected, RolloutProgressingWithinDeadline(tc.rollout, newStatus))
+			assert.Equal(t, tc.expectedProgressing, RolloutProgressing(tc.rollout, newStatus))
+		})
+	}
+}
+
 func TestRolloutHealthy(t *testing.T) {
 	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{

@@ -256,6 +256,103 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 	}
 }
 
+// TestBlueGreenReadinessOnlyProgressAndProgressDeadline runs a full reconciliation of an in-flight
+// update whose only progress is a readiness increase (ReadyReplicas/AvailableReplicas 0 -> 1). Such
+// progress preserves the progress deadline, so once that deadline has expired the rollout must time
+// out (or abort, with progressDeadlineAbort) instead of being reported as progressing.
+func TestBlueGreenReadinessOnlyProgressAndProgressDeadline(t *testing.T) {
+	setup := func(t *testing.T, lastProgressAgo time.Duration, progressDeadlineAbort bool) (*fixture, *v1alpha1.Rollout, string, metav1.Time) {
+		f := newFixture(t)
+
+		r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+		r1.Spec.ProgressDeadlineAbort = progressDeadlineAbort
+		r2 := bumpVersion(r1)
+
+		rs1 := newReplicaSetWithStatus(r1, 1, 1)
+		rs2 := newReplicaSetWithStatus(r2, 1, 0) // new RS is not available yet
+		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+		// The persisted status matches what the controller computes, except for ready/available
+		// replicas, which go up from 0 to 1: readiness-only progress.
+		r2.Status.StableRS = rs1PodHash
+		r2.Status.BlueGreen.ActiveSelector = rs1PodHash
+		r2.Status.BlueGreen.PreviewSelector = rs2PodHash
+		r2.Status.Replicas = 2
+		r2.Status.UpdatedReplicas = 1
+		r2.Status.HPAReplicas = 1
+		r2.Status.ReadyReplicas = 0
+		r2.Status.AvailableReplicas = 0
+		r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+		r2.Status.Selector = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: map[string]string{
+			"foo": "bar", v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}})
+
+		lastProgress := metav1.NewTime(timeutil.Now().Add(lastProgressAgo).Truncate(time.Second))
+		progressing, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+		progressing.LastUpdateTime, progressing.LastTransitionTime = lastProgress, lastProgress
+		conditions.RemoveRolloutCondition(&r2.Status, v1alpha1.RolloutProgressing)
+		conditions.SetRolloutCondition(&r2.Status, progressing)
+
+		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+		previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
+		f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
+		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+		return f, r2, rs2.Name, lastProgress
+	}
+
+	t.Run("deadline expired: times out", func(t *testing.T) {
+		f, r2, rsName, _ := setup(t, -20*time.Minute, false)
+		defer f.Close()
+
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		ro := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Equal(t, int32(1), ro.Status.ReadyReplicas, "readiness progress is observed")
+		assert.Equal(t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
+		assert.False(t, ro.Status.Abort)
+		cond := conditions.GetRolloutCondition(ro.Status, v1alpha1.RolloutProgressing)
+		if assert.NotNil(t, cond) {
+			assert.Equal(t, conditions.TimedOutReason, cond.Reason)
+			assert.Equal(t, corev1.ConditionFalse, cond.Status)
+			assert.Equal(t, fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, rsName), cond.Message)
+		}
+	})
+
+	t.Run("deadline expired with progressDeadlineAbort: aborts", func(t *testing.T) {
+		f, r2, rsName, _ := setup(t, -20*time.Minute, true)
+		defer f.Close()
+
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		f.verifyPatchedRolloutAborted(patchIndex, rsName)
+	})
+
+	t.Run("deadline not expired: keeps progressing and preserves the deadline", func(t *testing.T) {
+		f, r2, _, lastProgress := setup(t, -1*time.Minute, true)
+		defer f.Close()
+
+		patchIndex := f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		ro := f.getPatchedRolloutAsObject(patchIndex)
+		assert.Equal(t, int32(1), ro.Status.ReadyReplicas, "readiness progress is observed")
+		assert.NotEqual(t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
+		assert.False(t, ro.Status.Abort)
+		cond := conditions.GetRolloutCondition(ro.Status, v1alpha1.RolloutProgressing)
+		if assert.NotNil(t, cond) {
+			assert.Equal(t, conditions.ReplicaSetUpdatedReason, cond.Reason)
+			assert.Equal(t, corev1.ConditionTrue, cond.Status)
+			assert.True(t, lastProgress.Equal(&cond.LastUpdateTime), "expected LastUpdateTime %v, got %v", lastProgress, cond.LastUpdateTime)
+		}
+	})
+}
+
 // TestSetServiceManagedBy ensures the managed by annotation is set in the service is set
 func TestSetServiceManagedBy(t *testing.T) {
 	f := newFixture(t)
