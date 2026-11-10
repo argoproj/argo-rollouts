@@ -1121,6 +1121,34 @@ func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
 	f.run(getKey(r2, t))
 }
 
+// When the rollout is fully promoted, the stable RS is also the new RS. A scaling event must
+// update that RS once; a second update from a stale copy conflicts on a real API server.
+func TestBlueGreenRolloutScaleUpdateFullyPromotedRS(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateBlueGreenRolloutStatus(r1, "", rs1PodHash, rs1PodHash, 1, 1, 1, 1, false, true, true)
+	r1.Spec.Replicas = ptr.To[int32](2)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+
+	assert.Equal(t, int32(2), *f.getUpdatedReplicaSet(updatedRSIndex).Spec.Replicas)
+}
+
 func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *testing.T) {
 	f := newFixture(t)
 	prevOutput := log.StandardLogger().Out
