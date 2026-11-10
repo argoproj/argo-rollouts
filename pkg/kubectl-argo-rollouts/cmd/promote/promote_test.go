@@ -369,6 +369,72 @@ func TestPromoteCmdSuccessUnpause(t *testing.T) {
 	assert.Empty(t, stderr)
 }
 
+// A rollout paused only through spec.paused has no pause conditions to clear, so the promote
+// request must still be recorded in the status for the RolloutPromoted event to be emitted.
+func TestPromoteCmdSpecPausedWithoutPauseConditions(t *testing.T) {
+	strategies := map[string]v1alpha1.RolloutStrategy{
+		"BlueGreen":       {BlueGreen: &v1alpha1.BlueGreenStrategy{}},
+		"CanaryNoSteps":   {Canary: &v1alpha1.CanaryStrategy{}},
+		"NoStrategyGiven": {},
+	}
+	for name, strategy := range strategies {
+		t.Run(name, func(t *testing.T) {
+			ro := v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "guestbook",
+					Namespace: metav1.NamespaceDefault,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Paused:   true,
+					Strategy: strategy,
+				},
+			}
+
+			tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+			defer tf.Cleanup()
+			fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+			var patches []string
+			var subresources []string
+			fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				if patchAction, ok := action.(kubetesting.PatchAction); ok {
+					patches = append(patches, string(patchAction.GetPatch()))
+					subresources = append(subresources, patchAction.GetSubresource())
+				}
+				return true, &ro, nil
+			})
+
+			cmd := NewCmdPromote(o)
+			cmd.PersistentPreRunE = o.PersistentPreRunE
+			cmd.SetArgs([]string{"guestbook"})
+			err := cmd.Execute()
+			assert.Nil(t, err)
+
+			assert.Equal(t, []string{promotePatch, unpausePatch}, patches)
+			assert.Equal(t, []string{"status", ""}, subresources)
+			stdout := o.Out.(*bytes.Buffer).String()
+			stderr := o.ErrOut.(*bytes.Buffer).String()
+			assert.Equal(t, stdout, "rollout 'guestbook' promoted\n")
+			assert.Empty(t, stderr)
+		})
+	}
+}
+
+// A rollout that is not paused at all must not get a promote request from a plain promote.
+func TestPromoteCmdNotPausedSendsNoPromoteRequest(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{BlueGreen: &v1alpha1.BlueGreenStrategy{}},
+		},
+	}
+	specPatch, statusPatch, _ := getPatches(&ro, false, false, false)
+	assert.Nil(t, specPatch)
+	assert.Nil(t, statusPatch)
+}
+
 func TestPromoteCmdPatchError(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
