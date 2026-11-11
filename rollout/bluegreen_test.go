@@ -12,8 +12,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
@@ -1129,6 +1132,7 @@ func TestBlueGreenRolloutScaleUpdateFullyPromotedRS(t *testing.T) {
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1.ResourceVersion = "1"
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
@@ -1144,9 +1148,29 @@ func TestBlueGreenRolloutScaleUpdateFullyPromotedRS(t *testing.T) {
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("update", "replicasets", rejectStaleResourceVersion(f))
+	f.runController(getKey(r1, t), true, false, c, i, k8sI)
 
 	assert.Equal(t, int32(2), *f.getUpdatedReplicaSet(updatedRSIndex).Spec.Replicas)
+}
+
+func rejectStaleResourceVersion(f *fixture) core.ReactionFunc {
+	return func(action core.Action) (bool, runtime.Object, error) {
+		update := action.(core.UpdateAction)
+		rs := update.GetObject().(*appsv1.ReplicaSet).DeepCopy()
+		stored, err := f.kubeclient.Tracker().Get(update.GetResource(), rs.Namespace, rs.Name)
+		if err != nil {
+			return true, nil, err
+		}
+		current := stored.(*appsv1.ReplicaSet).ResourceVersion
+		if rs.ResourceVersion != current {
+			return true, nil, apierrors.NewConflict(update.GetResource().GroupResource(), rs.Name, fmt.Errorf("the object has been modified"))
+		}
+		version, _ := strconv.Atoi(current)
+		rs.ResourceVersion = strconv.Itoa(version + 1)
+		return true, rs, f.kubeclient.Tracker().Update(update.GetResource(), rs, rs.Namespace)
+	}
 }
 
 func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *testing.T) {
