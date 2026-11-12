@@ -211,7 +211,46 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 			},
 		}
 		assert.Equal(t, time.Duration(scaleDownDelaySeconds)*time.Second, GetScaleDownDelaySecondsOrDefault(canaryWithTrafficRouting))
+
+		canaryWithTrafficRouting.Spec.Strategy.Canary.DynamicStableScale = true
+		canaryWithTrafficRouting.Spec.Strategy.Canary.StableScaleDownPolicy = &v1alpha1.StableScaleDownPolicy{DelaySeconds: ptr.To[int32](90)}
+		assert.Equal(t, 90*time.Second, GetScaleDownDelaySecondsOrDefault(canaryWithTrafficRouting))
 	}
+}
+
+func TestGetStableScaleDownDelaySeconds(t *testing.T) {
+	delaySeconds := int32(30)
+	withPolicy := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					DynamicStableScale: true,
+					StableScaleDownPolicy: &v1alpha1.StableScaleDownPolicy{
+						DelaySeconds: &delaySeconds,
+					},
+				},
+			},
+		},
+	}
+	dur := GetStableScaleDownDelaySeconds(withPolicy)
+	assert.NotNil(t, dur)
+	assert.Equal(t, 30*time.Second, *dur)
+
+	assert.Nil(t, GetStableScaleDownDelaySeconds(nil))
+	withPolicy.Spec.Strategy.Canary.StableScaleDownPolicy.DelaySeconds = ptr.To[int32](0)
+	assert.Nil(t, GetStableScaleDownDelaySeconds(withPolicy))
+	assert.Nil(t, GetStableScaleDownDelaySeconds(&v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					DynamicStableScale: false,
+					StableScaleDownPolicy: &v1alpha1.StableScaleDownPolicy{
+						DelaySeconds: &delaySeconds,
+					},
+				},
+			},
+		},
+	}))
 }
 
 func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {

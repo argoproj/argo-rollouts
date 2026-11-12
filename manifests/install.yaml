@@ -31764,6 +31764,22 @@ spec:
                             description: Labels Additional labels to add to the experiment
                             type: object
                         type: object
+                      stableScaleDownPolicy:
+                        description: |-
+                          StableScaleDownPolicy delays stable ReplicaSet scale-down when using dynamicStableScale, so that traffic
+                          routers which apply weight changes asynchronously can converge before pods are removed. While the update
+                          is in progress, the stable ReplicaSet keeps its replica count until DelaySeconds have passed since its
+                          desired count last dropped, and is not scaled down while an aborted rollout still sends traffic to the
+                          canary. After promotion, older ReplicaSets (usually the previous stable) are kept for DelaySeconds before
+                          they are scaled to zero, as scaleDownDelaySeconds does without dynamicStableScale.
+                        properties:
+                          delaySeconds:
+                            description: DelaySeconds is the number of seconds a stable
+                              ReplicaSet scale-down is held. Zero or unset disables
+                              the hold.
+                            format: int32
+                            type: integer
+                        type: object
                       stableService:
                         description: StableService holds the name of a service which
                           selects pods with stable version and don't select any pods

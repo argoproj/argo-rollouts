@@ -151,6 +151,10 @@ const (
 	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
 	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
+	// DefaultStableScaleDownHoldAnnotationKey is attached to the stable ReplicaSet while stableScaleDownPolicy
+	// holds a requested scale-down. It contains a JSON object with the deadline after which the controller may
+	// scale the RS down and the desired replica count the deadline was set for.
+	DefaultStableScaleDownHoldAnnotationKey = "stable-scale-down-hold"
 	// ManagedByRolloutKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
 	ManagedByRolloutsKey = "argo-rollouts.argoproj.io/managed-by-rollouts"
 	// DefaultReplicaSetRestartAnnotationKey indicates that the ReplicaSet with this annotation was restarted at the
@@ -339,6 +343,21 @@ type CanaryStrategy struct {
 	// Defaults to 100% of total replicas.
 	// +optional
 	ReplicaProgressThreshold *ReplicaProgressThreshold `json:"replicaProgressThreshold,omitempty" protobuf:"bytes,17,opt,name=replicaProgressThreshold"`
+	// StableScaleDownPolicy delays stable ReplicaSet scale-down when using dynamicStableScale, so that traffic
+	// routers which apply weight changes asynchronously can converge before pods are removed. While the update
+	// is in progress, the stable ReplicaSet keeps its replica count until DelaySeconds have passed since its
+	// desired count last dropped, and is not scaled down while an aborted rollout still sends traffic to the
+	// canary. After promotion, older ReplicaSets (usually the previous stable) are kept for DelaySeconds before
+	// they are scaled to zero, as scaleDownDelaySeconds does without dynamicStableScale.
+	// +optional
+	StableScaleDownPolicy *StableScaleDownPolicy `json:"stableScaleDownPolicy,omitempty" protobuf:"bytes,18,opt,name=stableScaleDownPolicy"`
+}
+
+// StableScaleDownPolicy holds options for delaying stable ReplicaSet scale-down when using dynamicStableScale.
+type StableScaleDownPolicy struct {
+	// DelaySeconds is the number of seconds a stable ReplicaSet scale-down is held. Zero or unset disables the hold.
+	// +optional
+	DelaySeconds *int32 `json:"delaySeconds,omitempty" protobuf:"varint,1,opt,name=delaySeconds"`
 }
 
 // PingPongSpec holds the ping and pong service name.
