@@ -512,3 +512,36 @@ func Test_isGenerationObserved(t *testing.T) {
 		})
 	}
 }
+
+// TestCalculateRolloutPluginPhaseReplicaReadiness verifies a RolloutPlugin with no rollout in
+// progress is Healthy only once every replica is updated and available.
+func TestCalculateRolloutPluginPhaseReplicaReadiness(t *testing.T) {
+	converged := v1alpha1.RolloutPluginStatus{
+		DesiredReplicas:   3,
+		UpdatedReplicas:   3,
+		AvailableReplicas: 3,
+		StableRevision:    "rev-2",
+		UpdatedRevision:   "rev-2",
+	}
+	tests := []struct {
+		name      string
+		mutate    func(s *v1alpha1.RolloutPluginStatus)
+		wantPhase v1alpha1.RolloutPluginPhase
+		wantMsg   string
+	}{
+		{name: "converged and available", mutate: func(s *v1alpha1.RolloutPluginStatus) {}, wantPhase: v1alpha1.RolloutPluginPhaseHealthy},
+		{name: "no revision reported yet", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.StableRevision = "" }, wantPhase: v1alpha1.RolloutPluginPhaseProgressing, wantMsg: "waiting for the workload's revision"},
+		{name: "stable behind updated", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.StableRevision = "rev-1" }, wantPhase: v1alpha1.RolloutPluginPhaseProgressing, wantMsg: "waiting for pods to converge"},
+		{name: "replicas not updated", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.UpdatedReplicas = 2 }, wantPhase: v1alpha1.RolloutPluginPhaseProgressing, wantMsg: "more replicas need to be updated"},
+		{name: "replicas not available", mutate: func(s *v1alpha1.RolloutPluginStatus) { s.AvailableReplicas = 2 }, wantPhase: v1alpha1.RolloutPluginPhaseProgressing, wantMsg: "updated replicas are still becoming available"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status := *converged.DeepCopy()
+			tt.mutate(&status)
+			phase, msg := CalculateRolloutPluginPhase(v1alpha1.RolloutPluginSpec{}, status)
+			assert.Equal(t, tt.wantPhase, phase)
+			assert.Equal(t, tt.wantMsg, msg)
+		})
+	}
+}

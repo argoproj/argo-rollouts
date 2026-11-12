@@ -43,4 +43,9 @@ const (
 	AnalysisRunSingular string = "analysisrun"
 	AnalysisRunPlural   string = "analysisruns"
 	AnalysisRunFullName string = AnalysisRunPlural + "." + Group
+
+	RolloutPluginKind     string = "RolloutPlugin"
+	RolloutPluginSingular string = "rolloutplugin"
+	RolloutPluginPlural   string = "rolloutplugins"
+	RolloutPluginFullName string = RolloutPluginPlural + "." + Group
 )

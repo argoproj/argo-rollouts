@@ -224,7 +224,7 @@ The `RolloutPlugin` status would track the progress of the rollout:
 status:
   observedGeneration: 1
   initialized: true
-  currentRevision: "hash123456"
+  stableRevision: "hash123456"
   updatedRevision: "hash789012"
   currentStepIndex: 2
   currentStepComplete: false
