@@ -224,7 +224,7 @@ func NewAnalysisManager(
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
-	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil)
+	recorder := record.NewEventRecorder(kubeclientset, argoprojclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil)
 	analysisController := analysis.NewController(analysis.ControllerConfig{
 		KubeClientSet:                 kubeclientset,
 		ArgoProjClientset:             argoprojclientset,
@@ -339,7 +339,7 @@ func NewManager(
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
 	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
-	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
+	recorder := record.NewEventRecorder(kubeclientset, argoprojclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
 	toUnstructured := notificationcontroller.WithToUnstructured(objectToUnstructured)
 	// The namespace-support controller reads per-namespace configs; that only makes sense with
 	// self-service notifications. Without it a single config is used, and the namespace variant
