@@ -835,8 +835,9 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 	if conditions.RolloutCompleted(newStatus) {
 		return
 	}
-	// Don't abort an update that is still making progress during this reconciliation
-	if conditions.RolloutProgressing(c.rollout, newStatus) {
+	// Don't abort an update that is still making progress during this reconciliation. Readiness-only
+	// progress does not count once the progress deadline it preserves has expired.
+	if conditions.RolloutProgressingWithinDeadline(c.rollout, newStatus) {
 		return
 	}
 	// Some steps do not count against the lack of progress
@@ -907,7 +908,9 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(newStatus, *progressingCondition)
-		case conditions.RolloutProgressing(c.rollout, newStatus) || becameUnhealthy:
+		// Readiness-only progress does not count once the progress deadline it preserves has expired,
+		// so that the timeout case below is evaluated.
+		case conditions.RolloutProgressingWithinDeadline(c.rollout, newStatus) || becameUnhealthy:
 			// If there is any progress made, continue by not checking if the rollout failed. This
 			// behavior emulates the rolling updater progressDeadline check.
 			msg := fmt.Sprintf(conditions.RolloutProgressingMessage, c.rollout.Name)
@@ -927,16 +930,22 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 			}
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, reason, msg)
 
-			// Update the current Progressing condition or add a new one if it doesn't exist.
-			// If a Progressing condition with status=true already exists, we should update
-			// everything but lastTransitionTime. SetRolloutCondition already does that but
-			// it also is not updating conditions when the reason of the new condition is the
-			// same as the old. The Progressing condition is a special case because we want to
-			// update with the same reason and change just lastUpdateTime if we notice any
-			// progress. That's why we handle it here.
+			// Only reset the progress deadline (LastUpdateTime) when there is structural/scaling
+			// progress or when the condition doesn't exist yet. ReadyReplicas/AvailableReplicas
+			// oscillation (e.g., from crash-looping pods) should NOT reset the deadline, as this
+			// would prevent ProgressDeadlineExceeded from ever firing.
+			scalingProgress := conditions.RolloutScalingProgress(c.rollout, newStatus)
+			readinessOnlyProgress := !scalingProgress && !becameUnhealthy
+
 			if currentCond != nil {
 				if currentCond.Status == corev1.ConditionTrue {
 					condition.LastTransitionTime = currentCond.LastTransitionTime
+				}
+				if readinessOnlyProgress && conditions.ReadinessProgressPreservesDeadline(currentCond) {
+					// Readiness-only progress (ReadyReplicas/AvailableReplicas went up) should not
+					// reset the deadline timer when we're already tracking progress. This prevents
+					// crash-looping pods from indefinitely deferring the timeout.
+					condition.LastUpdateTime = currentCond.LastUpdateTime
 				}
 				conditions.RemoveRolloutCondition(newStatus, v1alpha1.RolloutProgressing)
 			}
