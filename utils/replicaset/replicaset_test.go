@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
+	"github.com/argoproj/argo-rollouts/utils/k8sutil"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -93,7 +93,7 @@ func TestFindNewReplicaSet(t *testing.T) {
 	})
 	t.Run("FindNewReplicaSet by deprecated hash", func(t *testing.T) {
 		// rs has the deprecated hash
-		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
+		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = k8sutil.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
 		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
 		assert.Equal(t, &rs1, actual)
 	})
@@ -144,8 +144,8 @@ func TestFindOldReplicaSets(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			allRS := FindOldReplicaSets(&test.rollout, test.rsList, &newRS)
-			sort.Sort(controller.ReplicaSetsByCreationTimestamp(allRS))
-			sort.Sort(controller.ReplicaSetsByCreationTimestamp(test.expected))
+			sort.Sort(k8sutil.ReplicaSetsByCreationTimestamp(allRS))
+			sort.Sort(k8sutil.ReplicaSetsByCreationTimestamp(test.expected))
 			if !reflect.DeepEqual(allRS, test.expected) {
 				t.Errorf("In test case %q, expected %#v, got %#v", test.Name, test.expected, allRS)
 			}
