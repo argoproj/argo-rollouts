@@ -322,6 +322,14 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 			// cannot scale down this replica set.
 			continue
 		}
+		if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.isReplicaSetReferenced(targetRS) {
+			// Traffic still reaches this ReplicaSet. Pods that are ready but inside minReadySeconds
+			// are not available, and the ReplicaSet controller ranks pods to delete by readiness,
+			// not availability, so scaling down to the available count can delete available pods
+			// and, repeated each reconcile, empty a ReplicaSet that is still serving.
+			c.log.Infof("Skip unhealthy cleanup of old RS '%s': still referenced", targetRS.Name)
+			continue
+		}
 		c.log.Infof("Found %d available pods in old RS %s/%s", targetRS.Status.AvailableReplicas, targetRS.Namespace, targetRS.Name)
 		if *(targetRS.Spec.Replicas) == targetRS.Status.AvailableReplicas {
 			// no unhealthy replicas found, no scaling required.
