@@ -96,6 +96,14 @@ func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error
 		c.log.Infof("Skipping active service reconciliation: %s", haltReason)
 		return nil
 	}
+	if c.rollout.Status.Abort {
+		if c.stableRS == nil {
+			c.log.Info("Skipping active service switch: stable ReplicaSet does not exist")
+			return nil
+		}
+		// Restoring stable traffic must not depend on the failed candidate's readiness.
+		return c.switchServiceSelector(activeSvc, c.rollout.Status.StableRS, c.rollout)
+	}
 	if !replicasetutil.ReadyForPause(c.rollout, c.newRS, c.allRSs) || !annotations.IsSaturated(c.rollout, c.newRS) {
 		c.log.Infof("skipping active service switch: New RS '%s' is not fully saturated", c.newRS.Name)
 		return nil
@@ -107,10 +115,6 @@ func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error
 	}
 	if c.pauseContext.CompletedBlueGreenPause() && c.completedPrePromotionAnalysis() {
 		newPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	}
-
-	if c.rollout.Status.Abort {
-		newPodHash = c.rollout.Status.StableRS
 	}
 
 	err := c.switchServiceSelector(activeSvc, newPodHash, c.rollout)
