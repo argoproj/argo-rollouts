@@ -7,6 +7,7 @@ import (
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiv1alpha2 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha2"
 	smiv1alpha3 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
+	smiv1alpha4 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha4"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,6 +50,7 @@ type VersionedTrafficSplits struct {
 	ts1 *smiv1alpha1.TrafficSplit
 	ts2 *smiv1alpha2.TrafficSplit
 	ts3 *smiv1alpha3.TrafficSplit
+	ts4 *smiv1alpha4.TrafficSplit
 }
 
 // NewReconciler returns a reconciler struct that brings the SMI into the desired state
@@ -167,6 +169,42 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
 			return metav1.IsControlledBy(ts.ts3, r.cfg.Rollout)
 		}
+	case "v1alpha4":
+		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
+			ts4, err := r.cfg.Client.SplitV1alpha4().TrafficSplits(r.cfg.Rollout.Namespace).Get(ctx, trafficSplitName, metav1.GetOptions{})
+			ts := VersionedTrafficSplits{}
+			if ts4 != nil {
+				ts.ts4 = ts4
+			}
+			return ts, err
+		}
+		r.createTrafficSplit = func(ts VersionedTrafficSplits) error {
+			_, err := r.cfg.Client.SplitV1alpha4().TrafficSplits(r.cfg.Rollout.Namespace).Create(ctx, ts.ts4, metav1.CreateOptions{})
+			return err
+		}
+		r.patchTrafficSplit = func(existing VersionedTrafficSplits, desired VersionedTrafficSplits) error {
+			patch, modified, err := diff.CreateTwoWayMergePatch(
+				smiv1alpha4.TrafficSplit{
+					Spec: existing.ts4.Spec,
+				},
+				smiv1alpha4.TrafficSplit{
+					Spec: desired.ts4.Spec,
+				},
+				smiv1alpha4.TrafficSplit{},
+			)
+			if err != nil {
+				panic(err)
+			}
+			if !modified {
+				r.log.Infof("Traffic Split `%s` was not modified", existing.ts4.Name)
+				return nil
+			}
+			_, err = r.cfg.Client.SplitV1alpha4().TrafficSplits(r.cfg.Rollout.Namespace).Patch(ctx, existing.ts4.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+			return err
+		}
+		r.trafficSplitIsControlledBy = func(ts VersionedTrafficSplits) bool {
+			return metav1.IsControlledBy(ts.ts4, r.cfg.Rollout)
+		}
 	default:
 		err := fmt.Errorf("Unsupported TrafficSplit API version `%s`", defaults.GetSMIAPIVersion())
 		return nil, err
@@ -240,6 +278,8 @@ func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeigh
 		trafficSplits.ts2 = trafficSplitV1Alpha2(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight, additionalDestinations...)
 	case "v1alpha3":
 		trafficSplits.ts3 = trafficSplitV1Alpha3(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight, additionalDestinations...)
+	case "v1alpha4":
+		trafficSplits.ts4 = trafficSplitV1Alpha4(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight, additionalDestinations...)
 	}
 	return trafficSplits
 }
@@ -341,6 +381,37 @@ func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 	return &smiv1alpha3.TrafficSplit{
 		ObjectMeta: objectMeta,
 		Spec: smiv1alpha3.TrafficSplitSpec{
+			Service:  rootSvc,
+			Backends: backends,
+		},
+	}
+}
+
+func trafficSplitV1Alpha4(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) *smiv1alpha4.TrafficSplit {
+	backends := []smiv1alpha4.TrafficSplitBackend{{
+		Service: ro.Spec.Strategy.Canary.CanaryService,
+		Weight:  int(desiredWeight),
+	}}
+	stableWeight := int(100 - desiredWeight)
+	for _, dest := range additionalDestinations {
+		// Create backend entry
+		backends = append(backends, smiv1alpha4.TrafficSplitBackend{
+			Service: dest.ServiceName,
+			Weight:  int(dest.Weight),
+		})
+		// Update stableWeight
+		stableWeight -= int(dest.Weight)
+	}
+
+	// Add stable backend with fully updated stableWeight
+	backends = append(backends, smiv1alpha4.TrafficSplitBackend{
+		Service: ro.Spec.Strategy.Canary.StableService,
+		Weight:  stableWeight,
+	})
+
+	return &smiv1alpha4.TrafficSplit{
+		ObjectMeta: objectMeta,
+		Spec: smiv1alpha4.TrafficSplitSpec{
 			Service:  rootSvc,
 			Backends: backends,
 		},
