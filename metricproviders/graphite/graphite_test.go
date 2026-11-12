@@ -96,14 +96,59 @@ func TestRunMeasurementError(t *testing.T) {
 	assert.Equal(t, "could not evaluate successCondition \"result[0] 10.000000\": unexpected token Number(\"10.000000\")", measurement.Message)
 }
 
-func TestRunErrorEvaluationFromNilQueryResponse(t *testing.T) {
-	g := NewGraphiteProvider(newMockAPI(nil, nil), log.Entry{})
-	measurement := g.Run(&v1alpha1.AnalysisRun{}, newTestingMetric())
-	assert.NotNil(t, measurement.StartedAt)
-	assert.Equal(t, "", measurement.Value)
-	assert.NotNil(t, measurement.FinishedAt)
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
-	assert.Equal(t, "no values found", measurement.Message)
+func TestRunEmptyResultIsEvaluatedByConditions(t *testing.T) {
+	newMetric := func(successCondition, failureCondition string) v1alpha1.Metric {
+		metric := newTestingMetric()
+		metric.SuccessCondition = successCondition
+		metric.FailureCondition = failureCondition
+		return metric
+	}
+	tests := []struct {
+		name             string
+		successCondition string
+		failureCondition string
+		expectedPhase    v1alpha1.AnalysisPhase
+		expectedMessage  string
+	}{
+		{
+			// An empty result means there is nothing to report (e.g. no errors in the last minutes),
+			// so a condition that handles an empty result must be able to succeed.
+			name:             "condition handling an empty result succeeds",
+			successCondition: "len(result) > 0 ? result[0] < 1 : true",
+			expectedPhase:    v1alpha1.AnalysisPhaseSuccessful,
+		},
+		{
+			name:             "condition handling an empty result can fail",
+			successCondition: "len(result) > 0",
+			expectedPhase:    v1alpha1.AnalysisPhaseFailed,
+		},
+		{
+			name:             "membership conditions are evaluated",
+			successCondition: "10.000000 in result",
+			failureCondition: "10.000000 not in result",
+			expectedPhase:    v1alpha1.AnalysisPhaseFailed,
+		},
+		{
+			// Conditions that index into the result keep being an error when there is no value.
+			name:             "condition indexing an empty result is an error",
+			successCondition: "result[0] < 10",
+			expectedPhase:    v1alpha1.AnalysisPhaseError,
+			expectedMessage:  "could not evaluate successCondition",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			g := NewGraphiteProvider(newMockAPI(nil, nil), log.Entry{})
+			measurement := g.Run(&v1alpha1.AnalysisRun{}, newMetric(test.successCondition, test.failureCondition))
+			assert.NotNil(t, measurement.StartedAt)
+			assert.NotNil(t, measurement.FinishedAt)
+			assert.Equal(t, test.expectedPhase, measurement.Phase)
+			assert.Contains(t, measurement.Message, test.expectedMessage)
+			if test.expectedPhase != v1alpha1.AnalysisPhaseError {
+				assert.Equal(t, "[]", measurement.Value)
+			}
+		})
+	}
 }
 
 func TestRunErrorEvaluationFromErrorQueryResponse(t *testing.T) {
