@@ -128,6 +128,23 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 
 	rs := ec.templateRSs[template.Name]
 
+	// A retry clears the status but keeps the ReplicaSet, whose name does not change with the
+	// template. Recreate it so the retried experiment runs the current template.
+	if rs != nil && ec.ex.Status.Phase == "" {
+		desiredRS := newReplicaSetFromTemplate(ec.ex, template, nil)
+		if !replicasetutil.PodTemplateEqualIgnoreHash(&rs.Spec.Template, &desiredRS.Spec.Template) {
+			logCtx.Infof("Template changed since ReplicaSet '%s' was created; recreating it", rs.Name)
+			if err := ec.deleteReplicaSet(rs); err != nil {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Failed to delete outdated ReplicaSet '%s' for template '%s': %v", rs.Name, template.Name, err)
+				experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
+				return
+			}
+			ec.templateRSs[template.Name] = nil
+			rs = nil
+		}
+	}
+
 	// Create ReplicaSet if does not exist
 	if rs == nil {
 		ec.createReplicaSetForTemplate(template, templateStatus, logCtx, now)
@@ -302,7 +319,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 			ports = append(ports, servicePort)
 		}
 	}
-	if (svc == nil || svc.Name != rs.Name) && len(ports) > 0 {
+	if (svc == nil || svc.Name != rs.Name || svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != podTemplateHash) && len(ports) > 0 {
 		serviceName := rs.Name
 		if template.Service.Name != "" {
 			serviceName = template.Service.Name
