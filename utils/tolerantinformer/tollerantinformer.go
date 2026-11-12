@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 
+	informerutil "github.com/argoproj/argo-rollouts/utils/informer"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -32,10 +33,17 @@ type deepCopyable[T any] interface {
 // invalid fields. Preserves the original tolerantinformer behavior from PR #666
 // (resolves #389, #517).
 //
+// metadata.managedFields is dropped before conversion to reduce cache memory and
+// conversion cost (see informerutil.StripManagedFields).
+//
 // Idempotent: if the object has already been converted (e.g., a resync delivers a
-// typed object), it is returned unchanged.
+// typed object), it is returned unchanged apart from having managedFields dropped.
 func makeTransform[T runtime.Object](newFn func() T) cache.TransformFunc {
 	return func(obj any) (any, error) {
+		obj, err := informerutil.StripManagedFields(obj)
+		if err != nil {
+			return nil, err
+		}
 		return coerceToTyped(obj, newFn)
 	}
 }

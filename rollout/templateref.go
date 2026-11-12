@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	informerutil "github.com/argoproj/argo-rollouts/utils/informer"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
 	log "github.com/sirupsen/logrus"
@@ -209,6 +210,9 @@ func (r *informerBasedTemplateResolver) newInformerForGVK(gvk schema.GroupVersio
 		r.informerResyncDuration,
 		cache.Indexers{},
 		nil)
+	if err := informerutil.SetStripManagedFieldsTransform(informer.Informer()); err != nil {
+		return nil, err
+	}
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			r.updateRolloutsReferenceAnnotation(obj, gvk)
