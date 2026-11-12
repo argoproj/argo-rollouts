@@ -141,6 +141,8 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 	// find all TargetGroupBindings in the namespace which reference the service name + port
 	tgBindings, err := aws.GetTargetGroupBindingsByService(ctx, c.dynamicclientset, *svc)
 	if err != nil {
+		// A failed lookup counts as unverified so promotion stays held.
+		c.targetsVerified = ptr.To[bool](false)
 		return err
 	}
 	if len(tgBindings) == 0 {
