@@ -418,6 +418,9 @@ func TestCanaryPromoteFull(t *testing.T) {
 	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
 	assert.Equal(t, int32(2), *patchedRollout.Status.CurrentStepIndex) // verify we updated to last step
 	assert.False(t, patchedRollout.Status.PromoteFull)
+	// new ReplicaSet is not available yet, so the promotion is still in progress and acknowledged
+	assert.NotNil(t, patchedRollout.Status.PromoteFullAt)
+	assert.Contains(t, f.events, conditions.RolloutPromotedFullReason)
 }
 
 // TesBlueGreenPromoteFull verifies skip pause, analysis when promote full is set for a blue-green rollout
@@ -471,6 +474,9 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	assert.Equal(t, rs2PodHash, patchedRollout.Status.StableRS)
 	assert.Equal(t, rs2PodHash, patchedRollout.Status.BlueGreen.ActiveSelector)
 	assert.False(t, patchedRollout.Status.PromoteFull)
+	// promotion completed within a single reconcile, the event must still be emitted once
+	assert.Nil(t, patchedRollout.Status.PromoteFullAt)
+	assert.Contains(t, f.events, conditions.RolloutPromotedFullReason)
 }
 
 // TestSendStateChangeEvents verifies we emit appropriate events on rollout state changes
@@ -515,6 +521,44 @@ func TestSendStateChangeEvents(t *testing.T) {
 			},
 			expectedEventReasons: nil,
 		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PromoteFull: true,
+			},
+			newStatus: v1alpha1.RolloutStatus{
+				PromoteFull:   true,
+				PromoteFullAt: &now,
+			},
+			expectedEventReasons: []string{conditions.RolloutPromotedFullReason},
+		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PromoteFull:   true,
+				PromoteFullAt: &now,
+			},
+			newStatus: v1alpha1.RolloutStatus{
+				PromoteFull:   true,
+				PromoteFullAt: &now,
+			},
+			expectedEventReasons: nil,
+		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				Promote: true,
+			},
+			newStatus:            v1alpha1.RolloutStatus{},
+			expectedEventReasons: []string{conditions.RolloutPromotedReason},
+		},
+		{
+			prevStatus: v1alpha1.RolloutStatus{
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: v1alpha1.PauseReasonCanaryPauseStep, StartTime: now},
+				},
+				Promote: true,
+			},
+			newStatus:            v1alpha1.RolloutStatus{},
+			expectedEventReasons: []string{conditions.RolloutResumedReason, conditions.RolloutPromotedReason},
+		},
 	}
 	for _, test := range tests {
 		roCtx := &rolloutContext{}
@@ -526,6 +570,40 @@ func TestSendStateChangeEvents(t *testing.T) {
 		roCtx.recorder = recorder
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
 		assert.Equal(t, test.expectedEventReasons, recorder.Events())
+	}
+}
+
+// TestCalculatePromoteFullStatus verifies status.promoteFullAt is set once per full promotion and cleared afterwards
+func TestCalculatePromoteFullStatus(t *testing.T) {
+	earlier := metav1.NewTime(timeutil.Now().Add(-time.Minute))
+	tests := []struct {
+		name              string
+		prevPromoteFullAt *metav1.Time
+		newPromoteFull    bool
+		expectSet         bool
+		expectPreserved   bool
+	}{
+		{name: "not promoting clears the timestamp", prevPromoteFullAt: &earlier, newPromoteFull: false},
+		{name: "new full promotion sets the timestamp", prevPromoteFullAt: nil, newPromoteFull: true, expectSet: true},
+		{name: "acknowledged full promotion keeps the timestamp", prevPromoteFullAt: &earlier, newPromoteFull: true, expectSet: true, expectPreserved: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			roCtx := &rolloutContext{}
+			roCtx.rollout = &v1alpha1.Rollout{Status: v1alpha1.RolloutStatus{PromoteFullAt: test.prevPromoteFullAt}}
+			newStatus := v1alpha1.RolloutStatus{PromoteFull: test.newPromoteFull}
+			roCtx.calculatePromoteFullStatus(&newStatus)
+			if !test.expectSet {
+				assert.Nil(t, newStatus.PromoteFullAt)
+				return
+			}
+			assert.NotNil(t, newStatus.PromoteFullAt)
+			if test.expectPreserved {
+				assert.Equal(t, earlier, *newStatus.PromoteFullAt)
+			} else {
+				assert.True(t, newStatus.PromoteFullAt.After(earlier.Time))
+			}
+		})
 	}
 }
 

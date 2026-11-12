@@ -31,14 +31,15 @@ To skip analysis, pauses and steps entirely, use '--full' to fully promote the r
 )
 
 const (
-	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d}}`
+	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d, "promote":true}}`
 	unpausePatch                                = `{"spec":{"paused":false}}`
-	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null}}`
-	clearPauseConditionsAndControllerPausePatch = `{"status":{"pauseConditions":null, "controllerPause":false, "currentStepIndex":%d}}`
-	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
+	promotePatch                                = `{"status":{"promote":true}}`
+	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null, "promote":true}}`
+	clearPauseConditionsAndControllerPausePatch = `{"status":{"pauseConditions":null, "controllerPause":false, "currentStepIndex":%d, "promote":true}}`
+	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null, "promote":true}}`
 	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
-	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
-	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
+	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d, "promote":true}}`
+	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d, "promote":true}}`
 	unpauseAndPromoteFullPatch                  = `{"spec":{"paused":false},"status":{"promoteFull":true}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
@@ -198,6 +199,12 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 				statusPatch = []byte(fmt.Sprintf(clearPauseConditionsPatchWithStep, *index))
 				unifiedPatch = []byte(fmt.Sprintf(unpauseAndClearPauseConditionsPatchWithStep, *index))
 			}
+		}
+		if statusPatch == nil && rollout.Spec.Paused {
+			// a rollout paused only through spec.paused (no pause conditions, e.g. blue-green or a
+			// canary without steps) is resumed by the spec patch alone. Record the promote request
+			// in the status as well, so the controller still emits the RolloutPromoted event
+			statusPatch = []byte(promotePatch)
 		}
 	}
 	return specPatch, statusPatch, unifiedPatch
