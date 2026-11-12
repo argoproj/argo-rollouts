@@ -727,6 +727,53 @@ func TestReconciler_canaryIngress(t *testing.T) {
 	}
 }
 
+func TestCanaryIngressSkipsRulesWithoutServiceBackend(t *testing.T) {
+	r := Reconciler{
+		cfg: ReconcilerConfig{
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, nil),
+		},
+	}
+	stableIngress := networkingIngress(StableIngress, 80, stableService)
+	stableIngress.Spec.Rules[0].HTTP.Paths = append(stableIngress.Spec.Rules[0].HTTP.Paths, networkingv1.HTTPIngressPath{
+		Path: "/static",
+		Backend: networkingv1.IngressBackend{
+			Resource: &corev1.TypedLocalObjectReference{
+				APIGroup: ptr.To("k8s.example.com"),
+				Kind:     "StorageBucket",
+				Name:     "static-assets",
+			},
+		},
+	})
+	stableIngress.Spec.Rules = append(stableIngress.Spec.Rules, networkingv1.IngressRule{Host: "nohttp.example.com"})
+	i := ingressutil.NewIngress(stableIngress)
+
+	desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 10)
+	assert.NoError(t, err)
+	desired, err := desiredCanaryIngress.GetNetworkingIngress()
+	assert.NoError(t, err)
+	assert.Len(t, desired.Spec.Rules, 1)
+	assert.Equal(t, canaryService, desired.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name)
+	assert.Nil(t, desired.Spec.Rules[0].HTTP.Paths[1].Backend.Service)
+}
+
+func TestCanaryLegacyIngressSkipsRulesWithoutHTTP(t *testing.T) {
+	r := Reconciler{
+		cfg: ReconcilerConfig{
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, nil),
+		},
+	}
+	stableIngress := extensionsIngress(StableIngress, 80, stableService)
+	stableIngress.Spec.Rules = append(stableIngress.Spec.Rules, extensionsv1beta1.IngressRule{Host: "nohttp.example.com"})
+	i := ingressutil.NewLegacyIngress(stableIngress)
+
+	desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 10)
+	assert.NoError(t, err)
+	desired, err := desiredCanaryIngress.GetExtensionsIngress()
+	assert.NoError(t, err)
+	assert.Len(t, desired.Spec.Rules, 1)
+	assert.Equal(t, canaryService, desired.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName)
+}
+
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	rollout := fakeRollout(stableService, canaryService, StableIngress, nil)
