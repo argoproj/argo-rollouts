@@ -3005,6 +3005,13 @@ func schema_pkg_apis_rollouts_v1alpha1_MangedRoutes(ref common.ReferenceCallback
 							Format:  "",
 						},
 					},
+					"inheritFrom": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InheritFrom is the name of an existing route whose configuration is copied into this managed route. The match conditions of the managed route are added to the match conditions of the inherited route.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"name"},
 			},
