@@ -43,11 +43,15 @@ func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
 	}
 
 	c.log.Infof("Reconciling stable ReplicaSet '%s'", c.stableRS.Name)
-	_, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
+	_, stableRS, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
 	if err != nil {
 		return fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileBlueGreenStableReplicaSet: %w", err)
 	}
-	return err
+	if c.newRS != nil && c.newRS.Name == stableRS.Name {
+		c.newRS = stableRS
+	}
+	c.stableRS = stableRS
+	return nil
 }
 
 func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service) error {
