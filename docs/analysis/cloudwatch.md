@@ -124,7 +124,13 @@ spec:
             "metricStat": {
               "metric": {
                 "namespace": "app",
-                "metricName": "requests"
+                "metricName": "requests",
+                "dimensions": [
+                  {
+                    "name": "Service",
+                    "value": "{{args.service-name}}"
+                  }
+                ]
               },
               "period": 300,
               "stat": "Sum",
