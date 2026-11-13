@@ -63,12 +63,30 @@ spec:
 - `metricDataQueries` - GetMetricData query: [MetricDataQuery](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricDataQuery.html)
 - `interval` - optional interval, e.g. 30m, default: 5m
 
+Each entry of `metricDataQueries` supports these fields, which map one to one onto the CloudWatch `MetricDataQuery` API:
+
+| Field | Description |
+|-------|-------------|
+| `id` | Short name of the query, used to reference it from expressions and in `result`. |
+| `expression` | Metric math expression. Use either `expression` or `metricStat`. |
+| `label` | Optional human-readable label returned with the result. |
+| `metricStat.metric.namespace` | Namespace of the metric. |
+| `metricStat.metric.metricName` | Name of the metric. |
+| `metricStat.metric.dimensions` | List of `name` / `value` pairs that identify the metric. |
+| `metricStat.period` | Granularity of the returned data points, in seconds. |
+| `metricStat.stat` | Statistic to return, for example `Sum`, `Average`, `p99`. |
+| `metricStat.unit` | Optional unit filter. |
+| `period` | Optional period override for the query. |
+| `returnData` | Set to `false` for intermediate queries that only feed an expression. |
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
   name: success-rate
 spec:
+  args:
+  - name: service-name
   metrics:
   - name: success-rate
     interval: 1m
@@ -87,7 +105,13 @@ spec:
             "metricStat": {
               "metric": {
                 "namespace": "app",
-                "metricName": "errors"
+                "metricName": "errors",
+                "dimensions": [
+                  {
+                    "name": "Service",
+                    "value": "{{args.service-name}}"
+                  }
+                ]
               },
               "period": 300,
               "stat": "Sum",
