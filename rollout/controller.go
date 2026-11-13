@@ -597,8 +597,12 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		logCtx.Warnf("Removing abort condition from fully promoted rollout")
 		roCtx.pauseContext.RemoveAbort()
 	}
-	// carry over existing recorded weights
-	roCtx.newStatus.Canary.Weights = rollout.Status.Canary.Weights
+	// carry over existing recorded weights. Only the canary strategy uses them; dropping them
+	// otherwise clears weights left over from a switch to blue-green, which would keep the old
+	// stable ReplicaSet referenced and prevent it from being scaled down.
+	if rollout.Spec.Strategy.Canary != nil {
+		roCtx.newStatus.Canary.Weights = rollout.Status.Canary.Weights
+	}
 	return &roCtx, nil
 }
 
