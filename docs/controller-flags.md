@@ -73,7 +73,7 @@ See the [FAQ](FAQ.md#can-we-run-the-argo-rollouts-controller-in-ha-mode) for run
 |------|---------|-------------|
 | `--leader-elect` | `true` | Perform leader election between controller instances so that only one operates at a time. |
 | `--leader-election-lease-duration` | `15s` | How long non-leader candidates wait after observing a leadership renewal before trying to acquire a lease that was not renewed. Effectively the maximum time a leader can be stopped before it is replaced. |
-| `--leader-election-renew-deadline` | `10s` | Interval between attempts by the acting leader to renew its lease before it stops leading. Must be strictly less than the lease duration; client-go refuses to start leader election when the two are equal. |
+| `--leader-election-renew-deadline` | `10s` | Interval between attempts by the acting leader to renew its lease before it stops leading. Must be strictly less than the lease duration and greater than 1.2 times the retry period; client-go refuses to start leader election otherwise. |
 | `--leader-election-retry-period` | `2s` | Wait between attempts to acquire or renew the lease. |
 
 ## Traffic routing
