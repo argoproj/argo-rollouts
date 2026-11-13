@@ -860,6 +860,11 @@ func TestApproximateWeightedNewStableReplicaCounts(t *testing.T) {
 		{replicas: 10, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 1},  // 90.9%
 		{replicas: 10, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
 
+		// A large maxWeight makes replicas*weight exceed the int32 range.
+		{replicas: 43, weight: 50000000, maxWeight: 100000000, maxSurge: 0, expCanary: 22, expStable: 21},  // 50%
+		{replicas: 100, weight: 50000000, maxWeight: 100000000, maxSurge: 0, expCanary: 50, expStable: 50}, // 50%
+		{replicas: 43, weight: 100000000, maxWeight: 100000000, maxSurge: 0, expCanary: 43, expStable: 0},  // 100%
+		{replicas: 43, weight: 0, maxWeight: 100000000, maxSurge: 0, expCanary: 0, expStable: 43},          // 0%
 	}
 	for i := range tests {
 		test := tests[i]

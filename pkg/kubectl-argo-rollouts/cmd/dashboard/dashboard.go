@@ -21,6 +21,7 @@ var (
 func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var rootPath string
 	var port int
+	var address string
 	var cmd = &cobra.Command{
 		Use:     "dashboard",
 		Short:   "Start UI dashboard",
@@ -36,6 +37,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				RolloutsClientset: rolloutclientset,
 				DynamicClientset:  o.DynamicClientset(),
 				RootPath:          rootPath,
+				ListenAddr:        address,
 			}
 
 			for {
@@ -49,6 +51,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&rootPath, "root-path", "rollouts", "changes the root path of the dashboard")
 	cmd.Flags().IntVarP(&port, "port", "p", 3100, "port to listen on")
+	cmd.Flags().StringVar(&address, "address", "127.0.0.1", "address to listen on: use 0.0.0.0 when fronting the dashboard with a Kubernetes Service")
 
 	return cmd
 }

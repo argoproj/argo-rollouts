@@ -80,7 +80,7 @@ kubectl rollout status --namespace ingress-apisix \
 ```
 
 Install Argo Rollouts using the
-[standard installation](../../installation.md#controller-installation):
+[standard installation](../../installation.md#controller-installation-with-manifests):
 
 ```bash
 kubectl create namespace argo-rollouts

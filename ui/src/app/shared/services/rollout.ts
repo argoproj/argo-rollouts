@@ -1,34 +1,49 @@
 import {RolloutRolloutWatchEvent, RolloutServiceApiFetchParamCreator} from '../../../models/rollout/generated';
-import {ListState, useLoading, useWatch, useWatchList} from '../utils/watch';
+import {ListState, useWatch, useWatchList} from '../utils/watch';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import * as React from 'react';
 import {NamespaceContext, RolloutAPIContext, getApiBasePath} from '../context/api';
 import { notification } from 'antd';
+import {failedListState, loadedListState, loadingListState} from './rollout-state';
 
-export const useRollouts = (): RolloutInfo[] => {
+export const useRollouts = (): ListState<RolloutInfo> => {
     const api = React.useContext(RolloutAPIContext);
     const namespaceCtx = React.useContext(NamespaceContext);
-    const [rollouts, setRollouts] = React.useState([]);
+    const [state, setState] = React.useState<ListState<RolloutInfo>>(loadingListState());
 
     React.useEffect(() => {
+        let cancelled = false;
+
         const fetchList = async () => {
+            setState(loadingListState());
             try {
                 const list = await api.rolloutServiceListRolloutInfos(namespaceCtx.namespace);
-                setRollouts(list.rollouts || []);
+                if (!cancelled) {
+                    setState(loadedListState(list.rollouts || []));
+                }
             } catch (error) {
-                console.error('Error fetching rollouts:', error);
-                notification.error({
-                    message: 'Error fetching rollouts',
-                    description: error.message || 'An unexpected error occurred while fetching rollouts.',
-                    duration: 8,
-                    placement: 'bottomRight',
-                });
+                if (!cancelled) {
+                    const errorState = failedListState<RolloutInfo>(error);
+                    const fetchError = errorState.error;
+                    setState(errorState);
+                    console.error('Error fetching rollouts:', fetchError);
+                    notification.error({
+                        message: 'Error fetching rollouts',
+                        description: fetchError.message,
+                        duration: 8,
+                        placement: 'bottomRight',
+                    });
+                }
             }
         };
         fetchList();
+
+        return () => {
+            cancelled = true;
+        };
     }, [api, namespaceCtx]);
 
-    return rollouts;
+    return state;
 };
 
 export const useWatchRollouts = (): ListState<RolloutInfo> => {
@@ -37,20 +52,20 @@ export const useWatchRollouts = (): ListState<RolloutInfo> => {
     const namespaceCtx = React.useContext(NamespaceContext);
     const streamUrl = getApiBasePath() + RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfos(namespaceCtx.namespace).url;
 
-    const init = useRollouts();
-    const loading = useLoading(init);
+    const initialState = useRollouts();
 
-    const [rollouts, setRollouts] = React.useState(init);
+    const [rollouts, setRollouts] = React.useState(initialState.items);
     const liveList = useWatchList<RolloutInfo, RolloutRolloutWatchEvent>(streamUrl, findRollout, getRollout, rollouts);
 
     React.useEffect(() => {
-        setRollouts(init);
-    }, [init, loading]);
+        setRollouts(initialState.items);
+    }, [initialState.items]);
 
     return {
         items: liveList,
-        loading,
-    } as ListState<RolloutInfo>;
+        loading: initialState.loading,
+        error: initialState.error,
+    };
 };
 
 export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {

@@ -88,6 +88,11 @@ spec:
                             name:
                               description: Name is the name of the secret
                               type: string
+                            sharedSecret:
+                              description: |-
+                                SharedSecret indicates the secret should be read from the namespace
+                                mentioned by --analysis-shared-secret-namespace flag.
+                              type: boolean
                           required:
                           - key
                           - name
@@ -7610,6 +7615,12 @@ spec:
                         newRelic:
                           description: NewRelic specifies the newrelic metric to query
                           properties:
+                            accountId:
+                              description: |-
+                                AccountID optionally overrides the account-id from the profile secret, allowing a single
+                                credential/profile to query any New Relic account. When empty, the account-id from the
+                                profile secret is used (backward compatible).
+                              type: string
                             profile:
                               description: Profile is the name of the secret holding
                                 NR account configuration
@@ -7651,6 +7662,16 @@ spec:
                                       description: Username is the username in grafana
                                         cloud
                                       type: string
+                                  type: object
+                                google:
+                                  description: Google config, an empty object enables
+                                    Application Default Credentials
+                                  properties:
+                                    scopes:
+                                      description: OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 oauth2:
                                   description: OAuth2 config
@@ -7773,6 +7794,16 @@ spec:
                                       description: Username is the username in grafana
                                         cloud
                                       type: string
+                                  type: object
+                                google:
+                                  description: Google config, an empty object enables
+                                    Application Default Credentials
+                                  properties:
+                                    scopes:
+                                      description: OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 oauth2:
                                   description: OAuth2 config
@@ -8185,6 +8216,11 @@ spec:
                             name:
                               description: Name is the name of the secret
                               type: string
+                            sharedSecret:
+                              description: |-
+                                SharedSecret indicates the secret should be read from the namespace
+                                mentioned by --analysis-shared-secret-namespace flag.
+                              type: boolean
                           required:
                           - key
                           - name
@@ -15707,6 +15743,12 @@ spec:
                         newRelic:
                           description: NewRelic specifies the newrelic metric to query
                           properties:
+                            accountId:
+                              description: |-
+                                AccountID optionally overrides the account-id from the profile secret, allowing a single
+                                credential/profile to query any New Relic account. When empty, the account-id from the
+                                profile secret is used (backward compatible).
+                              type: string
                             profile:
                               description: Profile is the name of the secret holding
                                 NR account configuration
@@ -15748,6 +15790,16 @@ spec:
                                       description: Username is the username in grafana
                                         cloud
                                       type: string
+                                  type: object
+                                google:
+                                  description: Google config, an empty object enables
+                                    Application Default Credentials
+                                  properties:
+                                    scopes:
+                                      description: OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 oauth2:
                                   description: OAuth2 config
@@ -15870,6 +15922,16 @@ spec:
                                       description: Username is the username in grafana
                                         cloud
                                       type: string
+                                  type: object
+                                google:
+                                  description: Google config, an empty object enables
+                                    Application Default Credentials
+                                  properties:
+                                    scopes:
+                                      description: OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 oauth2:
                                   description: OAuth2 config
@@ -16077,6 +16139,11 @@ spec:
                             name:
                               description: Name is the name of the secret
                               type: string
+                            sharedSecret:
+                              description: |-
+                                SharedSecret indicates the secret should be read from the namespace
+                                mentioned by --analysis-shared-secret-namespace flag.
+                              type: boolean
                           required:
                           - key
                           - name
@@ -23599,6 +23666,12 @@ spec:
                         newRelic:
                           description: NewRelic specifies the newrelic metric to query
                           properties:
+                            accountId:
+                              description: |-
+                                AccountID optionally overrides the account-id from the profile secret, allowing a single
+                                credential/profile to query any New Relic account. When empty, the account-id from the
+                                profile secret is used (backward compatible).
+                              type: string
                             profile:
                               description: Profile is the name of the secret holding
                                 NR account configuration
@@ -23640,6 +23713,16 @@ spec:
                                       description: Username is the username in grafana
                                         cloud
                                       type: string
+                                  type: object
+                                google:
+                                  description: Google config, an empty object enables
+                                    Application Default Credentials
+                                  properties:
+                                    scopes:
+                                      description: OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 oauth2:
                                   description: OAuth2 config
@@ -23762,6 +23845,16 @@ spec:
                                       description: Username is the username in grafana
                                         cloud
                                       type: string
+                                  type: object
+                                google:
+                                  description: Google config, an empty object enables
+                                    Application Default Credentials
+                                  properties:
+                                    scopes:
+                                      description: OAuth2 scopes, defaults to https://www.googleapis.com/auth/monitoring.read
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 oauth2:
                                   description: OAuth2 config
@@ -23978,6 +24071,11 @@ spec:
                                   name:
                                     description: Name is the name of the secret
                                     type: string
+                                  sharedSecret:
+                                    description: |-
+                                      SharedSecret indicates the secret should be read from the namespace
+                                      mentioned by --analysis-shared-secret-namespace flag.
+                                    type: boolean
                                 required:
                                 - key
                                 - name

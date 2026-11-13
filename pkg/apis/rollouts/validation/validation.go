@@ -16,6 +16,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
+	"k8s.io/kubernetes/pkg/capabilities"
 	"k8s.io/kubernetes/pkg/fieldpath"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -30,6 +31,8 @@ const (
 	MissingFieldMessage = "Rollout has missing field '%s'"
 	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and max weight
 	InvalidSetWeightMessage = "SetWeight needs to be between 0 and %d"
+	// InvalidMaxTrafficWeightMessage indicates the maxTrafficWeight value is not a usable total weight
+	InvalidMaxTrafficWeightMessage = "MaxTrafficWeight needs to be greater than 0"
 	// InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting indicates experiment weight cannot be set without trafficRouting
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
@@ -98,6 +101,25 @@ var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
 	AllowIndivisibleHugePagesValues: true,
 }
 
+// allowPrivilegedCapabilities mirrors what kube-apiserver sets at startup so
+// that the upstream pod-spec validator we reuse below sees the rollout's pod
+// spec as-is and can correctly evaluate cross-field rules such as
+// "Bidirectional mountPropagation requires privileged container". It is
+// applied via capabilities.Initialize() right before invoking the validator;
+// capabilities.Initialize uses sync.Once internally, so subsequent calls are
+// safe no-ops. Replaces the previous workaround that stripped Privileged from
+// each container before validation, which broke other cross-field rules.
+// See https://github.com/argoproj/argo-rollouts/issues/796 (original) and
+// https://github.com/argoproj/argo-rollouts/issues/3130 (Bidirectional mounts).
+var allowPrivilegedCapabilities = capabilities.Capabilities{
+	AllowPrivileged: true,
+	PrivilegedSources: capabilities.PrivilegedSources{
+		HostNetworkSources: []string{},
+		HostPIDSources:     []string{},
+		HostIPCSources:     []string{},
+	},
+}
+
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, ValidateRolloutSpec(rollout, field.NewPath("spec"))...)
@@ -157,10 +179,10 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			return allErrs
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
-		removeSecurityContextPrivileged(&template)
 
 		// Skip validating empty template for rollout resolved from ref
 		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
+			capabilities.Initialize(allowPrivilegedCapabilities)
 			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
 		}
 	}
@@ -178,23 +200,6 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	allErrs = append(allErrs, ValidateRolloutStrategy(rollout, fldPath.Child("strategy"))...)
 
 	return allErrs
-}
-
-// removeSecurityContextPrivileged removes the privileged value on containers for the purposes of
-// validation. This is necessary because the k8s ValidateSecurityContext library which we reuse,
-// calls k8s.io/kubernetes/pkg/capabilities.Get(), which determines the security capabilities at a
-// global level. We don't want to call capabilities.Setup(), because it affects it as a global
-// level, so instead we remove the privileged setting on any containers so validation ignores it.
-// See https://github.com/argoproj/argo-rollouts/issues/796
-func removeSecurityContextPrivileged(template *core.PodTemplateSpec) {
-	for _, ctrList := range [][]core.Container{template.Spec.Containers, template.Spec.InitContainers} {
-		for i, ctr := range ctrList {
-			if ctr.SecurityContext != nil && ctr.SecurityContext.Privileged != nil && *ctr.SecurityContext.Privileged {
-				ctr.SecurityContext.Privileged = nil
-				ctrList[i] = ctr
-			}
-		}
-	}
 }
 
 func ValidateRolloutStrategy(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
@@ -305,6 +310,11 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if canary.TrafficRouting.MaxTrafficWeight != nil {
 			if canary.TrafficRouting.Nginx == nil && len(canary.TrafficRouting.Plugins) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), canary.TrafficRouting.MaxTrafficWeight, InvalidCanaryMaxWeightOnlySupportInNginxAndPlugins))
+			}
+			// The total weight divides the replica counts derived from the
+			// traffic weights, so it cannot be zero or negative.
+			if *canary.TrafficRouting.MaxTrafficWeight < 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("maxTrafficWeight"), *canary.TrafficRouting.MaxTrafficWeight, InvalidMaxTrafficWeightMessage))
 			}
 		}
 	}

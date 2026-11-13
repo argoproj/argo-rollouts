@@ -23,6 +23,7 @@ kubectl argo rollouts dashboard --port 8080
 ## Options
 
 ```
+      --address string     address to listen on: use 0.0.0.0 when fronting the dashboard with a Kubernetes Service (default "127.0.0.1")
   -h, --help               help for dashboard
   -p, --port int           port to listen on (default 3100)
       --root-path string   changes the root path of the dashboard (default "rollouts")

@@ -1,13 +1,20 @@
 package prometheus
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -944,6 +951,250 @@ func TestRunErrorBasicAuthFailure(t *testing.T) {
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NoError(t, err)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestRunSuccessfulWithGoogleAuth(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer(AccessToken)
+	defer promServer.Close()
+	recorder := &scopeRecorder{}
+	tokenServer := mockGoogleTokenServer(recorder, AccessToken)
+	defer tokenServer.Close()
+
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", writeFakeGoogleCredentials(t, tokenServer.URL))
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					Google: &v1alpha1.GoogleConfig{},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
+	assert.Equal(t, "[10]", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+	assert.Equal(t, GoogleMonitoringReadScope, recorder.get())
+}
+
+// also covers composition: the prometheus server rejects the query unless the custom header survives
+func TestRunSuccessfulWithGoogleAuthCustomScopes(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServerWithCustomHeader(AccessToken, "X-Scope-OrgID", "tenant-1")
+	defer promServer.Close()
+	recorder := &scopeRecorder{}
+	tokenServer := mockGoogleTokenServer(recorder, AccessToken)
+	defer tokenServer.Close()
+
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", writeFakeGoogleCredentials(t, tokenServer.URL))
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Headers: []v1alpha1.WebMetricHeader{{Key: "X-Scope-OrgID", Value: "tenant-1"}},
+				Authentication: v1alpha1.Authentication{
+					Google: &v1alpha1.GoogleConfig{
+						Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
+					},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NoError(t, err)
+	assert.Equal(t, "[10]", measurement.Value)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+	assert.Equal(t, "https://www.googleapis.com/auth/cloud-platform", recorder.get())
+}
+
+func TestRunErrorGoogleAuthFailure(t *testing.T) {
+	e := log.Entry{}
+	promServer := mockPromServer(AccessToken)
+	oAuthServer := mockOAuthServer(AccessToken)
+	defer promServer.Close()
+	defer oAuthServer.Close()
+
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", writeFakeGoogleCredentials(t, oAuthServer.URL+"/ko"))
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: promServer.URL,
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					Google: &v1alpha1.GoogleConfig{},
+				},
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NoError(t, err)
+	p, err := NewPrometheusProvider(api, e, metric)
+
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NoError(t, err)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+}
+
+func TestNewPromApiErrorWithGoogleAuthInvalidCredentials(t *testing.T) {
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", filepath.Join(t.TempDir(), "does-not-exist.json"))
+
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://promurl",
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					Google: &v1alpha1.GoogleConfig{},
+				},
+			},
+		},
+	}
+	_, err := NewPrometheusAPI(metric)
+	assert.Error(t, err)
+}
+
+func TestNewPromApiErrorWithGoogleAndOAuth2(t *testing.T) {
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result[0] == 10",
+		FailureCondition: "result[0] != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "http://promurl",
+				Query:   "test",
+				Authentication: v1alpha1.Authentication{
+					Google: &v1alpha1.GoogleConfig{},
+					OAuth2: v1alpha1.OAuth2Config{
+						TokenURL:     "http://tokenurl",
+						ClientID:     "myClientID",
+						ClientSecret: "mySecret",
+					},
+				},
+			},
+		},
+	}
+	_, err := NewPrometheusAPI(metric)
+	assert.EqualError(t, err, "google and oauth2 authentication are mutually exclusive")
+}
+
+// testRSAKey is generated once: key generation is the slowest operation in these tests
+var testRSAKey = sync.OnceValue(func() *rsa.PrivateKey {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic(fmt.Sprintf("Error generating RSA key: %v", err))
+	}
+	return key
+})
+
+// writeFakeGoogleCredentials writes a service account key whose token_uri points at the test server
+func writeFakeGoogleCredentials(t *testing.T, tokenURL string) string {
+	t.Helper()
+	keyDER, err := x509.MarshalPKCS8PrivateKey(testRSAKey())
+	if err != nil {
+		t.Fatalf("Error marshaling RSA key: %v", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	credentials, err := json.Marshal(map[string]string{
+		"type":           "service_account",
+		"project_id":     "fake-project",
+		"private_key_id": "fake-key-id",
+		"private_key":    string(keyPEM),
+		"client_email":   "fake@fake-project.iam.gserviceaccount.com",
+		"client_id":      "123456789",
+		"token_uri":      tokenURL,
+	})
+	if err != nil {
+		t.Fatalf("Error marshaling credentials: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "credentials.json")
+	if err := os.WriteFile(path, credentials, 0600); err != nil {
+		t.Fatalf("Error writing credentials file: %v", err)
+	}
+	return path
+}
+
+// scopeRecorder captures the requested scope from the test server goroutine
+type scopeRecorder struct {
+	mutex sync.Mutex
+	scope string
+}
+
+func (r *scopeRecorder) set(scope string) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.scope = scope
+}
+
+func (r *scopeRecorder) get() string {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	return r.scope
+}
+
+func mockGoogleTokenServer(recorder *scopeRecorder, accessToken string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		segments := strings.Split(r.FormValue("assertion"), ".")
+		if len(segments) != 3 {
+			http.Error(w, "malformed assertion", http.StatusBadRequest)
+			return
+		}
+		payload, err := base64.RawURLEncoding.DecodeString(segments[1])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		claims := struct {
+			Scope string `json:"scope"`
+		}{}
+		if err := json.Unmarshal(payload, &claims); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		recorder.set(claims.Scope)
+		mockOAuthOKResponse(w, r, accessToken)
+	}))
+}
+
+func mockPromServerWithCustomHeader(expectedAccessToken, headerKey, headerValue string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+expectedAccessToken || r.Header.Get(headerKey) != headerValue {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		promResponse := `{"data":{"result":[{"metric":{"__name__":"myMetric"},"value":[0, "10"]}],"resultType":"vector"},"status":"success"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(promResponse))
+	}))
 }
 
 func mockOAuthServer(accessToken string) *httptest.Server {

@@ -15,59 +15,24 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
-// rolloutBlueGreen implements the logic for rolling a new replica set.
+// rolloutBlueGreen implements the logic for rolling a new replica set. It runs the blue-green
+// stages in order, then syncs status unless a stage ended the pass without one
+// (stageStopNoStatus).
 func (c *rolloutContext) rolloutBlueGreen() error {
 	previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
 	if err != nil {
 		return err
 	}
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision()
+	newRS, err := c.getAllReplicaSetsAndSyncRevision()
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutBlueGreen create true: %w", err)
 	}
+	c.newRS = newRS
 
-	// This must happen right after the new replicaset is created
-	err = c.reconcilePreviewService(previewSvc)
-	if err != nil {
-		return err
+	stageErr := c.runBlueGreenStages(previewSvc, activeSvc)
+	if c.skipStatusSync {
+		return stageErr
 	}
-
-	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
-	}
-
-	_, err = c.podRestarter.Reconcile(c)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileBlueGreenReplicaSets(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	c.reconcileBlueGreenPause(activeSvc, previewSvc)
-
-	err = c.reconcileActiveService(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.awsVerifyTargetGroups(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileAnalysisRuns()
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcileEphemeralMetadata()
-	if err != nil {
-		return err
-	}
-
 	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 }
 

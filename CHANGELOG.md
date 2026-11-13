@@ -1,4 +1,239 @@
 
+<a name="v1.11.0-rc1"></a>
+## [v1.11.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.10.2...v1.11.0-rc1) (2026-11-04)
+
+### Build
+
+* **cli:** protoc support osx-aarch_64 binary ([#4374](https://github.com/argoproj/argo-rollouts/issues/4374))
+
+### Chore
+
+* improving wording for the error ([#3299](https://github.com/argoproj/argo-rollouts/issues/3299))
+* sync OWNERS for membership Sep 2026 ([#5014](https://github.com/argoproj/argo-rollouts/issues/5014))
+* Add Affirm to users.md ([#5025](https://github.com/argoproj/argo-rollouts/issues/5025))
+* bump golang to 1.26.10 ([#5156](https://github.com/argoproj/argo-rollouts/issues/5156))
+* rename variable to clarify the logic ([#1443](https://github.com/argoproj/argo-rollouts/issues/1443))
+* **deps:** bump actions/download-artifact from 8.0.1 to 8.0.2 ([#5093](https://github.com/argoproj/argo-rollouts/issues/5093))
+* **deps:** bump actions/create-github-app-token from 3.2.0 to 3.3.0 ([#5113](https://github.com/argoproj/argo-rollouts/issues/5113))
+* **deps:** bump docker/login-action from 4.6.0 to 4.7.0 ([#5135](https://github.com/argoproj/argo-rollouts/issues/5135))
+* **deps:** bump github/codeql-action from 4.38.2 to 4.39.0 in the codeql group across 1 directory ([#5091](https://github.com/argoproj/argo-rollouts/issues/5091))
+* **deps:** bump github.com/newrelic/newrelic-client-go/v2 from 2.95.1 to 2.96.2 ([#5119](https://github.com/argoproj/argo-rollouts/issues/5119))
+* **deps:** bump the aws-sdk-v2 group across 1 directory with 4 updates ([#5094](https://github.com/argoproj/argo-rollouts/issues/5094))
+* **deps:** bump golang.org/x/sync from 0.23.0 to 0.24.0 in the golang-x group ([#5095](https://github.com/argoproj/argo-rollouts/issues/5095))
+* **deps:** bump github.com/prometheus/common from 0.70.0 to 0.72.0 ([#5077](https://github.com/argoproj/argo-rollouts/issues/5077))
+* **deps:** bump github.com/aws/smithy-go from 1.28.1 to 1.28.4 ([#5097](https://github.com/argoproj/argo-rollouts/issues/5097))
+* **deps:** bump actions/setup-node from 7.0.0 to 7.1.0 ([#5092](https://github.com/argoproj/argo-rollouts/issues/5092))
+* **deps:** bump github/codeql-action from 4.38.0 to 4.38.2 in the codeql group across 1 directory ([#5050](https://github.com/argoproj/argo-rollouts/issues/5050))
+* **deps:** bump github.com/newrelic/newrelic-client-go/v2 from 2.93.1 to 2.95.1 ([#5060](https://github.com/argoproj/argo-rollouts/issues/5060))
+* **deps:** bump the aws-sdk-v2 group across 1 directory with 4 updates ([#5061](https://github.com/argoproj/argo-rollouts/issues/5061))
+* **deps:** bump google.golang.org/grpc from 1.83.2 to 1.84.0 ([#5049](https://github.com/argoproj/argo-rollouts/issues/5049))
+* **deps:** bump docker/setup-qemu-action from 4.3.0 to 4.4.0 ([#5046](https://github.com/argoproj/argo-rollouts/issues/5046))
+* **deps:** bump docker/build-push-action from 7.3.0 to 7.4.0 ([#5043](https://github.com/argoproj/argo-rollouts/issues/5043))
+* **deps:** bump docker/setup-buildx-action from 4.3.0 to 4.4.1 ([#5051](https://github.com/argoproj/argo-rollouts/issues/5051))
+* **deps:** bump codecov/codecov-action from 7.0.0 to 7.1.0 ([#5039](https://github.com/argoproj/argo-rollouts/issues/5039))
+* **deps:** bump github.com/prometheus/client_model from 0.6.2 to 0.6.3 ([#5015](https://github.com/argoproj/argo-rollouts/issues/5015))
+* **deps:** bump google.golang.org/grpc from 1.84.0 to 1.85.0 ([#5154](https://github.com/argoproj/argo-rollouts/issues/5154))
+* **deps:** bump github.com/prometheus/common from 0.72.0 to 0.73.1 ([#5153](https://github.com/argoproj/argo-rollouts/issues/5153))
+* **deps:** bump softprops/action-gh-release from 3.0.2 to 3.0.3 ([#5004](https://github.com/argoproj/argo-rollouts/issues/5004))
+* **deps:** bump the aws-sdk-v2 group with 4 updates ([#5033](https://github.com/argoproj/argo-rollouts/issues/5033))
+* **deps:** bump github/codeql-action from 4.37.9 to 4.38.0 in the codeql group ([#5032](https://github.com/argoproj/argo-rollouts/issues/5032))
+* **deps:** bump the golang-x group across 1 directory with 2 updates ([#5027](https://github.com/argoproj/argo-rollouts/issues/5027))
+* **deps:** bump github.com/newrelic/newrelic-client-go/v2 from 2.96.2 to 2.97.5 ([#5152](https://github.com/argoproj/argo-rollouts/issues/5152))
+* **deps:** bump the aws-sdk-v2 group across 1 directory with 4 updates ([#5024](https://github.com/argoproj/argo-rollouts/issues/5024))
+* **deps:** bump pnpm/action-setup from 6.0.10 to 6.1.0 ([#5023](https://github.com/argoproj/argo-rollouts/issues/5023))
+* **deps:** bump docker/setup-qemu-action from 4.2.0 to 4.3.0 ([#5017](https://github.com/argoproj/argo-rollouts/issues/5017))
+* **deps:** bump the aws-sdk-v2 group across 1 directory with 4 updates ([#4965](https://github.com/argoproj/argo-rollouts/issues/4965))
+* **deps:** bump codecov/codecov-action from 7.1.0 to 7.1.1 ([#5053](https://github.com/argoproj/argo-rollouts/issues/5053))
+* **deps:** bump github.com/bombsimon/logrusr/v4 from 4.1.0 to 4.2.0 ([#5005](https://github.com/argoproj/argo-rollouts/issues/5005))
+* **deps:** bump github.com/sirupsen/logrus from 1.10.0 to 1.10.2 ([#5001](https://github.com/argoproj/argo-rollouts/issues/5001))
+* **deps:** bump github/codeql-action from 4.37.7 to 4.37.9 in the codeql group across 1 directory ([#4992](https://github.com/argoproj/argo-rollouts/issues/4992))
+* **deps:** bump google.golang.org/grpc from 1.83.0 to 1.83.2 ([#5002](https://github.com/argoproj/argo-rollouts/issues/5002))
+* **deps:** bump github.com/aws/smithy-go from 1.27.8 to 1.28.1 ([#5003](https://github.com/argoproj/argo-rollouts/issues/5003))
+* **deps:** bump docker/setup-buildx-action from 4.2.0 to 4.3.0 ([#4985](https://github.com/argoproj/argo-rollouts/issues/4985))
+* **deps:** bump pnpm/action-setup from 6.0.9 to 6.0.10 ([#4954](https://github.com/argoproj/argo-rollouts/issues/4954))
+* **deps:** bump github.com/stretchr/testify from 1.11.1 to 1.12.1 ([#4986](https://github.com/argoproj/argo-rollouts/issues/4986))
+* **deps:** bump github.com/aws/smithy-go from 1.27.6 to 1.27.8 ([#4981](https://github.com/argoproj/argo-rollouts/issues/4981))
+* **deps:** bump github/codeql-action from 4.37.4 to 4.37.7 in the codeql group across 1 directory ([#4953](https://github.com/argoproj/argo-rollouts/issues/4953))
+* **deps:** bump github.com/newrelic/newrelic-client-go/v2 from 2.91.0 to 2.93.1 ([#4978](https://github.com/argoproj/argo-rollouts/issues/4978))
+* **deps:** bump github.com/sirupsen/logrus from 1.9.4 to 1.10.0 ([#4979](https://github.com/argoproj/argo-rollouts/issues/4979))
+* **deps:** bump google.golang.org/protobuf from 1.36.11 to 1.36.12 ([#4977](https://github.com/argoproj/argo-rollouts/issues/4977))
+* **deps:** bump the aws-sdk-v2 group across 1 directory with 4 updates ([#4946](https://github.com/argoproj/argo-rollouts/issues/4946))
+* **deps:** bump google.golang.org/grpc from 1.82.1 to 1.83.0 ([#4941](https://github.com/argoproj/argo-rollouts/issues/4941))
+* **deps:** bump github/codeql-action from 4 to 4.37.4 in the codeql group ([#4945](https://github.com/argoproj/argo-rollouts/issues/4945))
+* **deps:** bump github.com/hashicorp/go-plugin from 1.7.0 to 1.8.0 ([#4877](https://github.com/argoproj/argo-rollouts/issues/4877))
+* **deps:** bump the aws-sdk-v2 group across 1 directory with 4 updates ([#4942](https://github.com/argoproj/argo-rollouts/issues/4942))
+* **deps:** bump docker/login-action from 4.5.0 to 4.6.0 ([#4933](https://github.com/argoproj/argo-rollouts/issues/4933))
+* **deps:** bump actions/stale from 10 to 11 ([#4928](https://github.com/argoproj/argo-rollouts/issues/4928))
+* **deps:** bump docker/login-action from 4.4.0 to 4.5.0 ([#4918](https://github.com/argoproj/argo-rollouts/issues/4918))
+* **deps:** bump sigstore/cosign-installer from 4.0.0 to 4.1.2 ([#4911](https://github.com/argoproj/argo-rollouts/issues/4911))
+* **deps:** bump docker/setup-buildx-action from 3.11.1 to 4.2.0 ([#4902](https://github.com/argoproj/argo-rollouts/issues/4902))
+* **deps:** bump actions/download-artifact from 6.0.0 to 8.0.1 ([#4901](https://github.com/argoproj/argo-rollouts/issues/4901))
+* **deps:** bump actions/checkout from 6 to 7 ([#4881](https://github.com/argoproj/argo-rollouts/issues/4881))
+* **deps:** bump actions/setup-go from 6.2.0 to 7.0.0 ([#4874](https://github.com/argoproj/argo-rollouts/issues/4874))
+* **deps:** bump softprops/action-gh-release from 2.4.2 to 3.0.2 ([#4857](https://github.com/argoproj/argo-rollouts/issues/4857))
+* **deps:** bump the aws-sdk-v2 group with 4 updates ([#4903](https://github.com/argoproj/argo-rollouts/issues/4903))
+* **deps:** bump docker/metadata-action from 5 to 6 ([#4883](https://github.com/argoproj/argo-rollouts/issues/4883))
+* **deps:** bump peter-evans/create-pull-request from 7 to 8 ([#4893](https://github.com/argoproj/argo-rollouts/issues/4893))
+* **deps:** bump github.com/aws/smithy-go from 1.27.3 to 1.27.4 ([#4887](https://github.com/argoproj/argo-rollouts/issues/4887))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.54.9 to 1.57.0 in the aws-sdk-v2 group across 1 directory ([#4884](https://github.com/argoproj/argo-rollouts/issues/4884))
+* **deps:** bump docker/setup-qemu-action from 3.7.0 to 4.2.0 ([#4882](https://github.com/argoproj/argo-rollouts/issues/4882))
+* **deps:** bump golang.org/x/sync from 0.21.0 to 0.22.0 in the golang-x group across 1 directory ([#4885](https://github.com/argoproj/argo-rollouts/issues/4885))
+* **deps:** bump github.com/newrelic/newrelic-client-go/v2 from 2.82.0 to 2.91.0 ([#4878](https://github.com/argoproj/argo-rollouts/issues/4878))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.55.2 to 1.63.1 ([#4676](https://github.com/argoproj/argo-rollouts/issues/4676))
+* **deps:** bump github.com/newrelic/newrelic-client-go/v2 from 2.81.0 to 2.82.0 ([#4675](https://github.com/argoproj/argo-rollouts/issues/4675))
+* **deps:** bump actions/cache from 5 to 6 ([#4872](https://github.com/argoproj/argo-rollouts/issues/4872))
+* **deps:** bump google.golang.org/grpc from 1.80.0 to 1.82.1 ([#4876](https://github.com/argoproj/argo-rollouts/issues/4876))
+* **deps:** bump pnpm/action-setup from 5.0.0 to 6.0.9 ([#4871](https://github.com/argoproj/argo-rollouts/issues/4871))
+* **deps:** bump docker/login-action from 3.6.0 to 4.4.0 ([#4873](https://github.com/argoproj/argo-rollouts/issues/4873))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.32.12 to 1.32.30 ([#4875](https://github.com/argoproj/argo-rollouts/issues/4875))
+* **deps:** bump go.opentelemetry.io/otel from 1.39.0 to 1.41.0 ([#4861](https://github.com/argoproj/argo-rollouts/issues/4861))
+* **deps:** bump github.com/sirupsen/logrus from 1.9.3 to 1.9.4 ([#4661](https://github.com/argoproj/argo-rollouts/issues/4661))
+* **deps:** bump codecov/codecov-action from 5.5.1 to 7.0.0 ([#4859](https://github.com/argoproj/argo-rollouts/issues/4859))
+* **deps:** bump docker/build-push-action from 6.18.0 to 7.3.0 ([#4858](https://github.com/argoproj/argo-rollouts/issues/4858))
+* **deps:** bump actions/upload-artifact from 6 to 7 ([#4856](https://github.com/argoproj/argo-rollouts/issues/4856))
+* **deps:** bump github.com/expr-lang/expr from 1.17.7 to 1.17.8 ([#4663](https://github.com/argoproj/argo-rollouts/issues/4663))
+* **deps:** bump github.com/spf13/cobra from 1.9.1 to 1.10.2 ([#4662](https://github.com/argoproj/argo-rollouts/issues/4662))
+* **deps:** bump golangci/golangci-lint-action from 8 to 9 ([#4531](https://github.com/argoproj/argo-rollouts/issues/4531))
+
+### Ci
+
+* Also run unit/dashboard tests in ci ([#5035](https://github.com/argoproj/argo-rollouts/issues/5035))
+* Use K8s 1.37 in e2e tests ([#5041](https://github.com/argoproj/argo-rollouts/issues/5041))
+* Pass DCO change in changelog PR ([#4897](https://github.com/argoproj/argo-rollouts/issues/4897))
+* Align dependabot with Argo CD config ([#4880](https://github.com/argoproj/argo-rollouts/issues/4880))
+* Use a composite result for e2e tests ([#4843](https://github.com/argoproj/argo-rollouts/issues/4843))
+
+### Docs
+
+* correct resources instead of sources ([#4316](https://github.com/argoproj/argo-rollouts/issues/4316))
+* add Argyle to USERS.md ([#5167](https://github.com/argoproj/argo-rollouts/issues/5167))
+* fix contributor setup commands ([#5150](https://github.com/argoproj/argo-rollouts/issues/5150))
+* fix dead Sigstore and SMI TrafficSplit links ([#5147](https://github.com/argoproj/argo-rollouts/issues/5147))
+* Add Inter&Co to USERS.md ([#5141](https://github.com/argoproj/argo-rollouts/issues/5141))
+* correct default canary surge and unavailability percentages ([#5127](https://github.com/argoproj/argo-rollouts/issues/5127))
+* Add Mollie to USERS.md ([#5126](https://github.com/argoproj/argo-rollouts/issues/5126))
+* Update Changelog ([#5101](https://github.com/argoproj/argo-rollouts/issues/5101))
+* reconcile metrics histogram buckets proposal ([#5084](https://github.com/argoproj/argo-rollouts/issues/5084))
+* fix broken controller-installation anchor in getting-started and apisix ([#5064](https://github.com/argoproj/argo-rollouts/issues/5064))
+* fix getting-started/istio/multipleVirtualsvc.yaml ([#2215](https://github.com/argoproj/argo-rollouts/issues/2215))
+* Update installation.md ([#2265](https://github.com/argoproj/argo-rollouts/issues/2265))
+* Update Changelog (automated) ([#5168](https://github.com/argoproj/argo-rollouts/issues/5168))
+* fix description for canaryService and stableService ([#1762](https://github.com/argoproj/argo-rollouts/issues/1762))
+* centralize MAINTAINERS via argoproj/.project ([#5029](https://github.com/argoproj/argo-rollouts/issues/5029))
+* add SignalFx metric plugin to available plugins ([#5011](https://github.com/argoproj/argo-rollouts/issues/5011))
+* clarify header based routing support ([#5008](https://github.com/argoproj/argo-rollouts/issues/5008))
+* clarify plugin status as beta instead of alpha ([#5009](https://github.com/argoproj/argo-rollouts/issues/5009))
+* Update Changelog for 1.10.0 ([#4995](https://github.com/argoproj/argo-rollouts/issues/4995))
+* fix typo configuraiton -> configuration ([#4999](https://github.com/argoproj/argo-rollouts/issues/4999))
+* explained haproxy support ([#4949](https://github.com/argoproj/argo-rollouts/issues/4949))
+* add security policy to display it in GitHub "Security and quality" tab ([#4802](https://github.com/argoproj/argo-rollouts/issues/4802))
+* Update Changelog ([#4555](https://github.com/argoproj/argo-rollouts/issues/4555))
+* **analysis:** add rollouts-plugin-metric-instana to plugin list ([#4948](https://github.com/argoproj/argo-rollouts/issues/4948))
+* **metricprovider:** adjust admonition ordered list and remove unnecessary snippet ([#4511](https://github.com/argoproj/argo-rollouts/issues/4511))
+
+### Feat
+
+* Add optional namespace support for secretKeyRef in Analysis argument ([#4648](https://github.com/argoproj/argo-rollouts/issues/4648))
+* rollout total duration tracking ([#4774](https://github.com/argoproj/argo-rollouts/issues/4774))
+* **metricprovider:** Add Google Managed Prometheus auth ([#4275](https://github.com/argoproj/argo-rollouts/issues/4275))
+* **metricprovider:** Add Google authentication in the prometheus provider ([#3352](https://github.com/argoproj/argo-rollouts/issues/3352)) ([#5012](https://github.com/argoproj/argo-rollouts/issues/5012))
+* **metricprovider:** support per-metric accountId override for New Relic ([#5031](https://github.com/argoproj/argo-rollouts/issues/5031))
+* **metricprovider:** Add basic authentication in the prometheus provider. Fixes [#4385](https://github.com/argoproj/argo-rollouts/issues/4385) ([#4401](https://github.com/argoproj/argo-rollouts/issues/4401))
+
+### Fix
+
+* reject maxTrafficWeight below 1 ([#4924](https://github.com/argoproj/argo-rollouts/issues/4924))
+* include notification context in template vars ([#5132](https://github.com/argoproj/argo-rollouts/issues/5132))
+* "AnalysisTemplate has metrics which runs indefinitely" - Error without a value for count ([#1931](https://github.com/argoproj/argo-rollouts/issues/1931))
+* fix slice init length ([#3868](https://github.com/argoproj/argo-rollouts/issues/3868))
+* guard empty Values in injected anti-affinity check ([#4832](https://github.com/argoproj/argo-rollouts/issues/4832))
+* avoid int32 overflow when maxTrafficWeight is large ([#4923](https://github.com/argoproj/argo-rollouts/issues/4923))
+* create dist/ before downloading the swagger-codegen jar ([#5038](https://github.com/argoproj/argo-rollouts/issues/5038))
+* uprade pnpm for sbom ([#4821](https://github.com/argoproj/argo-rollouts/issues/4821))
+* **cli:** avoid send on closed channel panic in status watch. Fixes [#4372](https://github.com/argoproj/argo-rollouts/issues/4372) ([#5056](https://github.com/argoproj/argo-rollouts/issues/5056))
+* **controller:** shift abort traffic to stable before canary scale-do… ([#4900](https://github.com/argoproj/argo-rollouts/issues/4900))
+* **controller:** prevent panic when notifications write Unstructured … ([#4844](https://github.com/argoproj/argo-rollouts/issues/4844))
+* **controller:** Downgrade log level for unconfigured notification triggers. Fixes [#3459](https://github.com/argoproj/argo-rollouts/issues/3459) ([#4833](https://github.com/argoproj/argo-rollouts/issues/4833))
+* **controller:** skip unnecessary ephemeral metadata pod listing ([#4951](https://github.com/argoproj/argo-rollouts/issues/4951))
+* **controller:** select namespace-support notification controller via self-service flag ([#4851](https://github.com/argoproj/argo-rollouts/issues/4851))
+* **controller:** log the underlying error when newRolloutContext returns nil ([#4850](https://github.com/argoproj/argo-rollouts/issues/4850))
+* **controller:** deepcopy ALB status updates. Fixes [#3673](https://github.com/argoproj/argo-rollouts/issues/3673), [#4184](https://github.com/argoproj/argo-rollouts/issues/4184) ([#4780](https://github.com/argoproj/argo-rollouts/issues/4780))
+* **controller:** allow Bidirectional mountPropagation on privileged containers. Fixes [#3130](https://github.com/argoproj/argo-rollouts/issues/3130) ([#4789](https://github.com/argoproj/argo-rollouts/issues/4789))
+* **controller:** sync desired-replicas annotation during abort scale-… ([#4919](https://github.com/argoproj/argo-rollouts/issues/4919))
+* **dashboard:** namespace autocomplete doesn't filter by input. Fixes [#3408](https://github.com/argoproj/argo-rollouts/issues/3408) ([#5076](https://github.com/argoproj/argo-rollouts/issues/5076))
+* **dashboard:** prevent rollout mutation APIs from hanging. Fixes [#4956](https://github.com/argoproj/argo-rollouts/issues/4956) ([#4957](https://github.com/argoproj/argo-rollouts/issues/4957))
+* **dashboard:** handle empty Rollouts list ([#4889](https://github.com/argoproj/argo-rollouts/issues/4889))
+* **experiments:** add API fallback when ReplicaSet lister is stale on AlreadyExists ([#4842](https://github.com/argoproj/argo-rollouts/issues/4842)) ([#4855](https://github.com/argoproj/argo-rollouts/issues/4855))
+* **metricprovider:** parse grouped Datadog queries (by {tag}) instead of crashing. Fixes [#4276](https://github.com/argoproj/argo-rollouts/issues/4276) ([#4746](https://github.com/argoproj/argo-rollouts/issues/4746))
+* **trafficrouting:** remove all experiment destinations from Istio VirtualService on completion ([#4831](https://github.com/argoproj/argo-rollouts/issues/4831))
+* **trafficrouting:** repair APISIX managed route permissions and guide. Fixes [#4185](https://github.com/argoproj/argo-rollouts/issues/4185) ([#4934](https://github.com/argoproj/argo-rollouts/issues/4934))
+
+### Refactor
+
+* **controller:** move canary and blue-green reconcile onto a stage pipeline ([#5079](https://github.com/argoproj/argo-rollouts/issues/5079))
+
+### Test
+
+* do not hit the Github API in flaky test ([#5158](https://github.com/argoproj/argo-rollouts/issues/5158))
+* make sure the cloudwatch test never asks for credentials ([#5069](https://github.com/argoproj/argo-rollouts/issues/5069))
+* Promclient fix mock ([#4914](https://github.com/argoproj/argo-rollouts/issues/4914))
+* fixed flaky test close channel ([#4908](https://github.com/argoproj/argo-rollouts/issues/4908))
+* fix flaky unit test TestListWithWatch ([#4905](https://github.com/argoproj/argo-rollouts/issues/4905))
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
+
+Web metric provider now evaluates successCondition and
+failureCondition for empty and non-JSON response bodies instead of always
+returning Successful. Users who relied on the previous behavior (conditions
+ignored for non-JSON/empty bodies) must update their AnalysisTemplates.
+
+
+<a name="v1.10.2"></a>
+## [v1.10.2](https://github.com/argoproj/argo-rollouts/compare/v1.10.1...v1.10.2) (2026-11-03)
+
+### Chore
+
+* bump golang to 1.26.10 (cherry-pick [#5156](https://github.com/argoproj/argo-rollouts/issues/5156) for 1.10) ([#5161](https://github.com/argoproj/argo-rollouts/issues/5161))
+
+### Ci
+
+* Use a composite result for e2e tests (cherry-pick [#4843](https://github.com/argoproj/argo-rollouts/issues/4843) for 1.10) ([#5164](https://github.com/argoproj/argo-rollouts/issues/5164))
+
+### Test
+
+* do not hit the Github API in flaky test (cherry-pick [#5158](https://github.com/argoproj/argo-rollouts/issues/5158) for 1.10) ([#5163](https://github.com/argoproj/argo-rollouts/issues/5163))
+
+
+<a name="v1.10.1"></a>
+## [v1.10.1](https://github.com/argoproj/argo-rollouts/compare/v1.10.0...v1.10.1) (2026-10-12)
+
+### Fix
+
+* **controller:** allow Bidirectional mountPropagation on privileged containers. Fixes [#3130](https://github.com/argoproj/argo-rollouts/issues/3130) (cherry-pick [#4789](https://github.com/argoproj/argo-rollouts/issues/4789) for 1.10) ([#5028](https://github.com/argoproj/argo-rollouts/issues/5028))
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
+
+
+
+* docs: write versions in documentation about address argument
+
+Updated warning to important note and clarified dashboard binding behavior for affected versions
+
+---------
+
+
 <a name="v1.10.0"></a>
 ## [v1.10.0](https://github.com/argoproj/argo-rollouts/compare/v1.10.0-rc1...v1.10.0) (2026-08-05)
 
@@ -22,7 +257,7 @@
 
 
 <a name="v1.10.0-rc1"></a>
-## [v1.10.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.9.1...v1.10.0-rc1) (2026-06-30)
+## [v1.10.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.9.3...v1.10.0-rc1) (2026-06-30)
 
 ### Build
 
@@ -153,6 +388,38 @@
 * make tests resilient to nil ptr ([#4782](https://github.com/argoproj/argo-rollouts/issues/4782))
 
 
+<a name="v1.9.3"></a>
+## [v1.9.3](https://github.com/argoproj/argo-rollouts/compare/v1.9.2...v1.9.3) (2026-11-03)
+
+### Chore
+
+* bump golang to 1.26.10 (cherry-pick [#5156](https://github.com/argoproj/argo-rollouts/issues/5156) for 1.9) ([#5162](https://github.com/argoproj/argo-rollouts/issues/5162))
+
+### Ci
+
+* Use a composite result for e2e tests (cherry-pick [#4843](https://github.com/argoproj/argo-rollouts/issues/4843) for 1.9) ([#5165](https://github.com/argoproj/argo-rollouts/issues/5165))
+
+
+<a name="v1.9.2"></a>
+## [v1.9.2](https://github.com/argoproj/argo-rollouts/compare/v1.9.1...v1.9.2) (2026-10-12)
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
+
+
+
+* docs: write versions in documentation about address argument
+
+Updated warning to important note and clarified dashboard binding behavior for affected versions
+
+---------
+
+
 <a name="v1.9.1"></a>
 ## [v1.9.1](https://github.com/argoproj/argo-rollouts/compare/v1.9.0...v1.9.1) (2026-07-06)
 
@@ -218,7 +485,7 @@
 
 
 <a name="v1.9.0-rc1"></a>
-## [v1.9.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.8.4...v1.9.0-rc1) (2025-11-07)
+## [v1.9.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.8.5...v1.9.0-rc1) (2025-11-07)
 
 ### Build
 
@@ -438,9 +705,30 @@
 * **trafficrouting:** Fix rollback behavior for canary with trafficrouting and .DynamicStableScale=true ([#4035](https://github.com/argoproj/argo-rollouts/issues/4035))
 * **trafficrouting:** patch VirtualService when there is only one named route ([#4055](https://github.com/argoproj/argo-rollouts/issues/4055))
 
+### Fix!
+
+* subresource scale selector changed for traffic routed canary ([#4074](https://github.com/argoproj/argo-rollouts/issues/4074))
+* make `.spec.selector` immutable ([#4084](https://github.com/argoproj/argo-rollouts/issues/4084))
+
 ### Refactor
 
 * **controller:** context refactor ([#4291](https://github.com/argoproj/argo-rollouts/issues/4291))
+
+
+<a name="v1.8.5"></a>
+## [v1.8.5](https://github.com/argoproj/argo-rollouts/compare/v1.8.4...v1.8.5) (2026-10-12)
+
+### Fix
+
+* update yarn.lock with correct dependencies ([#4637](https://github.com/argoproj/argo-rollouts/issues/4637))
+
+### BREAKING CHANGE
+
+
+the kubectl argo rollouts dashboard command and the bundled
+argo-rollouts-dashboard Deployment now bind to 127.0.0.1 by default instead of
+0.0.0.0. Deployments that expose the dashboard via a Kubernetes Service must set
+--address 0.0.0.0 explicitly.
 
 
 <a name="v1.8.4"></a>

@@ -4,7 +4,7 @@ This guide will demonstrate various concepts and features of Argo Rollouts by go
 deployment, upgrade, promotion, and abortion of a Rollout.
 
 ## Requirements
-- Kubernetes cluster with argo-rollouts controller installed (see [install guide](installation.md#controller-installation))
+- Kubernetes cluster with argo-rollouts controller installed (see [install guide](installation.md#controller-installation-with-manifests))
 - kubectl with argo-rollouts plugin installed (see [install guide](installation.md#kubectl-plugin-installation))
 
 ## 1. Deploying a Rollout
