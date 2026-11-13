@@ -63,18 +63,23 @@ This example demonstrates:
             address: https://kayenta.example.com
             application: guestbook
             canaryConfigName: my-test
-            thresholds:
+            metricsAccountName: my-metrics-account
+            configurationAccountName: my-config-account
+            storageAccountName: my-storage-account
+            threshold:
               pass: 90
               marginal: 75
             scopes:
             - name: default
               controlScope:
                 scope: app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}
+                region: us-west-2
                 step: 60
                 start: "{{args.start-time}}"
                 end: "{{args.end-time}}"
               experimentScope:
                 scope: app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}
+                region: us-west-2
                 step: 60
                 start: "{{args.start-time}}"
                 end: "{{args.end-time}}"
@@ -113,8 +118,8 @@ This example demonstrates:
     ```
 
 
-In order to perform multiple kayenta runs over some time duration, the `interval` and `count` fields
-can be supplied. When the `start` and `end` fields are omitted from the kayenta scopes, the values
+In order to perform multiple kayenta runs over some time duration, the metric-level `interval` and `count`
+fields can be supplied. When the `start` and `end` fields are omitted from the kayenta scopes, the values
 will be implicitly decided as:
 
 * `start` = if `lookback: true` start of analysis, otherwise current time - interval
@@ -132,24 +137,45 @@ spec:
   - name: canary-hash
   metrics:
   - name: mann-whitney
+    interval: 1h
+    count: 3
     provider:
       kayenta:
         address: https://kayenta.intuit.com
         application: guestbook
         canaryConfigName: my-test
-        interval: 3600
-        count: 3
-        # loopback will cause start time value to be equal to start of analysis
+        metricsAccountName: my-metrics-account
+        configurationAccountName: my-config-account
+        storageAccountName: my-storage-account
+        # lookback will cause start time value to be equal to start of analysis
         # lookback: true
-        thresholds:
+        threshold:
           pass: 90
           marginal: 75
         scopes:
         - name: default
           controlScope:
             scope: app=guestbook and rollouts-pod-template-hash={{args.stable-hash}}
+            region: us-west-2
             step: 60
           experimentScope:
             scope: app=guestbook and rollouts-pod-template-hash={{args.canary-hash}}
+            region: us-west-2
             step: 60
 ```
+
+## Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `address` | yes | Base URL of the Kayenta server. |
+| `application` | yes | Spinnaker application the canary config belongs to. |
+| `canaryConfigName` | yes | Name of the canary config to run; the controller looks up its id by application and name. |
+| `metricsAccountName` | yes | Kayenta account used to fetch the metrics. |
+| `configurationAccountName` | yes | Kayenta account that stores the canary config. |
+| `storageAccountName` | yes | Kayenta account that stores the canary results. |
+| `threshold.pass` | yes | Score at or above which the measurement is `Successful`. |
+| `threshold.marginal` | yes | Score at or above which the measurement is `Inconclusive` instead of `Failed`. |
+| `scopes[].name` | yes | Scope name as defined in the canary config. |
+| `scopes[].controlScope`, `scopes[].experimentScope` | yes | Baseline and canary scopes. Each needs `scope`, `region` and `step`; `start` and `end` are optional (see below). |
+| `lookback` | no | When `true`, an omitted `start` is the start of the analysis rather than the current time minus `interval`. |
