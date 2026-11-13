@@ -17,6 +17,7 @@ markdown_extensions:
 nav:
 - Overview: index.md
 - Installation: installation.md
+- Controller Flags: controller-flags.md
 - Concepts: concepts.md
 - Architecture: architecture.md
 - Getting Started:
