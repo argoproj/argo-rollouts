@@ -73,7 +73,7 @@ See the [FAQ](FAQ.md#can-we-run-the-argo-rollouts-controller-in-ha-mode) for run
 |------|---------|-------------|
 | `--leader-elect` | `true` | Perform leader election between controller instances so that only one operates at a time. |
 | `--leader-election-lease-duration` | `15s` | How long non-leader candidates wait after observing a leadership renewal before trying to acquire a lease that was not renewed. Effectively the maximum time a leader can be stopped before it is replaced. |
-| `--leader-election-renew-deadline` | `10s` | Interval between attempts by the acting leader to renew its lease before it stops leading. Must be less than or equal to the lease duration. |
+| `--leader-election-renew-deadline` | `10s` | Interval between attempts by the acting leader to renew its lease before it stops leading. Must be strictly less than the lease duration; client-go refuses to start leader election when the two are equal. |
 | `--leader-election-retry-period` | `2s` | Wait between attempts to acquire or renew the lease. |
 
 ## Traffic routing
@@ -101,7 +101,7 @@ API versions the controller uses when it creates or reads traffic-routing resour
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--analysis-shared-secret-namespace` | `""` | Namespace containing secrets that AnalysisRuns in any namespace may reference. |
-| `--analysis-shared-secret-mode` | `LabelFilter` | Which secrets in the shared-secret namespace AnalysisRuns may read: `LabelFilter` (only labeled secrets) or `AllSecrets` (any secret in the namespace). |
+| `--analysis-shared-secret-mode` | `LabelFilter` | Which secrets in the shared-secret namespace AnalysisRuns may read: `LabelFilter` (only secrets labelled `argo-rollouts.argoproj.io/shared-secret: "true"`) or `AllSecrets` (any secret in the namespace). |
 
 ## Notifications
 
