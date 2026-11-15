@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestMetricsPortFlagCompatibility(t *testing.T) {
-	cmd := newCommand()
+	cmd := NewCommand()
 
 	// Test that both flags are available
 	metricsPortFlag := cmd.Flags().Lookup("metricsPort")
