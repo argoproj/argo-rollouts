@@ -65,19 +65,20 @@ spec:
 
 Each entry of `metricDataQueries` supports these fields, which map one to one onto the CloudWatch `MetricDataQuery` API:
 
-| Field | Description |
-|-------|-------------|
-| `id` | Short name of the query, used to reference it from expressions and in `result`. |
-| `expression` | Metric math expression. Use either `expression` or `metricStat`. |
-| `label` | Optional human-readable label returned with the result. |
-| `metricStat.metric.namespace` | Namespace of the metric. |
-| `metricStat.metric.metricName` | Name of the metric. |
-| `metricStat.metric.dimensions` | List of `name` / `value` pairs that identify the metric. |
-| `metricStat.period` | Granularity of the returned data points, in seconds. |
-| `metricStat.stat` | Statistic to return, for example `Sum`, `Average`, `p99`. |
-| `metricStat.unit` | Optional unit filter. |
-| `period` | Optional period override for the query. |
-| `returnData` | Set to `false` for intermediate queries that only feed an expression. |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Short name of the query, used to reference it from expressions and in `result`. |
+| `expression` | one of `expression` / `metricStat` | Metric math expression. |
+| `metricStat` | one of `expression` / `metricStat` | Fetches a single metric; its sub-fields are listed below. |
+| `metricStat.metric.namespace` | yes | Namespace of the metric. |
+| `metricStat.metric.metricName` | yes | Name of the metric. |
+| `metricStat.metric.dimensions` | no | List of `name` / `value` pairs that identify the metric. |
+| `metricStat.period` | yes | Granularity of the returned data points, in seconds. |
+| `metricStat.stat` | yes | Statistic to return, for example `Sum`, `Average`, `p99`. |
+| `metricStat.unit` | no | Unit filter. |
+| `label` | no | Human-readable label returned with the result. |
+| `period` | no | Period override for the query. |
+| `returnData` | no | Set to `false` for intermediate queries that only feed an expression. |
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
