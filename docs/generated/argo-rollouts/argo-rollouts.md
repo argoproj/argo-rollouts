@@ -18,7 +18,7 @@ argo-rollouts [flags]
       --ambassador-api-version string                 Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings. (default "getambassador.io/v2")
       --analysis-shared-secret-mode string            Controls which secrets in the shared-secret namespace AnalysisRuns may read: 'LabelFilter' (default, only labeled secrets) or 'AllSecrets' (any secret in the namespace) (default "LabelFilter")
       --analysis-shared-secret-namespace string       Namespace containing secrets that may be referenced by AnalysisRuns
-      --analysis-threads int                          Set the number of worker threads for the Experiment controller (default 30)
+      --analysis-threads int                          Set the number of worker threads for the Analysis controller (default 30)
       --appmesh-crd-version string                    Set the default AppMesh CRD Version that controller uses when manipulating resources. (default "v1beta2")
       --as string                                     Username to impersonate for the operation
       --as-group stringArray                          Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
