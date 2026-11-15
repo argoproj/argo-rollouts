@@ -172,8 +172,8 @@ spec:
 | `application` | yes | Spinnaker application the canary config belongs to. |
 | `canaryConfigName` | yes | Name of the canary config to run; the controller looks up its id by application and name. |
 | `metricsAccountName` | yes | Kayenta account used to fetch the metrics. |
-| `configurationAccountName` | yes | Kayenta account passed as the configuration account when the canary is started. |
-| `storageAccountName` | yes | Kayenta account that stores the canary results. The controller also uses this account, not `configurationAccountName`, when it looks up the canary config id by name, so the canary config must be readable through it. Using one account for both avoids surprises. |
+| `configurationAccountName` | yes | Kayenta account that stores the canary config; used both to look up the config id by name and when the canary is started. |
+| `storageAccountName` | yes | Kayenta account that stores the canary results. |
 | `threshold.pass` | yes | Score at or above which the measurement is `Successful`. |
 | `threshold.marginal` | yes | Score at or above which the measurement is `Inconclusive` instead of `Failed`. |
 | `scopes[].name` | yes | Scope name as defined in the canary config. |
