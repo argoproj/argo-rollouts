@@ -31,7 +31,7 @@ argo-rollouts [flags]
       --client-key string                             Path to a client key file for TLS
       --cluster string                                The name of the kubeconfig cluster to use
       --context string                                The name of the kubeconfig context to use
-      --controllers strings                           Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled
+      --controllers strings                           Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controllers=analysis. Default: all controllers are enabled
       --disable-compression                           If true, opt-out of response compression for all requests to the server
       --enable-pprof-address string                   Enable pprof profiling on controller by providing a server address.
       --ephemeral-metadata-threads int                Set the number of worker threads for the Ephemeral Metadata reconciler (default 10)
