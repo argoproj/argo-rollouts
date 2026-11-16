@@ -591,6 +591,29 @@ func TestRolloutUseDynamicWeightOnPromoteFullCapsAtMaxWeight(t *testing.T) {
 	f.run(getKey(r2, t))
 }
 
+func TestDynamicPromoteFullWeight(t *testing.T) {
+	tests := []struct {
+		name              string
+		maxWeight         int32
+		availableReplicas int32
+		specReplicas      int32
+		expected          int32
+	}{
+		{name: "canary still scaling up", maxWeight: 100, availableReplicas: 5, specReplicas: 10, expected: 50},
+		{name: "canary at spec replicas", maxWeight: 100, availableReplicas: 10, specReplicas: 10, expected: 100},
+		{name: "canary above spec replicas after setCanaryScale", maxWeight: 100, availableReplicas: 2, specReplicas: 1, expected: 100},
+		{name: "no canary replicas available", maxWeight: 100, availableReplicas: 0, specReplicas: 3, expected: 0},
+		{name: "custom max weight", maxWeight: 1000, availableReplicas: 1, specReplicas: 4, expected: 250},
+		{name: "large custom max weight does not overflow int32", maxWeight: 1500000000, availableReplicas: 2, specReplicas: 1, expected: 1500000000},
+		{name: "zero spec replicas", maxWeight: 100, availableReplicas: 1, specReplicas: 0, expected: 100},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, dynamicPromoteFullWeight(tt.maxWeight, tt.availableReplicas, tt.specReplicas))
+		})
+	}
+}
+
 func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
