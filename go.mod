@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.73.3
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.63.4
-	github.com/aws/smithy-go v1.28.5
+	github.com/aws/smithy-go v1.28.9
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.2.0
 	github.com/evanphx/json-patch/v5 v5.9.11
@@ -38,8 +38,8 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
 	go.yaml.in/yaml/v2 v2.4.4
-	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/oauth2 v0.38.0
+	golang.org/x/sync v0.25.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260817212433-ac3dfec99bb1
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
