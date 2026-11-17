@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/errors"
 	"github.com/argoproj/argo-rollouts/utils/record"
 
+	"github.com/argoproj/argo-rollouts/analysis"
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
@@ -89,6 +90,8 @@ func newCommand() *cobra.Command {
 		selfServiceNotificationEnabled bool
 		controllersEnabled             []string
 		pprofAddress                   string
+		analysisSharedSecretNamespace  string
+		analysisSharedSecretMode       string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -98,6 +101,13 @@ func newCommand() *cobra.Command {
 			if printVersion {
 				fmt.Println(version.GetVersion())
 				return nil
+			}
+			if analysisSharedSecretMode == "" {
+				analysisSharedSecretMode = string(analysis.DefaultSharedSecretMode)
+			}
+			if !analysis.ValidSharedSecretMode(analysis.SharedSecretMode(analysisSharedSecretMode)) {
+				return fmt.Errorf("invalid --analysis-shared-secret-mode %q: must be one of %q or %q",
+					analysisSharedSecretMode, analysis.SharedSecretModeLabelFilter, analysis.SharedSecretModeAllSecrets)
 			}
 			logger := log.New()
 			setLogLevel(logLevel)
@@ -261,7 +271,10 @@ func newCommand() *cobra.Command {
 					clusterDynamicInformerFactory,
 					namespaced,
 					kubeInformerFactory,
-					jobInformerFactory)
+					jobInformerFactory,
+					analysisSharedSecretNamespace,
+					analysis.SharedSecretMode(analysisSharedSecretMode),
+				)
 			} else {
 				cm = controller.NewManager(
 					namespace,
@@ -301,7 +314,9 @@ func newCommand() *cobra.Command {
 					jobInformerFactory,
 					ephemeralMetadataThreads,
 					ephemeralMetadataPodRetries,
-					selfServiceNotificationEnabled)
+					selfServiceNotificationEnabled,
+					analysisSharedSecretNamespace,
+					analysis.SharedSecretMode(analysisSharedSecretMode))
 			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
@@ -328,7 +343,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&burst, "burst", defaults.DefaultBurst, "Maximum burst for throttle.")
 	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
-	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
+	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Analysis controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
 	command.Flags().IntVar(&ephemeralMetadataThreads, "ephemeral-metadata-threads", rollout.DefaultEphemeralMetadataThreads, "Set the number of worker threads for the Ephemeral Metadata reconciler")
@@ -355,6 +370,8 @@ func newCommand() *cobra.Command {
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
 	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
 	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
+	command.Flags().StringVar(&analysisSharedSecretNamespace, "analysis-shared-secret-namespace", "", "Namespace containing secrets that may be referenced by AnalysisRuns")
+	command.Flags().StringVar(&analysisSharedSecretMode, "analysis-shared-secret-mode", string(analysis.DefaultSharedSecretMode), "Controls which secrets in the shared-secret namespace AnalysisRuns may read: 'LabelFilter' (default, only labeled secrets) or 'AllSecrets' (any secret in the namespace)")
 	return &command
 }
 

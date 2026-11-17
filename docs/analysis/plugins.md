@@ -101,6 +101,10 @@ If you have created a plugin, please submit a PR to add it to this list.
 
 - An AI-powered metric plugin that delegates analysis to an A2A (Agent-to-Agent) agent. The agent autonomously fetches stable/canary pod logs and returns structured analysis, enabling LLM-driven canary evaluation during rollouts.
 
+### [rollouts-plugin-metric-datadog](https://github.com/argoproj-labs/rollouts-plugin-metric-datadog)
+
+- A metric plugin that gates rollouts on Datadog metric queries (v1 and v2 formulas), monitors, and SLOs, with a shared rate limiter and cache across concurrent analyses.
+
 ### [rollouts-plugin-metric-honeycomb](https://github.com/argoproj-labs/rollouts-plugin-metric-honeycomb)
 
 - A metric plugin that integrates Honeycomb as an analysis provider for Argo Rollouts.
