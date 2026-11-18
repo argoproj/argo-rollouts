@@ -3224,3 +3224,34 @@ func TestSkipPostPromotionAnalysisRun(t *testing.T) {
 		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet becomes unsaturated")
 	})
 }
+
+func TestGetAnalysisRunsForRolloutUsesOwnerIndex(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.UID = "rollout-uid"
+	other := r.DeepCopy()
+	other.Name = "other"
+	other.UID = "other-uid"
+
+	owned := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r)
+	notOwned := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, other)
+	otherNamespace := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r)
+	otherNamespace.Namespace = "other-ns"
+	f.analysisRunLister = append(f.analysisRunLister, owned, notOwned, otherNamespace)
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	ars, err := c.getAnalysisRunsForRollout(r)
+	assert.NoError(t, err)
+	assert.Len(t, ars, 1)
+	assert.Equal(t, owned.Name, ars[0].Name)
+	assert.Equal(t, owned.Namespace, ars[0].Namespace)
+
+	ars[0].Labels["mutated"] = "true"
+	cached, err := c.analysisRunLister.AnalysisRuns(owned.Namespace).Get(owned.Name)
+	assert.NoError(t, err)
+	assert.NotContains(t, cached.Labels, "mutated")
+}
