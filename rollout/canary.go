@@ -47,6 +47,10 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newRS, c.stableRS, c.rollout.Status.Canary.Weights)
 	}
+	desiredStableRSReplicaCount, err := c.holdStableScaleDown(desiredStableRSReplicaCount)
+	if err != nil {
+		return false, err
+	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	if err != nil {
 		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet: %w", err)
@@ -144,11 +148,12 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 			if rolloututil.IsFullyPromoted(c.rollout) || replicasetutil.HasScaleDownDeadline(targetRS) {
 				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
 				// this ReplicaSet is likely the previous stable. We should do one of two things:
-				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+				if c.rollout.Spec.Strategy.Canary.DynamicStableScale && defaults.GetStableScaleDownDelaySeconds(c.rollout) == nil {
 					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
 					desiredReplicaCount = 0
 				} else {
-					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
+					// 2. otherwise, honor scaledown delay second (stableScaleDownPolicy under dynamic scaling)
+					// and keep replicas of the current step
 					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
 					if err != nil {
 						return totalScaledDown, err
@@ -344,6 +349,13 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 	err := c.removeScaleDownDeadlines()
 	if err != nil {
 		return false, err
+	}
+	// A hold only belongs on the stable of an update in progress. One left on a previous stable
+	// that became the desired ReplicaSet again (rollback) would shorten its next hold.
+	if c.newRS != nil {
+		if err := c.setStableScaleDownHold(c.newRS, nil); err != nil {
+			return false, err
+		}
 	}
 	scaledStableRS, err := c.reconcileCanaryStableReplicaSet()
 	if err != nil {

@@ -376,6 +376,10 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSet
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
+		if sizeNeedsUpdate {
+			// a stable scale-down hold covers one pending scale-down; the next one gets a fresh hold
+			delete(rsCopy.Annotations, v1alpha1.DefaultStableScaleDownHoldAnnotationKey)
+		}
 
 		rs, err = c.updateReplicaSet(ctx, rsCopy)
 		if err != nil {
