@@ -202,8 +202,9 @@ func TestNewCloudWatchAPIClient(t *testing.T) {
 
 	t.Run("with env settings", func(t *testing.T) {
 		envs := map[string]string{
-			"AWS_ACCESS_KEY_ID":     "hoge",
-			"AWS_SECRET_ACCESS_KEY": "fuga",
+			"AWS_ACCESS_KEY_ID":         "hoge",
+			"AWS_SECRET_ACCESS_KEY":     "fuga",
+			"AWS_EC2_METADATA_DISABLED": "true",
 		}
 		for k, v := range envs {
 			before, ok := os.LookupEnv(k)
