@@ -236,15 +236,37 @@ func selfSignedCertificate(t *testing.T, usage x509.ExtKeyUsage) testCertificate
 	return testCertificate{certificate: pair, certPath: certPath, keyPath: keyPath, pool: pool}
 }
 
-func TestInitTracerTLS(t *testing.T) {
+func TestInitTracerTLSCertificateAuthorities(t *testing.T) {
 	for _, tc := range []struct {
-		name         string
-		traceCA      bool
-		clientPrefix string
-		strayCert    bool
+		name    string
+		traceCA bool
 	}{
 		{name: "generic CA"},
 		{name: "trace CA overrides generic", traceCA: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolateOTel(t)
+			serverCert := selfSignedCertificate(t, x509.ExtKeyUsageServerAuth)
+			if tc.traceCA {
+				t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", "/nonexistent/ca.crt")
+				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE", serverCert.certPath)
+			} else {
+				t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", serverCert.certPath)
+			}
+			t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+			t.Setenv("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "true")
+			address, collector := startCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert.certificate)))
+			assert.True(t, exportTestSpan(t, address, false, collector), "collector received no TLS export")
+		})
+	}
+}
+
+func TestInitTracerMutualTLS(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		clientPrefix string
+		strayCert    bool
+	}{
 		{name: "generic mutual TLS", clientPrefix: "OTEL_EXPORTER_OTLP_"},
 		{name: "trace mutual TLS overrides generic", clientPrefix: "OTEL_EXPORTER_OTLP_TRACES_"},
 		{name: "complete generic client pair with stray trace certificate", clientPrefix: "OTEL_EXPORTER_OTLP_", strayCert: true},
@@ -252,27 +274,22 @@ func TestInitTracerTLS(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			isolateOTel(t)
 			serverCert := selfSignedCertificate(t, x509.ExtKeyUsageServerAuth)
-			serverTLS := &tls.Config{Certificates: []tls.Certificate{serverCert.certificate}}
-			if tc.clientPrefix != "" {
-				clientCert := selfSignedCertificate(t, x509.ExtKeyUsageClientAuth)
-				serverTLS.ClientAuth = tls.RequireAndVerifyClientCert
-				serverTLS.ClientCAs = clientCert.pool
-				t.Setenv(tc.clientPrefix+"CLIENT_CERTIFICATE", clientCert.certPath)
-				t.Setenv(tc.clientPrefix+"CLIENT_KEY", clientCert.keyPath)
-				if tc.clientPrefix == "OTEL_EXPORTER_OTLP_TRACES_" {
-					t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE", "/nonexistent/client.crt")
-					t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_KEY", "/nonexistent/client.key")
-				}
-				if tc.strayCert {
-					t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE", "/nonexistent/client.crt")
-				}
+			clientCert := selfSignedCertificate(t, x509.ExtKeyUsageClientAuth)
+			serverTLS := &tls.Config{
+				Certificates: []tls.Certificate{serverCert.certificate},
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    clientCert.pool,
 			}
-			if tc.traceCA {
-				t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", "/nonexistent/ca.crt")
-				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE", serverCert.certPath)
-			} else {
-				t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", serverCert.certPath)
+			t.Setenv(tc.clientPrefix+"CLIENT_CERTIFICATE", clientCert.certPath)
+			t.Setenv(tc.clientPrefix+"CLIENT_KEY", clientCert.keyPath)
+			if tc.clientPrefix == "OTEL_EXPORTER_OTLP_TRACES_" {
+				t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE", "/nonexistent/client.crt")
+				t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_KEY", "/nonexistent/client.key")
 			}
+			if tc.strayCert {
+				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE", "/nonexistent/client.crt")
+			}
+			t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", serverCert.certPath)
 			t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 			t.Setenv("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "true")
 			address, collector := startCollector(t, grpc.Creds(credentials.NewTLS(serverTLS)))
@@ -311,9 +328,10 @@ func TestInitTracerTransportVerification(t *testing.T) {
 	})
 	t.Run("explicit plaintext ignores certificate environment", func(t *testing.T) {
 		isolateOTel(t)
+		cert := selfSignedCertificate(t, x509.ExtKeyUsageServerAuth)
 		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "false")
 		t.Setenv("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "false")
-		t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", "/nonexistent/ca.crt")
+		t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", cert.certPath)
 		address, collector := startCollector(t)
 		assert.True(t, exportTestSpan(t, address, true, collector))
 	})
