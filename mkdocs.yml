@@ -45,6 +45,7 @@ nav:
   - Helm: features/helm.md
   - Kustomize: features/kustomize.md
   - Controller Metrics: features/controller-metrics.md
+  - Controller Tracing: features/controller-tracing.md
 - Traffic Management:
   - Overview: features/traffic-management/index.md
   - Ambassador: features/traffic-management/ambassador.md
