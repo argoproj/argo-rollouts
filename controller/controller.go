@@ -57,6 +57,7 @@ import (
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 )
 
 const (
@@ -349,8 +350,10 @@ func NewManager(
 		newNotificationController = notificationcontroller.NewControllerWithNamespaceSupport
 	}
 	notificationsController := newNotificationController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory, toUnstructured)
+	traceHandoffs := traceutil.NewHandoffs()
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
+		TraceHandoffs:                   traceHandoffs,
 		Namespace:                       namespace,
 		KubeClientSet:                   kubeclientset,
 		ArgoProjClientset:               argoprojclientset,
@@ -398,6 +401,8 @@ func NewManager(
 		KubeClientSet:                 kubeclientset,
 		ArgoProjClientset:             argoprojclientset,
 		AnalysisRunInformer:           analysisRunInformer,
+		RolloutInformer:               rolloutsInformer,
+		TraceHandoffs:                 traceHandoffs,
 		JobInformer:                   jobInformer,
 		JobPodsInformer:               jobPodsInformer,
 		ResyncPeriod:                  resyncPeriod,

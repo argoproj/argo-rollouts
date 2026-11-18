@@ -255,6 +255,12 @@ func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argum
 // CreateWithCollisionCounter attempts to create the given analysisrun and if an AlreadyExists error
 // is encountered, and the existing run is semantically equal and running, returns the exiting run.
 func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.AnalysisRunInterface, run v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
+	return CreateWithCollisionCounterWithCallback(logCtx, analysisRunIf, run, nil)
+}
+
+// CreateWithCollisionCounterWithCallback calls onCreated only after the API
+// creates a new AnalysisRun. Adopting an existing run does not invoke it.
+func CreateWithCollisionCounterWithCallback(logCtx *log.Entry, analysisRunIf argoprojclient.AnalysisRunInterface, run v1alpha1.AnalysisRun, onCreated func(*v1alpha1.AnalysisRun)) (*v1alpha1.AnalysisRun, error) {
 	ctx := context.TODO()
 	newControllerRef := metav1.GetControllerOf(&run)
 	if newControllerRef == nil {
@@ -265,6 +271,9 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 	for {
 		createdRun, err := analysisRunIf.Create(ctx, &run, metav1.CreateOptions{})
 		if err == nil {
+			if onCreated != nil {
+				onCreated(createdRun)
+			}
 			return createdRun, nil
 		}
 		if !k8serrors.IsAlreadyExists(err) {

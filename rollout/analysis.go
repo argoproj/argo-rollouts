@@ -401,7 +401,10 @@ func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnal
 		return nil, err
 	}
 	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(c.rollout.Namespace)
-	return analysisutil.CreateWithCollisionCounter(c.log, analysisRunIf, *ar)
+	return analysisutil.CreateWithCollisionCounterWithCallback(c.log, analysisRunIf, *ar, func(created *v1alpha1.AnalysisRun) {
+		c.traceAttempt.Context()
+		c.traceHandoffs.RecordCreation(c.rollout, created, c.traceAttempt.SpanContext())
+	})
 }
 
 func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun, error) {
@@ -433,8 +436,10 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
+		c.traceResult(currentAr)
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+		c.traceResult(currentAr)
 		message := "Step-based analysis phase error/failed"
 		if currentAr.Status.Message != "" {
 			message += ": " + currentAr.Status.Message

@@ -3,11 +3,16 @@ package rollout
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -57,6 +62,7 @@ import (
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -84,10 +90,12 @@ type Controller struct {
 	// rolloutVersionTracker remembers ResourceVersions from our last successful writes so
 	// syncHandler can requeue when the informer cache hasn't caught up yet.
 	rolloutVersionTracker *resourceversionutil.Tracker
+	tracer                oteltrace.Tracer
 }
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
 type ControllerConfig struct {
+	TraceHandoffs                   *traceutil.Handoffs
 	Namespace                       string
 	KubeClientSet                   kubernetes.Interface
 	ArgoProjClientset               clientset.Interface
@@ -118,6 +126,7 @@ type ControllerConfig struct {
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
 // reconcile a rollout. This is shared between the controller and the rolloutContext
 type reconcilerBase struct {
+	traceHandoffs *traceutil.Handoffs
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// argoprojclientset is a clientset for our own API group
@@ -188,6 +197,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	}
 	base := reconcilerBase{
+		traceHandoffs:                 cfg.TraceHandoffs,
 		kubeclientset:                 cfg.KubeClientSet,
 		argoprojclientset:             cfg.ArgoProjClientset,
 		dynamicclientset:              cfg.DynamicClientSet,
@@ -215,6 +225,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller := &Controller{
+		tracer:                otel.Tracer(traceutil.InstrumentationName + "/rollout"),
 		reconcilerBase:        base,
 		namespace:             cfg.Namespace,
 		replicaSetControl:     replicaSetControl,
@@ -390,12 +401,35 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
-func (c *Controller) syncHandler(ctx context.Context, key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error) {
 	startTime := timeutil.Now()
+	attempt := traceutil.NewAttempt(ctx, c.tracer, "controller.Rollout", startTime)
+	var before, persisted *v1alpha1.Rollout
+	var roCtx *rolloutContext
+	defer func() {
+		recovered := recover()
+		if roCtx != nil && roCtx.newRollout != nil {
+			persisted = roCtx.newRollout
+		}
+		persisted = rolloutTraceSnapshot(before, persisted)
+		statusChanged := before != nil && persisted != nil && !reflect.DeepEqual(before.Status, persisted.Status)
+		finishErr := retErr
+		attrs := rolloutTraceAttributes(persisted)
+		if errors.Is(retErr, controllerutil.StaleCacheError) {
+			finishErr = nil
+			attrs = append(attrs, attribute.String("argo.rollouts.reconciliation.outcome", "stale_cache_requeue"))
+		}
+		attempt.Finish(finishErr, recovered, statusChanged, attrs...)
+		if recovered != nil {
+			panic(recovered)
+		}
+	}()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
+		attempt.SetAttributes(attribute.String("argo.rollouts.reconciliation.cause", "invalid_key"))
 		return err
 	}
+	attempt.SetAttributes(attribute.String("argo.rollouts.reconciliation.cause", "resource_lookup_error"))
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
 		c.rolloutVersionTracker.Forget(key)
@@ -405,6 +439,10 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 
+	before = rollout.DeepCopy()
+	persisted = rollout
+	attempt.SetAttributes(rolloutTraceAttributes(rollout)...)
+	attempt.SetAttributes(attribute.String("argo.rollouts.reconciliation.cause", rolloutTraceCause(rollout)))
 	if c.rolloutVersionTracker.IsCacheStale(key, rollout.ResourceVersion) {
 		return controllerutil.StaleCacheError
 	}
@@ -428,7 +466,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	roCtx, err := c.newRolloutContext(r)
+	roCtx, err = c.newRolloutContext(r)
 	if roCtx == nil {
 		if k8serrors.IsConflict(err) {
 			logCtx.Warnf("newRolloutContext returned nil: %v", err)
@@ -437,6 +475,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		}
 		return err
 	}
+	roCtx.traceAttempt = attempt
 	if err != nil {
 		if _, ok := err.(*field.Error); ok {
 			logCtx := logutil.WithRollout(roCtx.rollout)
@@ -464,6 +503,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		if err != nil {
 			return err
 		}
+		persisted = newRollout
 		c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
 		return nil
 	}
