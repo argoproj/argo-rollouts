@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -17,21 +19,15 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
-	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
-	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
@@ -72,14 +68,30 @@ const (
 type ArgoRolloutsServer struct {
 	Options ServerOptions
 	stopCh  chan struct{}
+
+	informers *informerCache
 }
 
 // NewServer creates an ArgoRolloutsServer
 func NewServer(o ServerOptions) *ArgoRolloutsServer {
-	return &ArgoRolloutsServer{Options: o}
+	return &ArgoRolloutsServer{
+		Options:   o,
+		informers: newInformerCache(o.KubeClientset, o.RolloutsClientset),
+	}
 }
 
-const defaultListenAddr = "127.0.0.1"
+const (
+	defaultListenAddr = "127.0.0.1"
+
+	// rolloutInfoMinSendInterval is the minimum time between two updates sent on a
+	// WatchRolloutInfo stream.
+	rolloutInfoMinSendInterval = 200 * time.Millisecond
+
+	// rolloutInfosCoalesceInterval is how long a WatchRolloutInfos stream collects
+	// changed Rollouts before sending them, so that a burst of events for the same
+	// Rollout results in a single update.
+	rolloutInfosCoalesceInterval = 250 * time.Millisecond
+)
 
 func (s *ArgoRolloutsServer) listenAddr() string {
 	if s.Options.ListenAddr != "" {
@@ -235,15 +247,45 @@ func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws ro
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
-		rolloutUpdates <- roInfo
+		select {
+		case rolloutUpdates <- roInfo:
+		case <-ctx.Done():
+		}
 	})
 
-	go get.Watch(ctx.Done(), rolloutUpdates, func(i *rollout.RolloutInfo) {
+	go sendRolloutInfoUpdates(ctx, rolloutUpdates, func(i *rollout.RolloutInfo) {
 		ws.Send(i)
 	})
 	controller.Run(ctx)
-	close(rolloutUpdates)
 	return nil
+}
+
+// sendRolloutInfoUpdates sends the latest RolloutInfo received on updates, at most once
+// per rolloutInfoMinSendInterval. Nothing is sent while there are no updates.
+func sendRolloutInfoUpdates(ctx context.Context, updates <-chan *rollout.RolloutInfo, send func(*rollout.RolloutInfo)) {
+	var pending *rollout.RolloutInfo
+	var lastSent time.Time
+	var timer <-chan time.Time
+	flush := func() {
+		send(pending)
+		pending = nil
+		timer = nil
+		lastSent = time.Now()
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case pending = <-updates:
+			if wait := rolloutInfoMinSendInterval - time.Since(lastSent); wait <= 0 {
+				flush()
+			} else if timer == nil {
+				timer = time.After(wait)
+			}
+		case <-timer:
+			flush()
+		}
+	}
 }
 
 func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespace string) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
@@ -271,23 +313,18 @@ func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespa
 
 // ListRolloutInfos returns a list of all rollouts
 func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.RolloutInfoListQuery) (*rollout.RolloutInfoList, error) {
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
-	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
-
+	nc, release, err := s.informers.acquire(ctx, q.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
-
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, q.GetNamespace())
-	if err != nil {
-		return nil, err
-	}
+	defer release()
 
 	var riList []*rollout.RolloutInfo
-	for i := range rolloutList.Items {
-		cur := rolloutList.Items[i]
-		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil, nil)
-		ri.ReplicaSets = info.GetReplicaSetInfo(cur.UID, &cur, allReplicaSets, allPods)
+	for _, ro := range nc.rollouts() {
+		ri, err := nc.rolloutInfo(ro)
+		if err != nil {
+			return nil, err
+		}
 		riList = append(riList, ri)
 	}
 
@@ -302,71 +339,118 @@ func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Rest
 
 // WatchRolloutInfos returns a stream of all rollouts
 func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, ws rollout.RolloutService_WatchRolloutInfosServer) error {
-	send := func(r *rollout.RolloutInfo) {
-		err := ws.Send(&rollout.RolloutWatchEvent{
-			Type:        "Updated",
-			RolloutInfo: r,
-		})
-		if err != nil {
-			return
-		}
-	}
 	ctx := ws.Context()
 
-	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(q.Namespace))
-	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(q.Namespace)
-	rolloutInformer := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer()
+	nc, release, err := s.informers.acquire(ctx, q.GetNamespace())
+	if err != nil {
+		return err
+	}
+	defer release()
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(s.Options.KubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
-	podsLister := kubeInformerFactory.Core().V1().Pods().Lister().Pods(q.GetNamespace())
-	rsLister := kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(q.GetNamespace())
-	kubeInformerFactory.Start(ws.Context().Done())
-	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
-
-	rolloutUpdateChan := make(chan *v1alpha1.Rollout)
-
-	rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			rolloutUpdateChan <- obj.(*v1alpha1.Rollout)
-		},
+	changed := newKeySet()
+	enqueueRollout := func(obj any) {
+		if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
+			changed.add(key)
+		}
+	}
+	rolloutRegistration, err := nc.rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: enqueueRollout,
 		UpdateFunc: func(oldObj, newObj any) {
-			rolloutUpdateChan <- newObj.(*v1alpha1.Rollout)
+			enqueueRollout(newObj)
 		},
 	})
-	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if err != nil {
+		return err
+	}
+	defer func() { _ = nc.rolloutInformer.RemoveEventHandler(rolloutRegistration) }()
+	podRegistration, err := nc.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj any) {
-			podUpdated(obj.(*corev1.Pod), rsLister, rolloutsLister, rolloutUpdateChan)
+			if pod, ok := obj.(*corev1.Pod); ok {
+				changed.add(nc.rolloutKeysForPod(pod)...)
+			}
 		},
 	})
-
-	go rolloutInformer.Run(ctx.Done())
-
-	cache.WaitForCacheSync(
-		ws.Context().Done(),
-		podsInformer.HasSynced,
-		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
-		rolloutInformer.HasSynced,
-	)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = nc.podInformer.RemoveEventHandler(podRegistration) }()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case ro := <-rolloutUpdateChan:
-			allPods, err := podsLister.List(labels.Everything())
-			if err != nil {
-				return err
-			}
-			allReplicaSets, err := rsLister.List(labels.Everything())
-			if err != nil {
-				return err
-			}
+		case <-changed.notify:
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(rolloutInfosCoalesceInterval):
+		}
 
+		for _, key := range changed.drain() {
+			ro, err := nc.rollout(key)
+			if err != nil {
+				return err
+			}
+			if ro == nil {
+				continue
+			}
 			// get shallow rollout info
-			ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil)
-			send(ri)
+			ri, err := nc.rolloutInfo(ro)
+			if err != nil {
+				return err
+			}
+			err = ws.Send(&rollout.RolloutWatchEvent{
+				Type:        "Updated",
+				RolloutInfo: ri,
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
+}
+
+// keySet collects the keys of changed objects until they are drained.
+type keySet struct {
+	mu   sync.Mutex
+	keys map[string]struct{}
+	// notify receives a value when keys were added since the last drain
+	notify chan struct{}
+}
+
+func newKeySet() *keySet {
+	return &keySet{
+		keys:   map[string]struct{}{},
+		notify: make(chan struct{}, 1),
+	}
+}
+
+func (k *keySet) add(keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+	k.mu.Lock()
+	for _, key := range keys {
+		k.keys[key] = struct{}{}
+	}
+	k.mu.Unlock()
+	select {
+	case k.notify <- struct{}{}:
+	default:
+	}
+}
+
+func (k *keySet) drain() []string {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	keys := make([]string, 0, len(k.keys))
+	for key := range k.keys {
+		keys = append(keys, key)
+	}
+	k.keys = map[string]struct{}{}
+	sort.Strings(keys)
+	return keys
 }
 
 func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
@@ -443,23 +527,4 @@ func (s *ArgoRolloutsServer) Version(ctx context.Context, _ *empty.Empty) (*roll
 	return &rollout.VersionInfo{
 		RolloutsVersion: version.String(),
 	}, nil
-}
-
-func podUpdated(pod *corev1.Pod, rsLister appslisters.ReplicaSetNamespaceLister,
-	rolloutLister listers.RolloutNamespaceLister, rolloutUpdated chan *v1alpha1.Rollout) {
-	for _, podOwner := range pod.GetOwnerReferences() {
-		if podOwner.Kind == "ReplicaSet" {
-			rs, err := rsLister.Get(podOwner.Name)
-			if err == nil {
-				for _, rsOwner := range rs.GetOwnerReferences() {
-					if rsOwner.APIVersion == v1alpha1.SchemeGroupVersion.String() && rsOwner.Kind == "Rollout" {
-						ro, err := rolloutLister.Get(rsOwner.Name)
-						if err == nil {
-							rolloutUpdated <- ro
-						}
-					}
-				}
-			}
-		}
-	}
 }

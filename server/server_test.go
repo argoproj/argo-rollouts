@@ -9,11 +9,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	rolloutapi "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	fakeoptions "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
@@ -22,13 +24,11 @@ func newTestServer(t *testing.T, objects ...runtime.Object) *ArgoRolloutsServer 
 	t.Helper()
 	tf, o := fakeoptions.NewFakeArgoRolloutsOptions(objects...)
 	t.Cleanup(tf.Cleanup)
-	return &ArgoRolloutsServer{
-		Options: ServerOptions{
-			KubeClientset:     o.KubeClient,
-			RolloutsClientset: o.RolloutsClient,
-			DynamicClientset:  o.DynamicClient,
-		},
-	}
+	return NewServer(ServerOptions{
+		KubeClientset:     o.KubeClient,
+		RolloutsClientset: o.RolloutsClient,
+		DynamicClientset:  o.DynamicClient,
+	})
 }
 
 func TestGetRollout(t *testing.T) {
@@ -171,4 +171,49 @@ func TestNewHTTPServer(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestListRolloutInfos(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	namespace := objects.Rollouts[0].Namespace
+	stableRS := objects.ReplicaSets[0]
+	unownedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "unowned", Namespace: namespace, UID: "unowned-uid"},
+	}
+	multiOwnerPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "multi-owner",
+			Namespace: namespace,
+			UID:       "multi-owner-uid",
+			OwnerReferences: []metav1.OwnerReference{
+				{Kind: "Node", Name: "node", UID: "node-uid"},
+				{Kind: "ReplicaSet", Name: stableRS.Name, UID: stableRS.UID},
+			},
+		},
+	}
+	allPods := append([]*corev1.Pod{unownedPod, multiOwnerPod}, objects.Pods...)
+	s := newTestServer(t, append(objects.AllObjects(), unownedPod, multiOwnerPod)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := s.ListRolloutInfos(ctx, &rolloutapi.RolloutInfoListQuery{Namespace: namespace})
+
+	require.NoError(t, err)
+	require.Len(t, list.Rollouts, len(objects.Rollouts))
+	rollouts := map[string]*v1alpha1.Rollout{}
+	for _, ro := range objects.Rollouts {
+		rollouts[ro.Name] = ro
+	}
+	var names []string
+	ownedPods := 0
+	for _, ri := range list.Rollouts {
+		names = append(names, ri.ObjectMeta.Name)
+		expected := info.NewRolloutInfo(rollouts[ri.ObjectMeta.Name], objects.ReplicaSets, allPods, nil, nil, nil)
+		assert.Equal(t, expected.ReplicaSets, ri.ReplicaSets)
+		for _, rs := range ri.ReplicaSets {
+			ownedPods += len(rs.Pods)
+		}
+	}
+	assert.Positive(t, ownedPods)
+	assert.IsIncreasing(t, names)
 }
