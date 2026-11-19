@@ -157,7 +157,7 @@ type ExperimentStatus struct {
 	// +optional
 	TemplateStatuses []TemplateStatus `json:"templateStatuses,omitempty" protobuf:"bytes,3,rep,name=templateStatuses"`
 	// AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
-	// run for the duration of specificed in the spec.
+	// run for the duration specified in the spec.
 	// +optional
 	AvailableAt *metav1.Time `json:"availableAt,omitempty" protobuf:"bytes,4,opt,name=availableAt"`
 	// Conditions a list of conditions a experiment can have.

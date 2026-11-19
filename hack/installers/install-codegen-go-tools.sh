@@ -6,7 +6,7 @@ SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/../.." && pwd -P )"
 # This script installs all our golang-based codegen utility CLIs necessary for codegen.
 # Some dependencies are vendored in go.mod (ones which are actually imported in our codebase).
 # Other dependencies are only used as a CLI and do not need vendoring in go.mod (doing so adds
-# unecessary dependencies to go.mod). We want to maintain a single source of truth for versioning
+# unnecessary dependencies to go.mod). We want to maintain a single source of truth for versioning
 # our binaries (either go.mod or go install <pkg>@<version>), so we use two techniques to install
 # our CLIs:
 # 1. For CLIs which are NOT vendored in go.mod, we can run `go install <pkg>@<version>` with an explicit version
