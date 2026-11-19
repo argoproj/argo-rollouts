@@ -63,12 +63,31 @@ spec:
 - `metricDataQueries` - GetMetricData query: [MetricDataQuery](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricDataQuery.html)
 - `interval` - optional interval, e.g. 30m, default: 5m
 
+Each entry of `metricDataQueries` supports these fields, which map one to one onto the CloudWatch `MetricDataQuery` API:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Short name of the query, used to reference it from expressions and in `result`. |
+| `expression` | one of `expression` / `metricStat` | Metric math expression. |
+| `metricStat` | one of `expression` / `metricStat` | Fetches a single metric; its sub-fields are listed below. |
+| `metricStat.metric.namespace` | yes | Namespace of the metric. |
+| `metricStat.metric.metricName` | yes | Name of the metric. |
+| `metricStat.metric.dimensions` | no | List of `name` / `value` pairs that identify the metric. |
+| `metricStat.period` | yes | Granularity of the returned data points, in seconds. |
+| `metricStat.stat` | yes | Statistic to return, for example `Sum`, `Average`, `p99`. |
+| `metricStat.unit` | no | Unit filter. |
+| `label` | no | Human-readable label returned with the result. |
+| `period` | no | Period override for the query. |
+| `returnData` | no | Set to `false` for intermediate queries that only feed an expression. |
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
   name: success-rate
 spec:
+  args:
+  - name: service-name
   metrics:
   - name: success-rate
     interval: 1m
@@ -87,7 +106,13 @@ spec:
             "metricStat": {
               "metric": {
                 "namespace": "app",
-                "metricName": "errors"
+                "metricName": "errors",
+                "dimensions": [
+                  {
+                    "name": "Service",
+                    "value": "{{args.service-name}}"
+                  }
+                ]
               },
               "period": 300,
               "stat": "Sum",
@@ -100,7 +125,13 @@ spec:
             "metricStat": {
               "metric": {
                 "namespace": "app",
-                "metricName": "requests"
+                "metricName": "requests",
+                "dimensions": [
+                  {
+                    "name": "Service",
+                    "value": "{{args.service-name}}"
+                  }
+                ]
               },
               "period": 300,
               "stat": "Sum",
