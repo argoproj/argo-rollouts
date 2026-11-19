@@ -17,27 +17,18 @@ export const RolloutsGrid = ({
     const [itemsPerRow, setItemsPerRow] = React.useState(0);
     const rolloutsGridRef = React.useRef(null);
 
-    const handleFavoriteChange = (rolloutName: string, isFavorite: boolean) => {
-        onFavoriteChange(rolloutName, isFavorite);
-    };
-
-    const orderedRollouts = rollouts
-        .map((rollout) => {
-            return {
-                ...rollout,
-                key: rollout.objectMeta?.uid,
-                favorite: favorites[rollout.objectMeta?.name] || false,
-            };
-        })
-        .sort((a, b) => {
-            if (a.favorite && !b.favorite) {
+    const orderedRollouts = React.useMemo(() => {
+        const isFavorite = (rollout: RolloutInfo) => favorites[rollout.objectMeta?.name] || false;
+        return [...rollouts].sort((a, b) => {
+            if (isFavorite(a) && !isFavorite(b)) {
                 return -1;
-            } else if (!a.favorite && b.favorite) {
+            } else if (!isFavorite(a) && isFavorite(b)) {
                 return 1;
             } else {
                 return 0;
             }
         });
+    }, [rollouts, favorites]);
 
     // Calculate the number of items per row for keyboard navigation
     React.useEffect(() => {
@@ -68,6 +59,9 @@ export const RolloutsGrid = ({
 
     const history = useHistory();
     const [pos, nav, reset] = useNav(orderedRollouts.length);
+    const resetRef = React.useRef(reset);
+    resetRef.current = reset;
+    const deselect = React.useCallback(() => resetRef.current(), []);
     const {useKeybinding} = React.useContext(KeybindingContext);
 
     useKeybinding(Key.RIGHT, () => nav(1));
@@ -89,9 +83,9 @@ export const RolloutsGrid = ({
                     key={rollout.objectMeta?.uid}
                     rollout={rollout}
                     selected={i === pos}
-                    deselect={() => reset()}
+                    deselect={deselect}
                     isFavorite={favorites[rollout.objectMeta?.name] || false}
-                    onFavoriteChange={handleFavoriteChange}
+                    onFavoriteChange={onFavoriteChange}
                 />
             ))}
         </div>
