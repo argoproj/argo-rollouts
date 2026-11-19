@@ -49,10 +49,7 @@ func InitTracer(ctx context.Context, serviceName, serviceVersion string, cfg Con
 	if serviceVersion != "" {
 		attrs = append(attrs, attribute.String("service.version", serviceVersion))
 	}
-	res, err := resource.New(ctx, resource.WithAttributes(attrs...))
-	if err != nil {
-		return nil, fmt.Errorf("create OpenTelemetry resource: %w", err)
-	}
+	res := resource.NewSchemaless(attrs...)
 
 	opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(cfg.Address)}
 	if cfg.Insecure {
@@ -73,6 +70,10 @@ func InitTracer(ctx context.Context, serviceName, serviceVersion string, cfg Con
 	if err != nil {
 		return nil, fmt.Errorf("create OTLP trace exporter: %w", err)
 	}
+	// Route asynchronous SDK errors through the controller's configured logger.
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		log.WithError(err).Error("OpenTelemetry error")
+	}))
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
