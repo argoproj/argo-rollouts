@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -18,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -26,8 +29,10 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	collectortrace "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type traceExport struct {
@@ -60,10 +65,11 @@ func startCollector(t *testing.T, opts ...grpc.ServerOption) (string, *traceColl
 
 func isolateOTel(t *testing.T) {
 	t.Helper()
-	provider, propagator := otel.GetTracerProvider(), otel.GetTextMapPropagator()
+	provider, propagator, errorHandler := otel.GetTracerProvider(), otel.GetTextMapPropagator(), otel.GetErrorHandler()
 	t.Cleanup(func() {
 		otel.SetTracerProvider(provider)
 		otel.SetTextMapPropagator(propagator)
+		otel.SetErrorHandler(errorHandler)
 	})
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -79,6 +85,8 @@ func TestInitTracerDisabled(t *testing.T) {
 	otel.SetTracerProvider(provider)
 	propagator := propagation.Baggage{}
 	otel.SetTextMapPropagator(propagator)
+	var handled error
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) { handled = err }))
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4317")
 	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", "/nonexistent/ca.crt")
 
@@ -89,6 +97,35 @@ func TestInitTracerDisabled(t *testing.T) {
 	closeTracer()
 	assert.Same(t, provider, otel.GetTracerProvider())
 	assert.Equal(t, propagator, otel.GetTextMapPropagator())
+	expected := errors.New("existing handler")
+	otel.Handle(expected)
+	assert.Same(t, expected, handled)
+}
+
+func TestInitTracerLogsAsynchronousExportErrors(t *testing.T) {
+	isolateOTel(t)
+	t.Setenv("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "1")
+	logger := log.StandardLogger()
+	hooks := logger.ReplaceHooks(log.LevelHooks{})
+	t.Cleanup(func() { logger.ReplaceHooks(hooks) })
+	hook := logtest.NewGlobal()
+	address, _ := startCollector(t, grpc.UnaryInterceptor(func(context.Context, any, *grpc.UnaryServerInfo, grpc.UnaryHandler) (any, error) {
+		return nil, status.Error(codes.InvalidArgument, "collector rejected spans")
+	}))
+	closeTracer, err := InitTracer(t.Context(), "argo-rollouts", "v1.0.0", Config{Address: address, Insecure: true, SampleRatio: 1})
+	require.NoError(t, err)
+	t.Cleanup(closeTracer)
+
+	_, span := otel.Tracer("error-test").Start(t.Context(), "rejected.span")
+	span.End()
+
+	require.Eventually(t, func() bool { return len(hook.AllEntries()) > 0 }, 5*time.Second, 10*time.Millisecond)
+	entry := hook.LastEntry()
+	assert.Equal(t, log.ErrorLevel, entry.Level)
+	assert.Equal(t, "OpenTelemetry error", entry.Message)
+	loggedErr, ok := entry.Data[log.ErrorKey].(error)
+	require.True(t, ok)
+	assert.ErrorContains(t, loggedErr, "collector rejected spans")
 }
 
 func TestInitTracerExportsOnShutdown(t *testing.T) {
