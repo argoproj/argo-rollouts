@@ -1580,18 +1580,17 @@ func TestSyncHandlerLogsUnderlyingErrorFromNewRolloutContext(t *testing.T) {
 			f.objects = append(f.objects, r)
 
 			c, i, k8sI := f.newController(noResyncPeriodFunc)
-			stopCh := make(chan struct{})
-			defer close(stopCh)
-			i.Start(stopCh)
-			k8sI.Start(stopCh)
-			assert.True(t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
-
 			f.client.PrependReactor("update", "rollouts", func(action core.Action) (bool, runtime.Object, error) {
 				if action.GetSubresource() == "status" {
 					return true, nil, tc.injectErr
 				}
 				return false, nil, nil
 			})
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			i.Start(stopCh)
+			k8sI.Start(stopCh)
+			assert.True(t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 
 			hook := logtest.NewGlobal()
 			defer hook.Reset()
