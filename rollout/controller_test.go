@@ -1508,7 +1508,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 				savedRollout.DeepCopyInto(test.rollout)
 				return true, savedRollout, nil
 			})
-			roCtx, err := c.newRolloutContext(test.rollout)
+			roCtx, err := c.newRolloutContext(test.rollout, nil)
 			assert.NoError(t, err)
 			duration := roCtx.requeueStuckRollout(test.rollout.Status)
 			if test.noRequeue {
@@ -1944,7 +1944,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &rolloutAnalysisFail
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
 		msg := "spec.strategy.blueGreen.prePromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
@@ -1963,7 +1963,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		r.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &rolloutAnalysisFail
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
 		msg := "spec.strategy.blueGreen.postPromotionAnalysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
@@ -1984,7 +1984,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 			RolloutAnalysis: rolloutAnalysisFail,
 		}
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
 		msg := "spec.strategy.canary.analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
@@ -2005,7 +2005,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NotNil(t, err)
 		assert.Nil(t, roCtx)
 		msg := "spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"does-not-exist\": AnalysisTemplate 'does-not-exist' not found"
@@ -2028,7 +2028,7 @@ func TestNewRolloutContextALBStatusNotAliased(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 	c, _, _ := f.newController(noResyncPeriodFunc)
-	roCtx, err := c.newRolloutContext(r)
+	roCtx, err := c.newRolloutContext(r, nil)
 	assert.NoError(t, err)
 
 	roCtx.newStatus.ALB.CanaryTargetGroup.Name = "canary-tg"
@@ -2056,7 +2056,7 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 
 	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
 		expectedErr := field.Invalid(validation.GetAnalysisTemplateWithTypeFieldPath(validation.PrePromotionAnalysis, 0), roAnalysisTemplate.Templates[0].TemplateName, "ClusterAnalysisTemplate 'cluster-analysis-template-name' not found")
@@ -2066,7 +2066,7 @@ func TestGetReferencedClusterAnalysisTemplate(t *testing.T) {
 	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name", "cluster-example"))
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
 		assert.NoError(t, err)
@@ -2093,7 +2093,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 
 	t.Run("get inner referenced analysisTemplate - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
 		expectedErr := field.Invalid(field.NewPath("spec", "templates"), "second-cluster-analysis-template-name", "ClusterAnalysisTemplate 'second-cluster-analysis-template-name' not found")
@@ -2105,7 +2105,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("second-cluster-analysis-template-name", "cluster-example"))
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("third-cluster-analysis-template-name", "fourth-cluster-analysis-template-name"))
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
 		expectedErr := field.Invalid(field.NewPath("spec", "templates"), "fourth-cluster-analysis-template-name", "ClusterAnalysisTemplate 'fourth-cluster-analysis-template-name' not found")
@@ -2118,7 +2118,7 @@ func TestGetInnerReferencedAnalysisTemplate(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplateWithAnalysisRefs("third-cluster-analysis-template-name", "fourth-cluster-analysis-template-name"))
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("fourth-cluster-analysis-template-name", "cluster-example"))
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
 		assert.NoError(t, err)
@@ -2146,7 +2146,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.newRolloutContext(r)
+		_, err := c.newRolloutContext(r, nil)
 		assert.Error(t, err)
 	})
 
@@ -2184,7 +2184,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		i, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
@@ -2252,7 +2252,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 				f.ingressLister = append(f.ingressLister, ing)
 			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			_, err := c.newRolloutContext(r)
+			_, err := c.newRolloutContext(r, nil)
 			assert.Error(t, err)
 			//_, err = roCtx.getReferencedIngresses()
 			//assert.Equal(t, test.expectedErr.Error(), err.Error())
@@ -2340,7 +2340,7 @@ func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
 		f.objects = append(f.objects, r)
 
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		ingresses, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
@@ -2365,7 +2365,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		// clear fixture
 		f.ingressLister = []*ingressutil.Ingress{}
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.newRolloutContext(r)
+		_, err := c.newRolloutContext(r, nil)
 		assert.Error(t, err)
 	})
 
@@ -2418,7 +2418,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		f.objects = append(f.objects, r)
 
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
@@ -2483,7 +2483,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 				f.ingressLister = append(f.ingressLister, ing)
 			}
 			c, _, _ := f.newController(noResyncPeriodFunc)
-			_, err := c.newRolloutContext(r)
+			_, err := c.newRolloutContext(r, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -2568,7 +2568,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		f.objects = append(f.objects, r)
 
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		ingresses, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
@@ -2603,7 +2603,7 @@ func TestGetReferencedAppMeshResources(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		rCopy := r.DeepCopy()
 		rCopy.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService = nil
-		_, err := c.newRolloutContext(rCopy)
+		_, err := c.newRolloutContext(rCopy, nil)
 		assert.Error(t, err)
 	})
 
@@ -2612,7 +2612,7 @@ func TestGetReferencedAppMeshResources(t *testing.T) {
 		defer f.Close()
 
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.newRolloutContext(r)
+		_, err := c.newRolloutContext(r, nil)
 		assert.Error(t, err)
 	})
 
@@ -2635,7 +2635,7 @@ spec:
 		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
 		f.objects = append(f.objects, uVsvc)
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		_, err := c.newRolloutContext(r)
+		_, err := c.newRolloutContext(r, nil)
 		assert.Error(t, err)
 	})
 
@@ -2696,7 +2696,7 @@ spec:
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
 		c, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := c.newRolloutContext(r)
+		roCtx, err := c.newRolloutContext(r, nil)
 		assert.NoError(t, err)
 		refRsources, err := roCtx.getRolloutReferencedResources()
 		assert.NoError(t, err)
@@ -2723,7 +2723,7 @@ func TestGetAmbassadorMappings(t *testing.T) {
 			},
 		}
 		r.Namespace = metav1.NamespaceDefault
-		_, err := c.newRolloutContext(r)
+		_, err := c.newRolloutContext(r, nil)
 		assert.Error(t, err)
 
 		//// when

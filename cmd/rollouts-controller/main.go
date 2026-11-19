@@ -283,6 +283,7 @@ func newCommand() *cobra.Command {
 					jobInformerFactory,
 					analysisSharedSecretNamespace,
 					analysis.SharedSecretMode(analysisSharedSecretMode),
+					otlpConfig.Address != "",
 				)
 			} else {
 				cm = controller.NewManager(
@@ -325,7 +326,8 @@ func newCommand() *cobra.Command {
 					ephemeralMetadataPodRetries,
 					selfServiceNotificationEnabled,
 					analysisSharedSecretNamespace,
-					analysis.SharedSecretMode(analysisSharedSecretMode))
+					analysis.SharedSecretMode(analysisSharedSecretMode),
+					otlpConfig.Address != "")
 			}
 			closeTracer, err := traceutil.InitTracer(ctx, cliName, version.GetVersion().String(), otlpConfig)
 			if err != nil {

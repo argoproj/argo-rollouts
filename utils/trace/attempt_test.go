@@ -87,7 +87,8 @@ func TestAttemptExecutionFailuresKeepDetailsOutOfTelemetry(t *testing.T) {
 }
 
 func TestNilAttempt(t *testing.T) {
-	var attempt *Attempt
+	attempt := NewAttempt(t.Context(), nil, "disabled", time.Now())
+	require.Nil(t, attempt)
 	assert.NotNil(t, attempt.Context())
 	assert.False(t, attempt.SpanContext().IsValid())
 	attempt.SetAttributes(attribute.String("ignored", "value"))

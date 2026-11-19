@@ -402,6 +402,9 @@ func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnal
 	}
 	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(c.rollout.Namespace)
 	return analysisutil.CreateWithCollisionCounterWithCallback(c.log, analysisRunIf, *ar, func(created *v1alpha1.AnalysisRun) {
+		if c.traceAttempt == nil {
+			return
+		}
 		c.traceAttempt.Context()
 		c.traceHandoffs.RecordCreation(c.rollout, created, c.traceAttempt.SpanContext())
 	})

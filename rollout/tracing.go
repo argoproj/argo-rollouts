@@ -1,7 +1,11 @@
 package rollout
 
 import (
+	"context"
+	"errors"
+	"reflect"
 	"strconv"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -9,9 +13,61 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 )
+
+// rolloutTraceAttempt keeps accepted responses even when context construction
+// writes status and then returns no reconciliation context.
+type rolloutTraceAttempt struct {
+	*traceutil.Attempt
+	before    *v1alpha1.Rollout
+	persisted *v1alpha1.Rollout
+}
+
+func newRolloutTraceAttempt(ctx context.Context, tracer oteltrace.Tracer, started time.Time) *rolloutTraceAttempt {
+	attempt := traceutil.NewAttempt(ctx, tracer, "controller.Rollout", started)
+	if attempt == nil {
+		return nil
+	}
+	return &rolloutTraceAttempt{Attempt: attempt}
+}
+
+func (a *rolloutTraceAttempt) setCause(cause string) {
+	if a != nil {
+		a.SetAttributes(attribute.String("argo.rollouts.reconciliation.cause", cause))
+	}
+}
+
+func (a *rolloutTraceAttempt) setRollout(rollout *v1alpha1.Rollout) {
+	if a == nil {
+		return
+	}
+	// Native reconciliation mutates a remarshalled copy, leaving this informer
+	// object as the immutable baseline.
+	a.before, a.persisted = rollout, rollout
+	a.SetAttributes(rolloutTraceAttributes(rollout)...)
+	a.setCause(rolloutTraceCause(rollout))
+}
+
+func finishRolloutAttempt(attempt *rolloutTraceAttempt, roCtx *rolloutContext, err error, recovered any) {
+	if attempt == nil {
+		return
+	}
+	persisted := attempt.persisted
+	if roCtx != nil && roCtx.newRollout != nil {
+		persisted = roCtx.newRollout
+	}
+	persisted = rolloutTraceSnapshot(attempt.before, persisted)
+	statusChanged := attempt.before != nil && persisted != nil && !reflect.DeepEqual(attempt.before.Status, persisted.Status)
+	attrs := rolloutTraceAttributes(persisted)
+	if errors.Is(err, controllerutil.StaleCacheError) {
+		err = nil
+		attrs = append(attrs, attribute.String("argo.rollouts.reconciliation.outcome", "stale_cache_requeue"))
+	}
+	attempt.Finish(err, recovered, statusChanged, attrs...)
+}
 
 type rolloutTraceResult struct {
 	run    *v1alpha1.AnalysisRun
@@ -25,19 +81,18 @@ func (c *rolloutContext) traceResult(run *v1alpha1.AnalysisRun) {
 	if c.rollout == nil || run == nil || c.traceAttempt == nil || c.traceAttempt.SpanContext().IsValid() {
 		return
 	}
-	statuses := []*v1alpha1.RolloutAnalysisRunStatus{
-		c.rollout.Status.Canary.CurrentStepAnalysisRunStatus,
-		c.rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
-		c.rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus,
-		c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus,
-	}
-	runs := []*v1alpha1.AnalysisRun{
-		c.currentArs.CanaryStep, c.currentArs.CanaryBackground,
-		c.currentArs.BlueGreenPrePromotion, c.currentArs.BlueGreenPostPromotion,
+	currentRuns := []struct {
+		run    *v1alpha1.AnalysisRun
+		status *v1alpha1.RolloutAnalysisRunStatus
+	}{
+		{c.currentArs.CanaryStep, c.rollout.Status.Canary.CurrentStepAnalysisRunStatus},
+		{c.currentArs.CanaryBackground, c.rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus},
+		{c.currentArs.BlueGreenPrePromotion, c.rollout.Status.BlueGreen.PrePromotionAnalysisRunStatus},
+		{c.currentArs.BlueGreenPostPromotion, c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus},
 	}
 	seen := make(map[string]bool)
-	for i, current := range runs {
-		status := statuses[i]
+	for _, candidate := range currentRuns {
+		current, status := candidate.run, candidate.status
 		if current == nil || status == nil || status.Name != current.Name || status.Status == current.Status.Phase ||
 			!current.Status.Phase.Completed() || !traceRunOwnedByRollout(current, c.rollout) {
 			continue
@@ -78,9 +133,10 @@ func traceRunOwnedByRollout(run *v1alpha1.AnalysisRun, rollout *v1alpha1.Rollout
 // tracePersistedStatus is called only after an API patch succeeds. A failed
 // patch leaves the result available for the next reconciliation attempt.
 func (c *rolloutContext) tracePersistedStatus(before, after *v1alpha1.Rollout) {
-	if !rolloutTraceResponseMatches(before, after) {
+	if c.traceAttempt == nil || !rolloutTraceResponseMatches(before, after) {
 		return
 	}
+	c.traceAttempt.persisted = after
 	if pending := c.pendingTraceResult; pending != nil {
 		status := after.Status.Canary.CurrentStepAnalysisRunStatus
 		recorded := status != nil && status.Name == pending.run.Name && status.Status == pending.run.Status.Phase

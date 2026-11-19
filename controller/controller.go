@@ -208,6 +208,7 @@ func NewAnalysisManager(
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 	analysisSharedSecretNamespace string,
 	analysisSharedSecretMode analysis.SharedSecretMode,
+	tracingEnabled bool,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -227,6 +228,7 @@ func NewAnalysisManager(
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil)
 	analysisController := analysis.NewController(analysis.ControllerConfig{
+		TracingEnabled:                tracingEnabled,
 		KubeClientSet:                 kubeclientset,
 		ArgoProjClientset:             argoprojclientset,
 		AnalysisRunInformer:           analysisRunInformer,
@@ -316,6 +318,7 @@ func NewManager(
 	selfServiceNotificationEnabled bool,
 	analysisSharedSecretNamespace string,
 	analysisSharedSecretMode analysis.SharedSecretMode,
+	tracingEnabled bool,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -350,9 +353,13 @@ func NewManager(
 		newNotificationController = notificationcontroller.NewControllerWithNamespaceSupport
 	}
 	notificationsController := newNotificationController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory, toUnstructured)
-	traceHandoffs := traceutil.NewHandoffs()
+	var traceHandoffs *traceutil.Handoffs
+	if tracingEnabled {
+		traceHandoffs = traceutil.NewHandoffs()
+	}
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
+		TracingEnabled:                  tracingEnabled,
 		TraceHandoffs:                   traceHandoffs,
 		Namespace:                       namespace,
 		KubeClientSet:                   kubeclientset,
@@ -398,6 +405,7 @@ func NewManager(
 	})
 
 	analysisController := analysis.NewController(analysis.ControllerConfig{
+		TracingEnabled:                tracingEnabled,
 		KubeClientSet:                 kubeclientset,
 		ArgoProjClientset:             argoprojclientset,
 		AnalysisRunInformer:           analysisRunInformer,

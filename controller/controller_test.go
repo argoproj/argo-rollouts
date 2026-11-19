@@ -284,6 +284,7 @@ func TestNewManager(t *testing.T) {
 				selfService,
 				"",
 				analysis.SharedSecretModeLabelFilter,
+				false,
 			)
 
 			assert.NotNil(t, cm)
@@ -338,6 +339,7 @@ func TestNewAnalysisManager(t *testing.T) {
 		nil,
 		"",
 		analysis.SharedSecretModeLabelFilter,
+		false,
 	)
 
 	assert.NotNil(t, cm)

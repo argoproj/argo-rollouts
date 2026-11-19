@@ -77,6 +77,54 @@ func TestAnalysisRunAttemptRecordsWriteFailureFromOriginalState(t *testing.T) {
 	assert.Empty(t, span.Events())
 }
 
+func TestAnalysisRunTracingDisabledStillPersistsStatus(t *testing.T) {
+	f, controller, run, recorder := newAnalysisRunTracingFixture(t)
+	configureAnalysisRunHandoff(controller, run)
+	controller.tracer = nil
+	// Parent lookup would panic with this lister. Disabled tracing must not read it.
+	controller.rolloutLister = rolloutlisters.NewRolloutLister(nil)
+
+	require.NoError(t, controller.syncHandler(context.Background(), getKey(run, t)))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, f.getPatchedAnalysisRun(0).Status.Phase)
+	assert.Empty(t, recorder.Ended())
+}
+
+func TestAnalysisRunUnsampledContextPublishesAndConsumesResult(t *testing.T) {
+	f, controller, run, _ := newAnalysisRunTracingFixture(t)
+	rollout := configureAnalysisRunHandoff(controller, run)
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.NeverSample()),
+		sdktrace.WithSpanProcessor(recorder),
+	)
+	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
+	controller.tracer = provider.Tracer("unsampled-analysis-test")
+	_, creator := controller.tracer.Start(context.Background(), "creator")
+	require.True(t, creator.SpanContext().IsValid())
+	require.False(t, creator.SpanContext().IsSampled())
+	controller.traceHandoffs.RecordCreation(rollout, run, creator.SpanContext())
+	creator.End()
+	var response *v1alpha1.AnalysisRun
+	f.client.PrependReactor("patch", "analysisruns", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		response = run.DeepCopy()
+		require.NoError(t, json.Unmarshal(action.(clienttesting.PatchAction).GetPatch(), response))
+		response.ResourceVersion = "2"
+		return true, response, nil
+	})
+
+	require.NoError(t, controller.syncHandler(context.Background(), getKey(run, t)))
+	require.NotNil(t, response)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, response.Status.Phase)
+	result := controller.traceHandoffs.ResultParent(rollout, response, time.Now())
+	require.True(t, result.IsValid())
+	assert.False(t, result.IsSampled())
+	assert.Equal(t, creator.SpanContext().TraceID(), result.TraceID())
+	assert.NotEqual(t, creator.SpanContext().SpanID(), result.SpanID())
+	controller.traceHandoffs.ConsumeResult(response, result)
+	assert.False(t, controller.traceHandoffs.ResultParent(rollout, response, time.Now()).IsValid())
+	assert.Empty(t, recorder.Ended())
+}
+
 func TestAnalysisRunAttemptBoundsStoredPhaseValues(t *testing.T) {
 	tracer, recorder := newAnalysisRunAttemptTracer(t)
 	before := &v1alpha1.AnalysisRun{Status: v1alpha1.AnalysisRunStatus{Phase: "private previous phase"}}

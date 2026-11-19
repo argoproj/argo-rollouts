@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
@@ -72,7 +74,7 @@ func newRolloutTraceGate(t *testing.T, phase v1alpha1.AnalysisPhase) (*rolloutCo
 	result.End()
 	ctx := &rolloutContext{
 		rollout: ro, log: logutil.WithRollout(ro),
-		traceAttempt:   traceutil.NewAttempt(context.Background(), tracer, "controller.Rollout", time.Now()),
+		traceAttempt:   newRolloutTraceAttempt(context.Background(), tracer, time.Now()),
 		currentArs:     analysisutil.CurrentAnalysisRuns{CanaryStep: terminal},
 		pauseContext:   &pauseContext{rollout: ro},
 		reconcilerBase: reconcilerBase{traceHandoffs: handoffs, recorder: record.NewFakeEventRecorder()},
@@ -188,7 +190,7 @@ func TestRolloutTraceFailedPatchRetainsResultForRetry(t *testing.T) {
 	assert.Equal(t, codes.Error, rolloutRecordedAttempt(t, recorder).Status().Code)
 
 	patchFails = false
-	c.traceAttempt = traceutil.NewAttempt(context.Background(), tracer, "controller.Rollout", time.Now())
+	c.traceAttempt = newRolloutTraceAttempt(context.Background(), tracer, time.Now())
 	c.pendingTraceResult = nil
 	_, err = c.reconcileStepBasedAnalysisRun()
 	require.NoError(t, err)
@@ -313,7 +315,7 @@ func TestRolloutTraceCreationDoesNotRebindAdoptedRun(t *testing.T) {
 	assert.Equal(t, creator, c.traceHandoffs.CreationParent(c.rollout, created))
 	finishRolloutTrace(c, nil, false)
 
-	c.traceAttempt = traceutil.NewAttempt(context.Background(), tracer, "controller.Rollout", time.Now())
+	c.traceAttempt = newRolloutTraceAttempt(context.Background(), tracer, time.Now())
 	adopted, err := c.createAnalysisRun(analysis, "0", analysisutil.StepLabels(0, "abc123", ""))
 	require.NoError(t, err)
 	assert.Equal(t, created.UID, adopted.UID)
@@ -386,7 +388,7 @@ func TestRolloutTraceLateResultDuringPreparationStaysRoot(t *testing.T) {
 	_, creator := tracer.Start(context.Background(), "creating-rollout-late-test")
 	c.traceHandoffs.RecordCreation(c.rollout, orig, creator.SpanContext())
 	creator.End()
-	c.traceAttempt = traceutil.NewAttempt(context.Background(), tracer, "controller.Rollout", time.Now())
+	c.traceAttempt = newRolloutTraceAttempt(context.Background(), tracer, time.Now())
 	_, result := tracer.Start(context.Background(), "late-analysis-result")
 	c.traceHandoffs.RecordResult(orig, c.currentArs.CanaryStep, result.SpanContext())
 	result.End()
@@ -433,5 +435,68 @@ func TestRolloutTraceRejectsReplacementResponseSnapshot(t *testing.T) {
 			assert.Empty(t, span.Events())
 			assert.True(t, c.traceHandoffs.ResultParent(c.rollout, c.currentArs.CanaryStep, time.Now()).IsValid())
 		})
+	}
+}
+
+func TestRolloutTraceKeepsStatusWrittenDuringValidation(t *testing.T) {
+	for _, tracingEnabled := range []bool{false, true} {
+		for _, patchFails := range []bool{false, true} {
+			name := fmt.Sprintf("tracing=%t/patchFails=%t", tracingEnabled, patchFails)
+			t.Run(name, func(t *testing.T) {
+				f := newFixture(t)
+				defer f.Close()
+				ro := newRollout("checkout", 1, nil, map[string]string{"app": "checkout"})
+				ro.ResourceVersion = "10"
+				ro.Status.Phase = v1alpha1.RolloutPhaseHealthy
+				ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+				ro.Spec.Selector = nil
+				original := ro.DeepCopy()
+				f.rolloutLister = append(f.rolloutLister, ro)
+				f.objects = append(f.objects, ro)
+				controller, _, _ := f.newController(noResyncPeriodFunc)
+				tracer, recorder := rolloutTestTracer(t)
+				require.Nil(t, controller.tracer, "tracing is disabled by default")
+				if tracingEnabled {
+					controller.tracer = tracer
+				} else {
+					require.Nil(t, newRolloutTraceAttempt(context.Background(), controller.tracer, time.Now()))
+				}
+				delayed := false
+				controller.enqueueRolloutAfter = func(any, time.Duration) { delayed = true }
+				writeErr := errors.New("status write failed")
+				if patchFails {
+					f.client.PrependReactor("patch", "rollouts", func(testclient.Action) (bool, runtime.Object, error) {
+						return true, nil, writeErr
+					})
+				}
+				err := controller.syncHandler(context.Background(), getKey(ro, t))
+				if patchFails {
+					require.ErrorIs(t, err, writeErr)
+				} else {
+					var validationErr *field.Error
+					require.ErrorAs(t, err, &validationErr)
+				}
+				assert.False(t, delayed, "context setup still returns its native error")
+				assert.Equal(t, original, ro, "the informer object remains an immutable baseline")
+				accepted, err := f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				expectedPhase := v1alpha1.RolloutPhaseHealthy
+				if !patchFails {
+					expectedPhase = v1alpha1.RolloutPhaseDegraded
+					require.NotNil(t, conditions.GetRolloutCondition(accepted.Status, v1alpha1.InvalidSpec))
+				}
+				assert.Equal(t, expectedPhase, accepted.Status.Phase)
+				if !tracingEnabled {
+					assert.Empty(t, recorder.Ended())
+					return
+				}
+				span := rolloutRecordedAttempt(t, recorder)
+				attrs := rolloutTraceAttributeMap(span.Attributes())
+				assert.Equal(t, attribute.StringValue(string(expectedPhase)), attrs["argo.rollouts.rollout.phase"])
+				assert.Equal(t, attribute.BoolValue(!patchFails), attrs["argo.rollouts.reconciliation.status_changed"])
+				assert.Equal(t, codes.Error, span.Status().Code, "the native validation error remains an execution error")
+				assert.False(t, span.Parent().IsValid())
+			})
+		}
 	}
 }

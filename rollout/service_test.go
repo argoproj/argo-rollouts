@@ -76,7 +76,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	t.Run("Get Both", func(t *testing.T) {
-		roCtx, err := c.newRolloutContext(rollout)
+		roCtx, err := c.newRolloutContext(rollout, nil)
 		assert.NoError(t, err)
 		preview, active, err := roCtx.getPreviewAndActiveServices()
 		assert.Nil(t, err)
@@ -86,20 +86,20 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	t.Run("Preview not found", func(t *testing.T) {
 		noPreviewSvcRollout := rollout.DeepCopy()
 		noPreviewSvcRollout.Spec.Strategy.BlueGreen.PreviewService = "not-preview"
-		_, err := c.newRolloutContext(noPreviewSvcRollout)
+		_, err := c.newRolloutContext(noPreviewSvcRollout, nil)
 		assert.Error(t, err)
 	})
 	t.Run("Active not found", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = "not-active"
-		_, err := c.newRolloutContext(noActiveSvcRollout)
+		_, err := c.newRolloutContext(noActiveSvcRollout, nil)
 		assert.Error(t, err)
 	})
 
 	t.Run("Invalid Spec: No Active Svc", func(t *testing.T) {
 		noActiveSvcRollout := rollout.DeepCopy()
 		noActiveSvcRollout.Spec.Strategy.BlueGreen.ActiveService = ""
-		roCtx, err := c.newRolloutContext(noActiveSvcRollout)
+		roCtx, err := c.newRolloutContext(noActiveSvcRollout, nil)
 		assert.Error(t, err)
 		assert.Nil(t, roCtx)
 	})
@@ -782,7 +782,7 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 	{
 		// first ensure we don't update service because new/stable are both not available
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := ctrl.newRolloutContext(ro1)
+		roCtx, err := ctrl.newRolloutContext(ro1, nil)
 		assert.NoError(t, err)
 
 		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
@@ -798,7 +798,7 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 	{
 		// ensure we don't update service because new/stable are both partially available on an adoption of service reconcile
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := ctrl.newRolloutContext(ro1)
+		roCtx, err := ctrl.newRolloutContext(ro1, nil)
 		assert.NoError(t, err)
 
 		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
@@ -814,7 +814,7 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 	{
 		// next ensure we do update service because new/stable are now available
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := ctrl.newRolloutContext(ro1)
+		roCtx, err := ctrl.newRolloutContext(ro1, nil)
 		assert.NoError(t, err)
 
 		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 3)
@@ -852,7 +852,7 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 	t.Run("AdoptedService No Availability", func(t *testing.T) {
 		// first ensure we don't update service because new/stable are both not available
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := ctrl.newRolloutContext(ro1)
+		roCtx, err := ctrl.newRolloutContext(ro1, nil)
 		assert.NoError(t, err)
 
 		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
@@ -870,7 +870,7 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 	t.Run("AdoptedService Partial Availability", func(t *testing.T) {
 		// ensure we do change selector on partially available replica sets
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
-		roCtx, err := ctrl.newRolloutContext(ro1)
+		roCtx, err := ctrl.newRolloutContext(ro1, nil)
 		assert.NoError(t, err)
 
 		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)

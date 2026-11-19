@@ -7,14 +7,13 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 )
 
 type rolloutContext struct {
 	reconcilerBase
 
 	log                *log.Entry
-	traceAttempt       *traceutil.Attempt
+	traceAttempt       *rolloutTraceAttempt
 	pendingTraceResult *rolloutTraceResult
 	// rollout is the rollout being reconciled
 	rollout *v1alpha1.Rollout

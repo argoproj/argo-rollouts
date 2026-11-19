@@ -99,6 +99,7 @@ type ControllerConfig struct {
 	Recorder                      record.EventRecorder
 	AnalysisSharedSecretNamespace string
 	SharedSecretMode              SharedSecretMode
+	TracingEnabled                bool
 	TraceHandoffs                 *traceutil.Handoffs
 }
 
@@ -132,8 +133,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 		analysisSharedSecretNamespace: cfg.AnalysisSharedSecretNamespace,
 		sharedSecretMode:              sharedSecretMode,
-		tracer:                        otel.Tracer(traceutil.InstrumentationName + "/analysis"),
 		traceHandoffs:                 cfg.TraceHandoffs,
+	}
+	if cfg.TracingEnabled {
+		controller.tracer = otel.Tracer(traceutil.InstrumentationName + "/analysis")
 	}
 
 	controller.enqueueAnalysis = func(obj any) {
@@ -204,13 +207,15 @@ func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error)
 	startTime := timeutil.Now()
 	attempt := traceutil.NewAttempt(ctx, c.tracer, "controller.AnalysisRun", startTime)
 	var run, tracedRun *v1alpha1.AnalysisRun
-	defer func() {
-		recovered := recover()
-		finishAnalysisRunAttempt(attempt, run, tracedRun, retErr, recovered)
-		if recovered != nil {
-			panic(recovered)
-		}
-	}()
+	if attempt != nil {
+		defer func() {
+			recovered := recover()
+			finishAnalysisRunAttempt(attempt, run, tracedRun, retErr, recovered)
+			if recovered != nil {
+				panic(recovered)
+			}
+		}()
+	}
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		setAnalysisRunReconciliationCause(attempt, "invalid_key")
@@ -227,9 +232,11 @@ func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error)
 	if err != nil {
 		return err
 	}
-	tracedRun = run
-	attempt.SetAttributes(analysisRunTraceAttributes(run)...)
-	setAnalysisRunReconciliationCause(attempt, "resource_event")
+	if attempt != nil {
+		tracedRun = run
+		attempt.SetAttributes(analysisRunTraceAttributes(run)...)
+		setAnalysisRunReconciliationCause(attempt, "resource_event")
+	}
 
 	defer func() {
 		duration := time.Since(startTime)
@@ -246,12 +253,19 @@ func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error)
 
 	newRun := c.reconcileAnalysisRun(run)
 	written := false
-	persistedRun, err := c.persistAnalysisRunStatus(context.TODO(), run, newRun.Status, func() {
-		attempt.Start(c.analysisRunCreationParent(run))
-		written = true
-	})
+	var beforePatch func()
+	if attempt != nil {
+		beforePatch = func() {
+			attempt.Start(c.analysisRunCreationParent(run))
+			written = true
+		}
+	}
+	persistedRun, err := c.persistAnalysisRunStatus(context.TODO(), run, newRun.Status, beforePatch)
 	if err != nil {
 		return err
+	}
+	if attempt == nil {
+		return nil
 	}
 	if sameAnalysisRunIdentity(run, persistedRun) {
 		tracedRun = persistedRun

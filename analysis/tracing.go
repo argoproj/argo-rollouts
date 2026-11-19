@@ -13,10 +13,15 @@ import (
 )
 
 func setAnalysisRunReconciliationCause(attempt *traceutil.Attempt, cause string) {
-	attempt.SetAttributes(attribute.String("argo.rollouts.reconciliation.cause", cause))
+	if attempt != nil {
+		attempt.SetAttributes(attribute.String("argo.rollouts.reconciliation.cause", cause))
+	}
 }
 
 func finishAnalysisRunAttempt(attempt *traceutil.Attempt, before, after *v1alpha1.AnalysisRun, err error, recovered any) {
+	if attempt == nil {
+		return
+	}
 	statusChanged := before != nil && after != nil && before != after && !analysisRunStatusesEqual(before.Status, after.Status)
 	if statusChanged && before.Status.Phase != after.Status.Phase {
 		attempt.AddEvent("analysis_run.phase_changed",

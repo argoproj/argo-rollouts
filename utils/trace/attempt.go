@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -27,12 +26,13 @@ type Attempt struct {
 }
 
 // NewAttempt captures an attempt's start without emitting a span yet.
+// A nil tracer disables the attempt, including its deferred preparation.
 func NewAttempt(ctx context.Context, tracer oteltrace.Tracer, name string, started time.Time, attrs ...attribute.KeyValue) *Attempt {
+	if tracer == nil {
+		return nil
+	}
 	if ctx == nil {
 		ctx = context.Background()
-	}
-	if tracer == nil {
-		tracer = otel.Tracer(InstrumentationName)
 	}
 	return &Attempt{ctx: ctx, tracer: tracer, name: name, started: started, attrs: attrs}
 }
