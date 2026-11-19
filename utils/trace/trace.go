@@ -35,7 +35,9 @@ type Config struct {
 // The returned closer flushes pending spans before shutting down the provider.
 func InitTracer(ctx context.Context, serviceName, serviceVersion string, cfg Config) (func(), error) {
 	if cfg.Address == "" {
-		return func() {}, nil
+		return func() {
+			// Tracing is disabled, so there is no provider to shut down.
+		}, nil
 	}
 	if math.IsNaN(cfg.SampleRatio) || cfg.SampleRatio < 0 || cfg.SampleRatio > 1 {
 		return nil, errors.New("OTLP sample ratio must be between 0 and 1")
