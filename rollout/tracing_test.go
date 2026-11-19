@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -439,64 +438,72 @@ func TestRolloutTraceRejectsReplacementResponseSnapshot(t *testing.T) {
 }
 
 func TestRolloutTraceKeepsStatusWrittenDuringValidation(t *testing.T) {
-	for _, tracingEnabled := range []bool{false, true} {
-		for _, patchFails := range []bool{false, true} {
-			name := fmt.Sprintf("tracing=%t/patchFails=%t", tracingEnabled, patchFails)
-			t.Run(name, func(t *testing.T) {
-				f := newFixture(t)
-				defer f.Close()
-				ro := newRollout("checkout", 1, nil, map[string]string{"app": "checkout"})
-				ro.ResourceVersion = "10"
-				ro.Status.Phase = v1alpha1.RolloutPhaseHealthy
-				ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
-				ro.Spec.Selector = nil
-				original := ro.DeepCopy()
-				f.rolloutLister = append(f.rolloutLister, ro)
-				f.objects = append(f.objects, ro)
-				controller, _, _ := f.newController(noResyncPeriodFunc)
-				tracer, recorder := rolloutTestTracer(t)
-				require.Nil(t, controller.tracer, "tracing is disabled by default")
-				if tracingEnabled {
-					controller.tracer = tracer
-				} else {
-					require.Nil(t, newRolloutTraceAttempt(context.Background(), controller.tracer, time.Now()))
-				}
-				delayed := false
-				controller.enqueueRolloutAfter = func(any, time.Duration) { delayed = true }
-				writeErr := errors.New("status write failed")
-				if patchFails {
-					f.client.PrependReactor("patch", "rollouts", func(testclient.Action) (bool, runtime.Object, error) {
-						return true, nil, writeErr
-					})
-				}
-				err := controller.syncHandler(context.Background(), getKey(ro, t))
-				if patchFails {
-					require.ErrorIs(t, err, writeErr)
-				} else {
-					var validationErr *field.Error
-					require.ErrorAs(t, err, &validationErr)
-				}
-				assert.False(t, delayed, "context setup still returns its native error")
-				assert.Equal(t, original, ro, "the informer object remains an immutable baseline")
-				accepted, err := f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
-				require.NoError(t, err)
-				expectedPhase := v1alpha1.RolloutPhaseHealthy
-				if !patchFails {
-					expectedPhase = v1alpha1.RolloutPhaseDegraded
-					require.NotNil(t, conditions.GetRolloutCondition(accepted.Status, v1alpha1.InvalidSpec))
-				}
-				assert.Equal(t, expectedPhase, accepted.Status.Phase)
-				if !tracingEnabled {
-					assert.Empty(t, recorder.Ended())
-					return
-				}
-				span := rolloutRecordedAttempt(t, recorder)
-				attrs := rolloutTraceAttributeMap(span.Attributes())
-				assert.Equal(t, attribute.StringValue(string(expectedPhase)), attrs["argo.rollouts.rollout.phase"])
-				assert.Equal(t, attribute.BoolValue(!patchFails), attrs["argo.rollouts.reconciliation.status_changed"])
-				assert.Equal(t, codes.Error, span.Status().Code, "the native validation error remains an execution error")
-				assert.False(t, span.Parent().IsValid())
-			})
-		}
+	for _, test := range []struct {
+		name           string
+		tracingEnabled bool
+		patchFails     bool
+		expectedPhase  v1alpha1.RolloutPhase
+	}{
+		{name: "disabled accepted write", expectedPhase: v1alpha1.RolloutPhaseDegraded},
+		{name: "disabled rejected write", patchFails: true, expectedPhase: v1alpha1.RolloutPhaseHealthy},
+		{name: "enabled accepted write", tracingEnabled: true, expectedPhase: v1alpha1.RolloutPhaseDegraded},
+		{name: "enabled rejected write", tracingEnabled: true, patchFails: true, expectedPhase: v1alpha1.RolloutPhaseHealthy},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+			ro := newRollout("checkout", 1, nil, map[string]string{"app": "checkout"})
+			ro.ResourceVersion = "10"
+			ro.Status.Phase = v1alpha1.RolloutPhaseHealthy
+			ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{}
+			ro.Spec.Selector = nil
+			original := ro.DeepCopy()
+			f.rolloutLister = append(f.rolloutLister, ro)
+			f.objects = append(f.objects, ro)
+			controller, _, _ := f.newController(noResyncPeriodFunc)
+			tracer, recorder := rolloutTestTracer(t)
+			require.Nil(t, controller.tracer, "tracing is disabled by default")
+			if test.tracingEnabled {
+				controller.tracer = tracer
+			} else {
+				require.Nil(t, newRolloutTraceAttempt(context.Background(), controller.tracer, time.Now()))
+			}
+			delayed := false
+			controller.enqueueRolloutAfter = func(any, time.Duration) { delayed = true }
+			writeErr := errors.New("status write failed")
+			if test.patchFails {
+				f.client.PrependReactor("patch", "rollouts", func(testclient.Action) (bool, runtime.Object, error) {
+					return true, nil, writeErr
+				})
+			}
+			err := controller.syncHandler(context.Background(), getKey(ro, t))
+			assertRolloutValidationError(t, err, writeErr, test.patchFails)
+			assert.False(t, delayed, "context setup still returns its native error")
+			assert.Equal(t, original, ro, "the informer object remains an immutable baseline")
+			accepted, err := f.client.ArgoprojV1alpha1().Rollouts(ro.Namespace).Get(context.Background(), ro.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, !test.patchFails, conditions.GetRolloutCondition(accepted.Status, v1alpha1.InvalidSpec) != nil)
+			assert.Equal(t, test.expectedPhase, accepted.Status.Phase)
+			if !test.tracingEnabled {
+				assert.Empty(t, recorder.Ended())
+				return
+			}
+			span := rolloutRecordedAttempt(t, recorder)
+			attrs := rolloutTraceAttributeMap(span.Attributes())
+			assert.Equal(t, attribute.StringValue(string(test.expectedPhase)), attrs["argo.rollouts.rollout.phase"])
+			assert.Equal(t, attribute.BoolValue(!test.patchFails), attrs["argo.rollouts.reconciliation.status_changed"])
+			assert.Equal(t, codes.Error, span.Status().Code, "the native validation error remains an execution error")
+			assert.False(t, span.Parent().IsValid())
+		})
 	}
+}
+
+func assertRolloutValidationError(t *testing.T, err, writeErr error, patchFails bool) {
+	t.Helper()
+	if patchFails {
+		require.ErrorIs(t, err, writeErr)
+		return
+	}
+	var validationErr *field.Error
+	require.ErrorAs(t, err, &validationErr)
 }

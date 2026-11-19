@@ -212,21 +212,7 @@ func TestAnalysisRunAttemptsUseOnlyTrustedCreatingParent(t *testing.T) {
 				attempt.Start(controller.analysisRunCreationParent(run))
 				attempt.Finish(nil, nil, true)
 			}
-			var spans []sdktrace.ReadOnlySpan
-			for _, span := range recorder.Ended() {
-				if span.Name() == "controller.AnalysisRun" {
-					spans = append(spans, span)
-				}
-			}
-			require.Len(t, spans, 2)
-			for _, span := range spans {
-				assert.Equal(t, test.parented, span.Parent().IsValid())
-				if test.parented {
-					assert.Equal(t, creator.SpanContext().SpanID(), span.Parent().SpanID())
-					assert.Equal(t, creator.SpanContext().TraceID(), span.SpanContext().TraceID())
-				}
-			}
-			assert.NotEqual(t, spans[0].SpanContext().SpanID(), spans[1].SpanContext().SpanID())
+			assertAnalysisRunParentage(t, recorder.Ended(), creator.SpanContext(), test.parented)
 		})
 	}
 }
@@ -261,12 +247,7 @@ func TestAnalysisRunPublishesOnlyPersistedTerminalResults(t *testing.T) {
 				if test.writeErr {
 					return true, nil, errors.New("private API error")
 				}
-				response = run.DeepCopy()
-				require.NoError(t, json.Unmarshal(action.(clienttesting.PatchAction).GetPatch(), response))
-				response.ResourceVersion = "2"
-				if test.configure != nil {
-					test.configure(response)
-				}
+				response = analysisRunPatchResponse(t, run, action, test.configure)
 				return true, response, nil
 			})
 			err := controller.syncHandler(context.Background(), getKey(run, t))
@@ -281,24 +262,59 @@ func TestAnalysisRunPublishesOnlyPersistedTerminalResults(t *testing.T) {
 			parent := controller.traceHandoffs.ResultParent(rollout, response, time.Now())
 			assert.Equal(t, test.published, parent.IsValid())
 			span := analysisRunAttemptSpan(t, recorder.Ended())
-			attrs := analysisRunAttemptAttributes(span)
-			assert.Equal(t, attribute.StringValue(string(run.UID)), attrs["argo.rollouts.analysis_run.uid"])
-			assert.Equal(t, attribute.StringValue(run.Name), attrs["argo.rollouts.analysis_run.name"])
-			assert.Equal(t, attribute.StringValue(run.Namespace), attrs["k8s.namespace.name"])
-			assert.Equal(t, attribute.Int64Value(run.Generation), attrs["argo.rollouts.analysis_run.generation"])
-			assert.Equal(t, attribute.StringValue(test.expectedPhase), attrs["argo.rollouts.analysis_run.phase"])
-			assert.Equal(t, attribute.BoolValue(test.changed), attrs["argo.rollouts.reconciliation.status_changed"])
-			if test.changed {
-				require.Len(t, span.Events(), 1)
-				assert.Contains(t, span.Events()[0].Attributes, attribute.String("argo.rollouts.analysis_run.phase", test.expectedPhase))
-			} else {
-				assert.Empty(t, span.Events())
-			}
+			assertAnalysisRunSnapshot(t, span, run, test.expectedPhase, test.changed)
 			if test.published {
 				assert.Equal(t, span.SpanContext(), parent)
 				assert.Equal(t, creator.SpanContext().SpanID(), span.Parent().SpanID())
 			}
 		})
+	}
+}
+
+func assertAnalysisRunParentage(t *testing.T, recorded []sdktrace.ReadOnlySpan, creator oteltrace.SpanContext, parented bool) {
+	t.Helper()
+	var spans []sdktrace.ReadOnlySpan
+	for _, span := range recorded {
+		if span.Name() == "controller.AnalysisRun" {
+			spans = append(spans, span)
+		}
+	}
+	require.Len(t, spans, 2)
+	for _, span := range spans {
+		assert.Equal(t, parented, span.Parent().IsValid())
+		if parented {
+			assert.Equal(t, creator.SpanID(), span.Parent().SpanID())
+			assert.Equal(t, creator.TraceID(), span.SpanContext().TraceID())
+		}
+	}
+	assert.NotEqual(t, spans[0].SpanContext().SpanID(), spans[1].SpanContext().SpanID())
+}
+
+func analysisRunPatchResponse(t *testing.T, run *v1alpha1.AnalysisRun, action clienttesting.Action, configure func(*v1alpha1.AnalysisRun)) *v1alpha1.AnalysisRun {
+	t.Helper()
+	response := run.DeepCopy()
+	require.NoError(t, json.Unmarshal(action.(clienttesting.PatchAction).GetPatch(), response))
+	response.ResourceVersion = "2"
+	if configure != nil {
+		configure(response)
+	}
+	return response
+}
+
+func assertAnalysisRunSnapshot(t *testing.T, span sdktrace.ReadOnlySpan, run *v1alpha1.AnalysisRun, phase string, changed bool) {
+	t.Helper()
+	attrs := analysisRunAttemptAttributes(span)
+	assert.Equal(t, attribute.StringValue(string(run.UID)), attrs["argo.rollouts.analysis_run.uid"])
+	assert.Equal(t, attribute.StringValue(run.Name), attrs["argo.rollouts.analysis_run.name"])
+	assert.Equal(t, attribute.StringValue(run.Namespace), attrs["k8s.namespace.name"])
+	assert.Equal(t, attribute.Int64Value(run.Generation), attrs["argo.rollouts.analysis_run.generation"])
+	assert.Equal(t, attribute.StringValue(phase), attrs["argo.rollouts.analysis_run.phase"])
+	assert.Equal(t, attribute.BoolValue(changed), attrs["argo.rollouts.reconciliation.status_changed"])
+	if changed {
+		require.Len(t, span.Events(), 1)
+		assert.Contains(t, span.Events()[0].Attributes, attribute.String("argo.rollouts.analysis_run.phase", phase))
+	} else {
+		assert.Empty(t, span.Events())
 	}
 }
 

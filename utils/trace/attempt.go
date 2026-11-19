@@ -16,6 +16,9 @@ const InstrumentationName = "github.com/argoproj/argo-rollouts"
 // Its timestamp includes the preparation before that decision. An unstarted,
 // unchanged successful attempt emits no span. An Attempt belongs to one worker.
 type Attempt struct {
+	// Keep the queue context only for this reconciliation so a lazy span start
+	// preserves cancellation and sampler values. Controllers and handoff entries
+	// never retain this context beyond the attempt.
 	ctx     context.Context
 	tracer  oteltrace.Tracer
 	name    string

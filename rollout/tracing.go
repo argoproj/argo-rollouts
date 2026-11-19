@@ -137,15 +137,7 @@ func (c *rolloutContext) tracePersistedStatus(before, after *v1alpha1.Rollout) {
 		return
 	}
 	c.traceAttempt.persisted = after
-	if pending := c.pendingTraceResult; pending != nil {
-		status := after.Status.Canary.CurrentStepAnalysisRunStatus
-		recorded := status != nil && status.Name == pending.run.Name && status.Status == pending.run.Status.Phase
-		advanced := after.Status.CurrentStepIndex != nil && *after.Status.CurrentStepIndex > pending.step
-		if recorded || advanced {
-			c.traceHandoffs.ConsumeResult(pending.run, pending.parent)
-			c.pendingTraceResult = nil
-		}
-	}
+	c.consumePersistedTraceResult(after)
 	if before.Status.CurrentStepIndex != nil && after.Status.CurrentStepIndex != nil && *after.Status.CurrentStepIndex > *before.Status.CurrentStepIndex {
 		c.traceAttempt.AddEvent("rollout.step.advanced", attribute.Int64("argo.rollouts.rollout.current_step.index", int64(*after.Status.CurrentStepIndex)))
 	}
@@ -160,6 +152,20 @@ func (c *rolloutContext) tracePersistedStatus(before, after *v1alpha1.Rollout) {
 	}
 	if completed := c.pendingDurationMetric; completed != nil && completed.GetCompletionStatus() == v1alpha1.CompletionStatusSuperseded {
 		c.traceAttempt.AddEvent("rollout.superseded")
+	}
+}
+
+func (c *rolloutContext) consumePersistedTraceResult(after *v1alpha1.Rollout) {
+	pending := c.pendingTraceResult
+	if pending == nil {
+		return
+	}
+	status := after.Status.Canary.CurrentStepAnalysisRunStatus
+	recorded := status != nil && status.Name == pending.run.Name && status.Status == pending.run.Status.Phase
+	advanced := after.Status.CurrentStepIndex != nil && *after.Status.CurrentStepIndex > pending.step
+	if recorded || advanced {
+		c.traceHandoffs.ConsumeResult(pending.run, pending.parent)
+		c.pendingTraceResult = nil
 	}
 }
 

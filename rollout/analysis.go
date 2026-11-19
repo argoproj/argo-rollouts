@@ -474,7 +474,7 @@ func (c *rolloutContext) cancelAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	revision := c.rollout.Annotations[annotations.RevisionAnnotation]
 	nameParts := []string{c.rollout.Name, podHash, revision}
 	if infix != "" {

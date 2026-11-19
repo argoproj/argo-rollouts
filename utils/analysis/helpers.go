@@ -300,7 +300,7 @@ func CreateWithCollisionCounterWithCallback(logCtx *log.Entry, analysisRunIf arg
 
 func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun,
 	measurementRetentionMetrics []v1alpha1.MeasurementRetention,
-	labels map[string]string, annotations map[string]string,
+	labels, annotations map[string]string,
 	name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
 	template, err := FlattenTemplates(templates, clusterTemplates)
 	if err != nil {

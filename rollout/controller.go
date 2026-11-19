@@ -453,25 +453,8 @@ func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error)
 	}()
 
 	roCtx, err = c.newRolloutContext(r, attempt)
-	if roCtx == nil {
-		if k8serrors.IsConflict(err) {
-			logCtx.Warnf("newRolloutContext returned nil: %v", err)
-		} else {
-			logCtx.Errorf("newRolloutContext returned nil: %v", err)
-		}
-		return err
-	}
-	if err != nil {
-		if _, ok := err.(*field.Error); ok {
-			logCtx := logutil.WithRollout(roCtx.rollout)
-			logCtx.Info("rollout enqueue due to validation error")
-			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
-			// condition might be timing related (e.g. the Rollout was applied before the Service).
-			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
-			return nil // do not requeue from error because we already re-queued above
-		}
-		logCtx.Errorf("newRolloutContext err %v", err)
-		return err
+	if roCtx == nil || err != nil {
+		return c.handleRolloutContextError(roCtx, logCtx, err)
 	}
 	if roCtx.newRollout != nil {
 		// We modified the rollout object already. Let the next reconciliation process the update.
@@ -483,16 +466,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error)
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
-		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		if attempt != nil {
-			attempt.persisted = newRollout
-		}
-		c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
-		return nil
+		return c.defaultRolloutReplicas(ctx, key, r, attempt)
 	}
 
 	err = roCtx.reconcile()
@@ -507,6 +481,39 @@ func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error)
 	if roCtx.newRollout != nil {
 		c.rolloutVersionTracker.Record(key, roCtx.newRollout.ResourceVersion)
 	}
+	return nil
+}
+
+func (c *Controller) handleRolloutContextError(roCtx *rolloutContext, logCtx *log.Entry, err error) error {
+	if roCtx == nil {
+		if k8serrors.IsConflict(err) {
+			logCtx.Warnf("newRolloutContext returned nil: %v", err)
+		} else {
+			logCtx.Errorf("newRolloutContext returned nil: %v", err)
+		}
+		return err
+	}
+	if _, ok := err.(*field.Error); ok {
+		logutil.WithRollout(roCtx.rollout).Info("rollout enqueue due to validation error")
+		// Validation can depend on resources that have not been created yet, so
+		// preserve the delayed retry instead of returning a rate-limited error.
+		c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
+		return nil
+	}
+	logCtx.Errorf("newRolloutContext err %v", err)
+	return err
+}
+
+func (c *Controller) defaultRolloutReplicas(ctx context.Context, key string, rollout *v1alpha1.Rollout, attempt *rolloutTraceAttempt) error {
+	rollout.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(ctx, rollout, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	if attempt != nil {
+		attempt.persisted = newRollout
+	}
+	c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
 	return nil
 }
 

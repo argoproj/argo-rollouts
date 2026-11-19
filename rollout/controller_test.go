@@ -224,7 +224,7 @@ func newRollout(name string, replicas int, revisionHistoryLimit *int32, selector
 	return ro
 }
 
-func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplicas int) *appsv1.ReplicaSet {
+func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas, availableReplicas int) *appsv1.ReplicaSet {
 	rs := newReplicaSet(r, replicas)
 	rs.Status.Replicas = int32(replicas)
 	rs.Status.AvailableReplicas = int32(availableReplicas)
@@ -410,7 +410,7 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool, isCompleted bool) string {
+func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, pauseCondition := newPausedCondition(isPaused)
@@ -421,7 +421,7 @@ func generateConditionsPatchWithPause(available bool, progressingReason string, 
 	return fmt.Sprintf("[%s, %s, %s, %s]", progressingCondition, pauseCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, healthyCondition := newHealthyCondition(isHealthy)
@@ -442,7 +442,7 @@ func generateConditionsPatchWithCompleted(available bool, progressingReason stri
 	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completeCondition)
 }
 
-func generateConditionsPatchWithCompletedHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+func generateConditionsPatchWithCompletedHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy, isCompleted bool) string {
 	_, completedCondition := newCompletedCondition(isCompleted)
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
@@ -762,7 +762,7 @@ func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
 }
 
-func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+func (f *fixture) runControllerWithSyncs(rolloutName string, syncs int, startInformers, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
@@ -848,7 +848,7 @@ func (f *fixture) reseedKubeResourcesInInformerIfNeeded(k8sI kubeinformers.Share
 	}
 }
 
-func (f *fixture) runController(rolloutName string, startInformers bool, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
+func (f *fixture) runController(rolloutName string, startInformers, expectError bool, c *Controller, i informers.SharedInformerFactory, k8sI kubeinformers.SharedInformerFactory) *Controller {
 	if startInformers {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
@@ -1170,7 +1170,7 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
-func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy string) {
+func (f *fixture) verifyPatchedService(index int, newPodHash, managedBy string) {
 	action := f.kubeActionAt(index)
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -1430,7 +1430,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 
 func TestRequeueStuckRollout(t *testing.T) {
 	//t.Skip("broken in the refactor")
-	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
+	rollout := func(progressingConditionReason string, rolloutCompleted, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
 		r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 		r.Status.Conditions = nil
 		r.Spec.ProgressDeadlineSeconds = progressDeadlineSeconds
