@@ -6844,7 +6844,7 @@ spec:
               availableAt:
                 description: |-
                   AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to
-                  run for the duration of specificed in the spec.
+                  run for the duration specified in the spec.
                 format: date-time
                 type: string
               conditions:

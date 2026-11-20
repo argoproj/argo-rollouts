@@ -1125,7 +1125,7 @@
         },
         "replicaProgressThreshold": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ReplicaProgressThreshold",
-          "title": "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
+          "title": "ReplicaProgressThreshold is the threshold number or percentage of pods that need to be available before a rollout promotion.\nDefaults to 100% of total replicas.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
