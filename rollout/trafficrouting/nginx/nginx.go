@@ -103,10 +103,13 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 	for ir := 0; ir < len(stableIngress.Spec.Rules); ir++ {
 		var hasStableServiceBackendRule bool
 		ingressRule := stableIngress.Spec.Rules[ir].DeepCopy()
+		if ingressRule.HTTP == nil {
+			continue
+		}
 
 		// Update all backends pointing to the stableService to point to the canaryService now
 		for ip := 0; ip < len(ingressRule.HTTP.Paths); ip++ {
-			if ingressRule.HTTP.Paths[ip].Backend.Service.Name == stableServiceName {
+			if ingressRule.HTTP.Paths[ip].Backend.Service != nil && ingressRule.HTTP.Paths[ip].Backend.Service.Name == stableServiceName {
 				hasStableServiceBackendRule = true
 				ingressRule.HTTP.Paths[ip].Backend.Service.Name = canaryServiceName
 			}
@@ -189,6 +192,9 @@ func (r *Reconciler) buildLegacyCanaryIngress(stableIngress *extensionsv1beta1.I
 	for ir := 0; ir < len(stableIngress.Spec.Rules); ir++ {
 		var hasStableServiceBackendRule bool
 		ingressRule := stableIngress.Spec.Rules[ir].DeepCopy()
+		if ingressRule.HTTP == nil {
+			continue
+		}
 
 		// Update all backends pointing to the stableService to point to the canaryService now
 		for ip := 0; ip < len(ingressRule.HTTP.Paths); ip++ {

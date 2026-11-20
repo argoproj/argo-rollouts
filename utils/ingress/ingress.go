@@ -182,7 +182,7 @@ func hasIngressRuleWithService(ingress *networkingv1.Ingress, svc string) bool {
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP != nil {
 			for _, path := range rule.HTTP.Paths {
-				if path.Backend.Service.Name == svc {
+				if path.Backend.Service != nil && path.Backend.Service.Name == svc {
 					return true
 				}
 			}
