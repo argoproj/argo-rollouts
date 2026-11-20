@@ -486,6 +486,19 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			trafficRouting:             &v1alpha1.RolloutTrafficRouting{},
 		},
 		{
+			name: "Ignore setCanaryScale.replicas when spec.replicas is 0",
+
+			rolloutSpecReplicas:    0,
+			stableSpecReplica:      0,
+			stableAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 0,
+			setWeight:                  100,
+			setCanaryScale:             newSetCanaryScale(intPnt(1), nil, false),
+			trafficRouting:             &v1alpha1.RolloutTrafficRouting{},
+		},
+		{
 			name: "Use setCanaryScale.weight for canary replicas when specified with trafficRouting (and ignore setWeight)",
 
 			rolloutSpecReplicas:    4,
