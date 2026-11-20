@@ -13,10 +13,11 @@ type stageOutcome int
 const (
 	// stageContinue: proceed to the next stage.
 	stageContinue stageOutcome = iota
-	// stageStop: halt the pipeline and fall through to status sync.
+	// stageStop: halt the pipeline and fall through to status sync. A non-nil err blocks
+	// progression for this pass and is returned after the sync.
 	stageStop
-	// stageStopNoStatus: halt and end the pass without a status sync, returning err if set. Used
-	// for the pod-restart early exit (no err) and for stage errors.
+	// stageStopNoStatus: halt without status sync (pod-restart early exit, ReplicaSet-sync
+	// failures, blue-green stage errors).
 	stageStopNoStatus
 )
 
@@ -78,6 +79,10 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 		switch res.outcome {
 		case stageContinue:
 		case stageStop:
+			if res.err != nil {
+				c.progressionBlocked = true
+				return res.err
+			}
 			c.log.Infof("stage %s: stopping further changes, proceeding to status sync", s.name)
 			return nil
 		case stageStopNoStatus:
@@ -86,6 +91,21 @@ func (c *rolloutContext) runStages(stages []strategyStage) error {
 		}
 	}
 	return nil
+}
+
+// carryOverUnreconciledStatus keeps the previous current Experiment/AnalysisRun statuses when the
+// stages that set them didn't complete. The controller finds the current runs by these names.
+func (c *rolloutContext) carryOverUnreconciledStatus() {
+	prev := c.rollout.Status
+	if c.rollout.Spec.Strategy.Canary != nil {
+		if !c.experimentsReconciled {
+			c.newStatus.Canary.CurrentExperiment = prev.Canary.CurrentExperiment
+		}
+		if !c.analysisReconciled {
+			c.newStatus.Canary.CurrentStepAnalysisRunStatus = prev.Canary.CurrentStepAnalysisRunStatus
+			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = prev.Canary.CurrentBackgroundAnalysisRunStatus
+		}
+	}
 }
 
 func canaryStageSyncRevisionOnChange(c *rolloutContext) stageResult {
@@ -123,7 +143,7 @@ func canaryStageSyncReplicaSets(c *rolloutContext) stageResult {
 func canaryStagePodRestart(c *rolloutContext) stageResult {
 	restarted, err := c.podRestarter.Reconcile(c)
 	if err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	if restarted > 0 {
 		// If we restarted any pods, we can no longer trust the current availability counts of our
@@ -140,54 +160,58 @@ func canaryStagePodRestart(c *rolloutContext) stageResult {
 
 func canaryStageEphemeralMetadata(c *rolloutContext) stageResult {
 	if err := c.reconcileEphemeralMetadata(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageRevisionHistory(c *rolloutContext) stageResult {
 	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStagePingPongService(c *rolloutContext) stageResult {
 	if err := c.reconcilePingAndPongService(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageStableCanaryService(c *rolloutContext) stageResult {
 	if err := c.reconcileStableAndCanaryService(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageTrafficRouting(c *rolloutContext) stageResult {
 	if err := c.reconcileTrafficRouting(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageExperiments(c *rolloutContext) stageResult {
 	if err := c.reconcileExperiments(); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
+	c.experimentsReconciled = true
 	return stageResult{outcome: stageContinue}
 }
 
 func canaryStageAnalysis(c *rolloutContext) stageResult {
 	err := c.reconcileAnalysisRuns()
+	if err == nil {
+		c.analysisReconciled = true
+	}
 	if c.pauseContext.HasAddPause() {
 		c.log.Info("Detected pause due to inconclusive AnalysisRun")
 		return stageResult{outcome: stageStop}
 	}
 	if err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
@@ -196,7 +220,7 @@ func canaryStageReplicaSetScaling(c *rolloutContext) stageResult {
 	// isReconciling if changes are made to canary or stable RS
 	isReconciling, err := c.reconcileCanaryReplicaSets()
 	if err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	if isReconciling {
 		c.log.Info("Not finished reconciling ReplicaSets")
@@ -216,7 +240,7 @@ func canaryStageCanaryPause(c *rolloutContext) stageResult {
 
 func canaryStageStepPlugins(c *rolloutContext) stageResult {
 	if err := c.stepPluginContext.reconcile(c); err != nil {
-		return stageResult{outcome: stageStopNoStatus, err: err}
+		return stageResult{outcome: stageStop, err: err}
 	}
 	return stageResult{outcome: stageContinue}
 }
