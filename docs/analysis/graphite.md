@@ -33,3 +33,14 @@ spec:
             'avg'
           )
 ```
+
+## Empty results
+
+When the query returns no data points, the `result` array is empty and it is passed to the `successCondition` and
+`failureCondition` like any other result. A condition that reads `result[0]` fails to evaluate on an empty result and
+the measurement ends in an error. To treat an empty result as healthy, for example when the query counts errors and
+Graphite returns nothing when there are none, check the length first:
+
+```yaml
+successCondition: len(result) > 0 ? result[0] < 1 : true
+```
