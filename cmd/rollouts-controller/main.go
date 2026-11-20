@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -40,6 +41,7 @@ import (
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
+	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
@@ -92,11 +94,18 @@ func newCommand() *cobra.Command {
 		pprofAddress                   string
 		analysisSharedSecretNamespace  string
 		analysisSharedSecretMode       string
+		otlpConfig                     traceutil.Config
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "argo-rollouts is a controller to operate on rollout CRD",
+		PreRunE: func(c *cobra.Command, args []string) error {
+			if !printVersion && otlpConfig.Address != "" && (math.IsNaN(otlpConfig.SampleRatio) || otlpConfig.SampleRatio < 0 || otlpConfig.SampleRatio > 1) {
+				return fmt.Errorf("--otlp-sample-ratio must be between 0 and 1")
+			}
+			return nil
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			if printVersion {
 				fmt.Println(version.GetVersion())
@@ -318,8 +327,14 @@ func newCommand() *cobra.Command {
 					analysisSharedSecretNamespace,
 					analysis.SharedSecretMode(analysisSharedSecretMode))
 			}
+			closeTracer, err := traceutil.InitTracer(ctx, cliName, version.GetVersion().String(), otlpConfig)
+			if err != nil {
+				return fmt.Errorf("initialize tracing: %w", err)
+			}
+			defer closeTracer()
+
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
-				log.Fatalf("Error running controller: %s", err.Error())
+				return fmt.Errorf("run controller: %w", err)
 			}
 			return nil
 		},
@@ -372,6 +387,11 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&pprofAddress, "enable-pprof-address", "", "Enable pprof profiling on controller by providing a server address.")
 	command.Flags().StringVar(&analysisSharedSecretNamespace, "analysis-shared-secret-namespace", "", "Namespace containing secrets that may be referenced by AnalysisRuns")
 	command.Flags().StringVar(&analysisSharedSecretMode, "analysis-shared-secret-mode", string(analysis.DefaultSharedSecretMode), "Controls which secrets in the shared-secret namespace AnalysisRuns may read: 'LabelFilter' (default, only labeled secrets) or 'AllSecrets' (any secret in the namespace)")
+	command.Flags().StringVar(&otlpConfig.Address, "otlp-address", "", "OpenTelemetry collector address to send traces to (host:port); empty disables tracing")
+	command.Flags().BoolVar(&otlpConfig.Insecure, "otlp-insecure", true, "Use a plaintext connection to the OpenTelemetry collector")
+	command.Flags().StringToStringVar(&otlpConfig.Headers, "otlp-headers", nil, "Comma-separated OpenTelemetry collector headers (key=value)")
+	command.Flags().StringSliceVar(&otlpConfig.Attributes, "otlp-attrs", nil, "Comma-separated OpenTelemetry resource attributes (key:value)")
+	command.Flags().Float64Var(&otlpConfig.SampleRatio, "otlp-sample-ratio", 1, "Fraction of new root traces to sample, from 0 to 1; honors parent sampling decisions")
 	return &command
 }
 
