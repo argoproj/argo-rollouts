@@ -235,7 +235,10 @@ func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws ro
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
-		rolloutUpdates <- roInfo
+		select {
+		case rolloutUpdates <- roInfo:
+		case <-ctx.Done():
+		}
 	})
 
 	go get.Watch(ctx.Done(), rolloutUpdates, func(i *rollout.RolloutInfo) {
