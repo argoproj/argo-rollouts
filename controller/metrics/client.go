@@ -12,6 +12,13 @@ const (
 	clientsetMetricsNamespace = "controller_clientset"
 )
 
+var ephemeralKinds = map[string]bool{
+	"events":       true,
+	"replicasets":  true,
+	"analysisruns": true,
+	"experiments":  true,
+}
+
 type K8sRequestsCountProvider struct {
 	k8sRequestsCount *prometheus.CounterVec
 }
@@ -27,7 +34,7 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 	namespace := resourceInfo.Namespace
 	kind := resourceInfo.Kind
 	statusCode := strconv.Itoa(resourceInfo.StatusCode)
-	if resourceInfo.Verb == kubeclientmetrics.List || kind == "events" || kind == "replicasets" {
+	if resourceInfo.Verb == kubeclientmetrics.List || ephemeralKinds[kind] {
 		name = "N/A"
 	}
 	if resourceInfo.Verb == kubeclientmetrics.Unknown {
