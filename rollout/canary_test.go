@@ -1172,6 +1172,38 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 	assert.JSONEq(t, calculatePatch(r3, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
 
+func TestCanaryRolloutDoNotIncrementStepIfInconclusiveAnalysis(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 9, 9)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
+	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
+		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+		StartTime: timeutil.MetaNow(),
+	}}
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	// The setWeight step is otherwise complete, but the inconclusive analysis
+	// must keep the rollout at its current step.
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	assert.NotContains(t, patch, "currentStepIndex")
+}
+
 func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

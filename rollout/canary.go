@@ -227,7 +227,7 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 }
 
 func (c *rolloutContext) completedCurrentCanaryStep() bool {
-	if c.rollout.Spec.Paused {
+	if c.haltProgress() != "" {
 		return false
 	}
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
