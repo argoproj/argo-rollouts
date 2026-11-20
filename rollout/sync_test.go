@@ -3,12 +3,14 @@ package rollout
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -948,4 +950,393 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.Replicas)
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
+}
+
+// progressDeadlineScenario describes an in-flight canary update (10 replicas, 7 ready/available)
+// whose Progressing condition was last updated progressingAgo before "now".
+type progressDeadlineScenario struct {
+	// progressingReason is the reason of the current Progressing condition (default ReplicaSetUpdated)
+	progressingReason string
+	progressingAgo    time.Duration
+	// mutate turns a copy of the current status into the newly observed status
+	mutate                func(*v1alpha1.RolloutStatus)
+	steps                 []v1alpha1.CanaryStep
+	otherRSScaleDown      bool // an older ReplicaSet still waits for its scale-down deadline
+	healthyBefore         bool // the current status has Healthy=True
+	stableIsCurrent       bool // the rollout is fully promoted (stable == current pod hash)
+	progressDeadlineAbort bool
+}
+
+const progressDeadlineTestSeconds = 600
+
+var (
+	progressWithinDeadline = -1 * time.Minute
+	progressDeadlinePassed = -20 * time.Minute
+)
+
+func readinessOnlyProgress(s *v1alpha1.RolloutStatus) { s.ReadyReplicas++; s.AvailableReplicas++ }
+func scalingProgress(s *v1alpha1.RolloutStatus)       { s.UpdatedReplicas-- }
+func noProgress(s *v1alpha1.RolloutStatus)            {}
+
+// freezeProgressDeadlineClock pins both clocks used by the progress deadline logic.
+func freezeProgressDeadlineClock(t *testing.T, now time.Time) func(time.Time) {
+	t.Helper()
+	set := func(n time.Time) {
+		timeutil.SetNowTimeFunc(func() time.Time { return n })
+		nowFn = func() time.Time { return n }
+	}
+	set(now)
+	t.Cleanup(func() {
+		timeutil.SetNowTimeFunc(time.Now)
+		nowFn = time.Now
+	})
+	return set
+}
+
+func newProgressDeadlineTestContext(t *testing.T, sc progressDeadlineScenario) (*rolloutContext, *v1alpha1.RolloutStatus) {
+	t.Helper()
+	now := timeutil.Now()
+	reason := sc.progressingReason
+	if reason == "" {
+		reason = conditions.ReplicaSetUpdatedReason
+	}
+	stableHash := "stable"
+	if sc.stableIsCurrent {
+		stableHash = "canary"
+	}
+
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: metav1.NamespaceDefault},
+		Spec: v1alpha1.RolloutSpec{
+			Replicas:                ptr.To[int32](10),
+			ProgressDeadlineSeconds: ptr.To[int32](progressDeadlineTestSeconds),
+			ProgressDeadlineAbort:   sc.progressDeadlineAbort,
+			Strategy:                v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{Steps: sc.steps}},
+		},
+		Status: v1alpha1.RolloutStatus{
+			Replicas:          10,
+			UpdatedReplicas:   10,
+			ReadyReplicas:     7,
+			AvailableReplicas: 7,
+			StableRS:          stableHash,
+			CurrentPodHash:    "canary",
+		},
+	}
+	if len(sc.steps) > 0 {
+		ro.Status.CurrentStepIndex = ptr.To[int32](0)
+	}
+	lastUpdate := metav1.NewTime(now.Add(sc.progressingAgo))
+	status := corev1.ConditionTrue
+	if reason == conditions.TimedOutReason {
+		status = corev1.ConditionFalse
+	}
+	ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
+		Type: v1alpha1.RolloutProgressing, Status: status, Reason: reason, Message: "previous",
+		LastUpdateTime: lastUpdate, LastTransitionTime: lastUpdate,
+	})
+	if sc.healthyBefore {
+		healthy, _ := newHealthyCondition(true)
+		ro.Status.Conditions = append(ro.Status.Conditions, healthy)
+	}
+
+	newRS := &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Name: "foo-canary", Namespace: ro.Namespace,
+		Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "canary"}}}
+	stableRS := newRS
+	allRSs := []*appsv1.ReplicaSet{newRS}
+	if !sc.stableIsCurrent {
+		stableRS = &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Name: "foo-stable", Namespace: ro.Namespace,
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "stable"}}}
+		allRSs = append(allRSs, stableRS)
+	}
+	if sc.otherRSScaleDown {
+		allRSs = append(allRSs, &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Name: "foo-old", Namespace: ro.Namespace,
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "old"},
+			Annotations: map[string]string{
+				v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: now.Add(time.Minute).UTC().Format(time.RFC3339),
+			}}})
+	}
+
+	c := &rolloutContext{
+		log:          logutil.WithRollout(ro),
+		rollout:      ro,
+		newRS:        newRS,
+		stableRS:     stableRS,
+		allRSs:       allRSs,
+		pauseContext: &pauseContext{rollout: ro, log: logutil.WithRollout(ro)},
+		reconcilerBase: reconcilerBase{
+			recorder:            record.NewFakeEventRecorder(),
+			enqueueRollout:      func(obj any) {},
+			enqueueRolloutAfter: func(obj any, duration time.Duration) {},
+		},
+	}
+	newStatus := ro.Status.DeepCopy()
+	if sc.mutate != nil {
+		sc.mutate(newStatus)
+	}
+	return c, newStatus
+}
+
+func TestCalculateRolloutConditionsProgressDeadline(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	timedOutMsg := fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, "foo-canary")
+
+	type expectation struct {
+		reason string
+		status corev1.ConditionStatus
+		// lastUpdate is the expected LastUpdateTime relative to now (nil: refreshed to now)
+		lastUpdateAgo *time.Duration
+		message       string
+	}
+	ago := func(d time.Duration) *time.Duration { return &d }
+
+	tests := []struct {
+		name     string
+		scenario progressDeadlineScenario
+		expected expectation
+	}{
+		{
+			name:     "readiness-only progress after the deadline times out",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress},
+			expected: expectation{reason: conditions.TimedOutReason, status: corev1.ConditionFalse, message: timedOutMsg},
+		},
+		{
+			name: "ready-only increase after the deadline times out",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed,
+				mutate: func(s *v1alpha1.RolloutStatus) { s.ReadyReplicas++ }},
+			expected: expectation{reason: conditions.TimedOutReason, status: corev1.ConditionFalse, message: timedOutMsg},
+		},
+		{
+			name: "available-only increase after the deadline times out",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed,
+				mutate: func(s *v1alpha1.RolloutStatus) { s.AvailableReplicas++ }},
+			expected: expectation{reason: conditions.TimedOutReason, status: corev1.ConditionFalse, message: timedOutMsg},
+		},
+		{
+			name:     "readiness-only progress within the deadline keeps progressing and preserves the deadline",
+			scenario: progressDeadlineScenario{progressingAgo: progressWithinDeadline, mutate: readinessOnlyProgress},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				lastUpdateAgo: ago(progressWithinDeadline), message: fmt.Sprintf(conditions.ReplicaSetProgressingMessage, "foo-canary")},
+		},
+		{
+			name:     "scaling progress after the deadline resets the deadline",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: scalingProgress},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				message: fmt.Sprintf(conditions.ReplicaSetProgressingMessage, "foo-canary")},
+		},
+		{
+			name: "scaling and readiness progress after the deadline resets the deadline",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed,
+				mutate: func(s *v1alpha1.RolloutStatus) { scalingProgress(s); readinessOnlyProgress(s) }},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				message: fmt.Sprintf(conditions.ReplicaSetProgressingMessage, "foo-canary")},
+		},
+		{
+			name:     "no progress after the deadline times out (unchanged behavior)",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: noProgress},
+			expected: expectation{reason: conditions.TimedOutReason, status: corev1.ConditionFalse, message: timedOutMsg},
+		},
+		{
+			name:     "no progress within the deadline leaves the condition untouched (unchanged behavior)",
+			scenario: progressDeadlineScenario{progressingAgo: progressWithinDeadline, mutate: noProgress},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				lastUpdateAgo: ago(progressWithinDeadline), message: "previous"},
+		},
+		{
+			name: "readiness-only progress after the deadline does not time out on an indefinite step",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress,
+				steps: []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				lastUpdateAgo: ago(progressDeadlinePassed), message: "previous"},
+		},
+		{
+			name: "readiness-only progress after the deadline does not time out while waiting for a ReplicaSet scale down",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress,
+				otherRSScaleDown: true},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				lastUpdateAgo: ago(progressDeadlinePassed), message: "previous"},
+		},
+		{
+			name: "readiness progress after the deadline resets a ReplicaSetNotAvailable condition",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress,
+				progressingReason: conditions.ReplicaSetNotAvailableReason},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				message: fmt.Sprintf(conditions.ReplicaSetProgressingMessage, "foo-canary")},
+		},
+		{
+			name: "readiness progress after the deadline resets a RolloutResumed condition",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress,
+				progressingReason: conditions.RolloutResumedReason},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				message: fmt.Sprintf(conditions.ReplicaSetProgressingMessage, "foo-canary")},
+		},
+		{
+			name: "readiness progress recovers a timed out rollout (unchanged behavior)",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress,
+				progressingReason: conditions.TimedOutReason},
+			expected: expectation{reason: conditions.ReplicaSetUpdatedReason, status: corev1.ConditionTrue,
+				message: fmt.Sprintf(conditions.ReplicaSetProgressingMessage, "foo-canary")},
+		},
+		{
+			name: "becoming unhealthy after the deadline resets the deadline (unchanged behavior)",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: noProgress,
+				healthyBefore: true, stableIsCurrent: true},
+			expected: expectation{reason: conditions.ReplicaSetNotAvailableReason, status: corev1.ConditionTrue,
+				message: conditions.NotAvailableMessage},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			freezeProgressDeadlineClock(t, now)
+			c, newStatus := newProgressDeadlineTestContext(t, tc.scenario)
+
+			c.calculateRolloutConditions(newStatus)
+
+			cond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutProgressing)
+			require.NotNil(t, cond)
+			assert.Equal(t, tc.expected.reason, cond.Reason)
+			assert.Equal(t, tc.expected.status, cond.Status)
+			assert.Equal(t, tc.expected.message, cond.Message)
+			expectedLastUpdate := now
+			if tc.expected.lastUpdateAgo != nil {
+				expectedLastUpdate = now.Add(*tc.expected.lastUpdateAgo)
+			}
+			assert.True(t, expectedLastUpdate.Equal(cond.LastUpdateTime.Time),
+				"expected LastUpdateTime %v, got %v", expectedLastUpdate, cond.LastUpdateTime.Time)
+		})
+	}
+}
+
+func TestEvaluateProgressDeadlineAbortReadinessOnlyProgress(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+
+	tests := []struct {
+		name          string
+		scenario      progressDeadlineScenario
+		expectAborted bool
+	}{
+		{
+			name:          "readiness-only progress after the deadline aborts",
+			scenario:      progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress, progressDeadlineAbort: true},
+			expectAborted: true,
+		},
+		{
+			name:     "readiness-only progress within the deadline does not abort",
+			scenario: progressDeadlineScenario{progressingAgo: progressWithinDeadline, mutate: readinessOnlyProgress, progressDeadlineAbort: true},
+		},
+		{
+			name:     "scaling progress after the deadline does not abort",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: scalingProgress, progressDeadlineAbort: true},
+		},
+		{
+			name:          "no progress after the deadline aborts (unchanged behavior)",
+			scenario:      progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: noProgress, progressDeadlineAbort: true},
+			expectAborted: true,
+		},
+		{
+			name:     "readiness-only progress after the deadline does not abort without progressDeadlineAbort",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress},
+		},
+		{
+			name: "readiness-only progress after the deadline does not abort on an indefinite step",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress, progressDeadlineAbort: true,
+				steps: []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}},
+		},
+		{
+			name: "readiness-only progress after the deadline does not abort while waiting for a ReplicaSet scale down",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress, progressDeadlineAbort: true,
+				otherRSScaleDown: true},
+		},
+		{
+			name: "readiness progress after the deadline does not abort when it resets the deadline",
+			scenario: progressDeadlineScenario{progressingAgo: progressDeadlinePassed, mutate: readinessOnlyProgress, progressDeadlineAbort: true,
+				progressingReason: conditions.ReplicaSetNotAvailableReason},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			freezeProgressDeadlineClock(t, now)
+			c, newStatus := newProgressDeadlineTestContext(t, tc.scenario)
+
+			c.evaluateProgressDeadlineAbort(newStatus)
+
+			assert.Equal(t, tc.expectAborted, c.pauseContext.IsAborted())
+			if tc.expectAborted {
+				assert.Equal(t, fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, "foo-canary"), c.pauseContext.abortMessage)
+			}
+		})
+	}
+}
+
+// TestProgressDeadlineWithContinuousReadinessOnlyProgress simulates a crash-looping update where every
+// reconciliation observes a readiness increase (Ready and Available increasing alternately) and verifies
+// that the preserved deadline is neither reset nor deferred: the rollout times out (and is aborted when
+// progressDeadlineAbort is set) on the first reconciliation after the deadline, and until then the
+// stuck-rollout requeue is scheduled for the remaining time instead of immediately.
+func TestProgressDeadlineWithContinuousReadinessOnlyProgress(t *testing.T) {
+	for _, abort := range []bool{false, true} {
+		t.Run(fmt.Sprintf("progressDeadlineAbort=%t", abort), func(t *testing.T) {
+			start := time.Now().Truncate(time.Second)
+			setNow := freezeProgressDeadlineClock(t, start)
+			c, _ := newProgressDeadlineTestContext(t, progressDeadlineScenario{progressDeadlineAbort: abort})
+
+			var requeuedAfter []time.Duration
+			c.enqueueRolloutAfter = func(obj any, d time.Duration) { requeuedAfter = append(requeuedAfter, d) }
+			immediateRequeues := 0
+			c.enqueueRollout = func(obj any) { immediateRequeues++ }
+
+			// 3m does not divide the 10m deadline, so no reconcile happens exactly at the deadline
+			// (where an immediate requeue is expected).
+			const interval = 3 * time.Minute
+			timedOutAt := time.Duration(-1)
+			for i := 1; i <= 10; i++ {
+				elapsed := time.Duration(i) * interval
+				setNow(start.Add(elapsed))
+
+				newStatus := c.rollout.Status.DeepCopy()
+				if i%2 == 0 {
+					newStatus.ReadyReplicas++ // pod restarted and became ready
+					newStatus.AvailableReplicas--
+				} else {
+					newStatus.AvailableReplicas++ // pod passed minReadySeconds
+					newStatus.ReadyReplicas--
+				}
+				require.True(t, conditions.RolloutReadinessProgress(c.rollout, newStatus))
+				require.False(t, conditions.RolloutScalingProgress(c.rollout, newStatus))
+
+				c.pauseContext = &pauseContext{rollout: c.rollout, log: c.log}
+				c.evaluateProgressDeadlineAbort(newStatus)
+				c.calculateRolloutConditions(newStatus)
+				cond := conditions.GetRolloutCondition(*newStatus, v1alpha1.RolloutProgressing)
+
+				if elapsed <= progressDeadlineTestSeconds*time.Second {
+					assert.Equal(t, conditions.ReplicaSetUpdatedReason, cond.Reason, "reconcile %d", i)
+					assert.True(t, start.Equal(cond.LastUpdateTime.Time), "reconcile %d: deadline must not be reset", i)
+					assert.False(t, c.pauseContext.IsAborted(), "reconcile %d", i)
+
+					// Simulate a reconcile without a status patch to verify the requeue timing.
+					requeuedAfter = nil
+					after := c.requeueStuckRollout(*newStatus)
+					assert.Equal(t, progressDeadlineTestSeconds*time.Second-elapsed, after, "reconcile %d", i)
+					assert.Equal(t, []time.Duration{after + time.Second}, requeuedAfter, "reconcile %d", i)
+				} else {
+					assert.Equal(t, abort, c.pauseContext.IsAborted(), "reconcile %d", i)
+					assert.Equal(t, corev1.ConditionFalse, cond.Status, "reconcile %d", i)
+					if abort {
+						assert.Equal(t, conditions.RolloutAbortedReason, cond.Reason, "reconcile %d", i)
+						assert.Contains(t, cond.Message, fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, "foo-canary"))
+					} else {
+						assert.Equal(t, conditions.TimedOutReason, cond.Reason, "reconcile %d", i)
+					}
+					timedOutAt = elapsed
+					break
+				}
+				c.rollout.Status = *newStatus // persist
+			}
+			assert.Equal(t, 12*time.Minute, timedOutAt,
+				"rollout must time out on the first reconcile after the deadline")
+			assert.Zero(t, immediateRequeues, "rollout must not be requeued immediately before the deadline")
+		})
+	}
 }
