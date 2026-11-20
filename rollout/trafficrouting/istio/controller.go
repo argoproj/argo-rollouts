@@ -200,10 +200,7 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 			}
 
 			for _, eachVsvc := range vsvcs {
-				vsvcNamespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(eachVsvc.Name)
-				if vsvcNamespace == "" {
-					vsvcNamespace = ro.Namespace
-				}
+				vsvcNamespace, vsvcName := istioutil.GetVirtualServiceRefNamespaceName(eachVsvc, ro.Namespace)
 				if c.VirtualServiceInformer.HasSynced() {
 					vsvc, err = c.VirtualServiceLister.Namespace(vsvcNamespace).Get(vsvcName)
 				} else {
@@ -242,16 +239,17 @@ func (c *IstioController) syncDestinationRule(ctx context.Context, key string) e
 		}
 		return err
 	}
-	managingRolloutName := getManagingRolloutName(dRuleUn)
-	if managingRolloutName == "" {
+	managedBy := getManagingRolloutName(dRuleUn)
+	if managedBy == "" {
 		// Ignore DestinationRules not managed by a Rollout
 		return nil
 	}
+	rolloutNamespace, managingRolloutName := istioutil.ParseDestinationRuleManagedByValue(managedBy, namespace)
 
-	logCtx := log.WithField(logutil.RolloutKey, managingRolloutName).WithField(logutil.NamespaceKey, namespace).WithField("destinationrule", name)
+	logCtx := log.WithField(logutil.RolloutKey, managingRolloutName).WithField(logutil.NamespaceKey, rolloutNamespace).WithField("destinationrule", key)
 
 	cleanDestRule := false
-	ro, err := c.ArgoprojClientSet.ArgoprojV1alpha1().Rollouts(namespace).Get(context.TODO(), managingRolloutName, metav1.GetOptions{})
+	ro, err := c.ArgoprojClientSet.ArgoprojV1alpha1().Rollouts(rolloutNamespace).Get(context.TODO(), managingRolloutName, metav1.GetOptions{})
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
@@ -292,7 +290,7 @@ func (c *IstioController) syncDestinationRule(ctx context.Context, key string) e
 	}
 
 	// destination rule changed, re-reconcile rollout
-	c.EnqueueRollout(namespace + "/" + managingRolloutName)
+	c.EnqueueRollout(rolloutNamespace + "/" + managingRolloutName)
 	return nil
 }
 

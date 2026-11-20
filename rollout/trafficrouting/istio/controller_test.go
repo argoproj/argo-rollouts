@@ -246,3 +246,92 @@ func TestRun(t *testing.T) {
 	go c.VirtualServiceInformer.Run(ctx.Done())
 	c.Run(ctx)
 }
+
+// TestSyncDestinationRuleInOtherNamespace verifies a DestinationRule outside the Rollout
+// namespace is matched to its Rollout through the namespace in the managed-by annotation
+func TestSyncDestinationRuleInOtherNamespace(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "istio-rollout",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualService: &v1alpha1.IstioVirtualService{
+								Name: "istio-vsvc",
+							},
+							DestinationRule: &v1alpha1.IstioDestinationRule{
+								Name:             "istio-destrule",
+								Namespace:        "istio-routing",
+								CanarySubsetName: "canary",
+								StableSubsetName: "stable",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	destRule := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: istio-routing
+  annotations:
+    argo-rollouts.argoproj.io/managed-by-rollouts: default/istio-rollout
+spec:
+  subsets:
+  - name: stable
+    labels:
+      app: istio-subset-split
+      rollouts-pod-template-hash: abc123
+  - name: canary
+    labels:
+      app: istio-subset-split
+      rollouts-pod-template-hash: def456
+`)
+	{
+		// Verify we don't clean the DestinationRule while the Rollout references it
+		c := NewFakeIstioController(ro, destRule)
+		err := c.DestinationRuleInformer.GetIndexer().Add(destRule)
+		assert.NoError(t, err)
+		key, err := cache.MetaNamespaceKeyFunc(destRule)
+		assert.NoError(t, err)
+		var enqueued any
+		c.EnqueueRollout = func(obj any) {
+			enqueued = obj
+		}
+
+		err = c.syncDestinationRule(context.Background(), key)
+		assert.NoError(t, err)
+		actions := c.DynamicClientSet.(*dynamicfake.FakeDynamicClient).Actions()
+		assert.Len(t, actions, 0)
+		assert.Equal(t, "default/istio-rollout", enqueued)
+	}
+
+	{
+		// Verify we clean the DestinationRule once the Rollout points at the Rollout namespace
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.Namespace = ""
+		c := NewFakeIstioController(ro, destRule)
+		err := c.DestinationRuleInformer.GetIndexer().Add(destRule)
+		assert.NoError(t, err)
+		key, err := cache.MetaNamespaceKeyFunc(destRule)
+		assert.NoError(t, err)
+		enqueueCalled := false
+		c.EnqueueRollout = func(obj any) {
+			enqueueCalled = true
+		}
+
+		err = c.syncDestinationRule(context.Background(), key)
+		assert.NoError(t, err)
+		actions := c.DynamicClientSet.(*dynamicfake.FakeDynamicClient).Actions()
+		assert.Len(t, actions, 1)
+		assert.Equal(t, "update", actions[0].GetVerb())
+		assert.False(t, enqueueCalled)
+	}
+}
