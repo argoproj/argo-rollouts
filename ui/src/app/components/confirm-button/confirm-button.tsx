@@ -14,17 +14,7 @@ interface ConfirmButtonProps extends ButtonProps {
 export const ConfirmButton = (props: ConfirmButtonProps) => {
     const [open, setOpen] = useState(false);
 
-    const {skipconfirm, ...coreButtonProps} = props;
-
-    const [buttonProps, setButtonProps] = useState(coreButtonProps);
-
-    React.useEffect(() => {
-        const tmp = {...props};
-        delete tmp.skipconfirm;
-        delete tmp.children;
-        delete tmp.onClick;
-        setButtonProps(tmp);
-    }, [props]);
+    const {skipconfirm, children, onClick, ...buttonProps} = props;
 
     const confirm = () => {
         setOpen(false);

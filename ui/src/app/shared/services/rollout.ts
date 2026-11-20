@@ -41,7 +41,7 @@ export const useRollouts = (): ListState<RolloutInfo> => {
         return () => {
             cancelled = true;
         };
-    }, [api, namespaceCtx]);
+    }, [api, namespaceCtx.namespace]);
 
     return state;
 };
