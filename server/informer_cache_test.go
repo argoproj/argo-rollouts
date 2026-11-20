@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 
 	rolloutapi "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -277,4 +278,202 @@ func TestSendRolloutInfoUpdates(t *testing.T) {
 	require.Eventually(t, func() bool { return len(get()) == 3 }, time.Second, 5*time.Millisecond)
 	time.Sleep(2 * rolloutInfoMinSendInterval)
 	assert.Equal(t, []string{"first", "second", "fourth"}, get())
+}
+
+// newUnstartedNamespaceCache returns a namespaceCache whose informers are never started,
+// so that objects can be added to their indexers directly.
+func newUnstartedNamespaceCache(rsIndexers, podIndexers cache.Indexers) *namespaceCache {
+	return &namespaceCache{
+		rolloutInformer:    cache.NewSharedIndexInformer(&cache.ListWatch{}, &v1alpha1.Rollout{}, 0, cache.Indexers{}),
+		replicaSetInformer: cache.NewSharedIndexInformer(&cache.ListWatch{}, &appsv1.ReplicaSet{}, 0, rsIndexers),
+		podInformer:        cache.NewSharedIndexInformer(&cache.ListWatch{}, &corev1.Pod{}, 0, podIndexers),
+	}
+}
+
+func TestNamespaceCacheRolloutInfo(t *testing.T) {
+	ros, rss, pods := newTestNamespace(1)
+	ownerIndex := cache.Indexers{ownerUIDIndex: indexByOwnerUID}
+
+	t.Run("missing ReplicaSet index", func(t *testing.T) {
+		nc := newUnstartedNamespaceCache(cache.Indexers{}, ownerIndex)
+		_, err := nc.rolloutInfo(ros[0])
+		require.Error(t, err)
+	})
+
+	t.Run("missing Pod index", func(t *testing.T) {
+		nc := newUnstartedNamespaceCache(ownerIndex, cache.Indexers{})
+		require.NoError(t, nc.replicaSetInformer.GetIndexer().Add(rss[0]))
+		_, err := nc.rolloutInfo(ros[0])
+		require.Error(t, err)
+	})
+
+	t.Run("skips objects which are not ReplicaSets", func(t *testing.T) {
+		nc := newUnstartedNamespaceCache(ownerIndex, ownerIndex)
+		notAReplicaSet := pods[0].DeepCopy()
+		notAReplicaSet.OwnerReferences = []metav1.OwnerReference{{UID: ros[0].UID}}
+		require.NoError(t, nc.replicaSetInformer.GetIndexer().Add(notAReplicaSet))
+		require.NoError(t, nc.replicaSetInformer.GetIndexer().Add(rss[0]))
+		for _, pod := range pods {
+			require.NoError(t, nc.podInformer.GetIndexer().Add(pod))
+		}
+
+		ri, err := nc.rolloutInfo(ros[0])
+
+		require.NoError(t, err)
+		require.Len(t, ri.ReplicaSets, 1)
+		assert.Len(t, ri.ReplicaSets[0].Pods, 2)
+	})
+}
+
+func TestNamespaceCacheRollout(t *testing.T) {
+	ros, _, _ := newTestNamespace(1)
+	nc := newUnstartedNamespaceCache(cache.Indexers{}, cache.Indexers{})
+	require.NoError(t, nc.rolloutInformer.GetIndexer().Add(ros[0]))
+
+	ro, err := nc.rollout(testNamespace + "/" + ros[0].Name)
+	require.NoError(t, err)
+	assert.Same(t, ros[0], ro)
+
+	ro, err = nc.rollout(testNamespace + "/missing")
+	require.NoError(t, err)
+	assert.Nil(t, ro)
+}
+
+func TestNamespaceCacheRolloutKeysForPod(t *testing.T) {
+	ros, rss, pods := newTestNamespace(1)
+	nc := newUnstartedNamespaceCache(cache.Indexers{}, cache.Indexers{})
+	require.NoError(t, nc.replicaSetInformer.GetIndexer().Add(rss[0]))
+	notAReplicaSet := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "not-a-replicaset", Namespace: testNamespace}}
+	require.NoError(t, nc.replicaSetInformer.GetIndexer().Add(notAReplicaSet))
+
+	pod := pods[0].DeepCopy()
+	pod.OwnerReferences = []metav1.OwnerReference{
+		{Kind: "Job", Name: rss[0].Name},
+		{Kind: "ReplicaSet", Name: "missing"},
+		{Kind: "ReplicaSet", Name: notAReplicaSet.Name},
+		{Kind: "ReplicaSet", Name: rss[0].Name},
+	}
+
+	assert.Equal(t, []string{testNamespace + "/" + ros[0].Name}, nc.rolloutKeysForPod(pod))
+	assert.Empty(t, nc.rolloutKeysForPod(&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace}}))
+}
+
+func TestInformerCacheAcquireStopsIdleTimer(t *testing.T) {
+	ros, rss, pods := newTestNamespace(1)
+	s := newTestServer(t, testNamespaceObjects(ros, rss, pods)...)
+	s.informers.idleTimeout = time.Hour
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	first, release, err := s.informers.acquire(ctx, testNamespace)
+	require.NoError(t, err)
+	release()
+	s.informers.mu.Lock()
+	assert.NotNil(t, first.idleTimer)
+	s.informers.mu.Unlock()
+
+	second, release, err := s.informers.acquire(ctx, testNamespace)
+	require.NoError(t, err)
+	defer release()
+	assert.Same(t, first, second)
+	s.informers.mu.Lock()
+	assert.Nil(t, second.idleTimer)
+	s.informers.mu.Unlock()
+}
+
+func TestInformerCacheAcquireReturnsContextErrorBeforeSync(t *testing.T) {
+	unblock := make(chan struct{})
+	defer close(unblock)
+	kubeClient := k8sfake.NewSimpleClientset()
+	kubeClient.PrependReactor("list", "pods", func(kubetesting.Action) (bool, runtime.Object, error) {
+		<-unblock
+		return true, &corev1.PodList{}, nil
+	})
+	s := NewServer(ServerOptions{
+		KubeClientset:     kubeClient,
+		RolloutsClientset: fakeroclient.NewSimpleClientset(),
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	_, _, err := s.informers.acquire(ctx, testNamespace)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestListRolloutInfosAllNamespaces(t *testing.T) {
+	newRollout := func(namespace, name string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, UID: types.UID(namespace + "-" + name)},
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{}},
+			},
+		}
+	}
+	s := newTestServer(t, newRollout("b", "a"), newRollout("a", "z"), newRollout("a", "b"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := s.ListRolloutInfos(ctx, &rolloutapi.RolloutInfoListQuery{})
+
+	require.NoError(t, err)
+	var keys []string
+	for _, ri := range list.Rollouts {
+		keys = append(keys, ri.ObjectMeta.Namespace+"/"+ri.ObjectMeta.Name)
+	}
+	assert.Equal(t, []string{"a/b", "a/z", "b/a"}, keys)
+}
+
+func TestWatchRolloutInfosReturnsAcquireError(t *testing.T) {
+	kubeClient := k8sfake.NewSimpleClientset()
+	kubeClient.PrependReactor("list", "pods", func(kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("pods is forbidden")
+	})
+	s := NewServer(ServerOptions{
+		KubeClientset:     kubeClient,
+		RolloutsClientset: fakeroclient.NewSimpleClientset(),
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err := s.WatchRolloutInfos(&rolloutapi.RolloutInfoListQuery{Namespace: testNamespace}, &fakeRolloutInfosStream{ctx: ctx})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pods is forbidden")
+}
+
+func TestWatchRolloutInfosIgnoresPodsWithoutRollout(t *testing.T) {
+	ros, rss, pods := newTestNamespace(1)
+	orphan := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "orphan", Namespace: testNamespace, UID: "orphan"}}
+	s := newTestServer(t, append(testNamespaceObjects(ros, rss, pods), orphan)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	stream := &fakeRolloutInfosStream{ctx: ctx}
+	done := make(chan error, 1)
+	go func() {
+		done <- s.WatchRolloutInfos(&rolloutapi.RolloutInfoListQuery{Namespace: testNamespace}, stream)
+	}()
+	require.Eventually(t, func() bool { return len(stream.sent()) == 1 }, 5*time.Second, 10*time.Millisecond)
+
+	s.informers.mu.Lock()
+	nc := s.informers.namespaces[testNamespace]
+	s.informers.mu.Unlock()
+	err := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(testNamespace).Delete(ctx, ros[0].Name, metav1.DeleteOptions{})
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		ro, err := nc.rollout(testNamespace + "/" + ros[0].Name)
+		return err == nil && ro == nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	podIf := s.Options.KubeClientset.CoreV1().Pods(testNamespace)
+	require.NoError(t, podIf.Delete(ctx, pods[0].Name, metav1.DeleteOptions{}))
+	require.NoError(t, podIf.Delete(ctx, orphan.Name, metav1.DeleteOptions{}))
+	require.Eventually(t, func() bool {
+		return len(nc.podInformer.GetIndexer().List()) == len(pods)-1
+	}, 5*time.Second, 10*time.Millisecond)
+	time.Sleep(2 * rolloutInfosCoalesceInterval)
+
+	assert.Len(t, stream.sent(), 1)
+	cancel()
+	require.NoError(t, <-done)
 }

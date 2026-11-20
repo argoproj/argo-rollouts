@@ -4,11 +4,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -216,4 +218,48 @@ func TestListRolloutInfos(t *testing.T) {
 	}
 	assert.Positive(t, ownedPods)
 	assert.IsIncreasing(t, names)
+}
+
+type fakeRolloutInfoStream struct {
+	grpc.ServerStream
+	ctx context.Context
+
+	mu    sync.Mutex
+	infos []*rolloutapi.RolloutInfo
+}
+
+func (f *fakeRolloutInfoStream) Context() context.Context {
+	return f.ctx
+}
+
+func (f *fakeRolloutInfoStream) Send(i *rolloutapi.RolloutInfo) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.infos = append(f.infos, i)
+	return nil
+}
+
+func (f *fakeRolloutInfoStream) sent() []*rolloutapi.RolloutInfo {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]*rolloutapi.RolloutInfo{}, f.infos...)
+}
+
+func TestWatchRolloutInfo(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	ro := objects.Rollouts[0]
+	s := newTestServer(t, objects.AllObjects()...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream := &fakeRolloutInfoStream{ctx: ctx}
+	done := make(chan error, 1)
+	go func() {
+		done <- s.WatchRolloutInfo(&rolloutapi.RolloutInfoQuery{Namespace: ro.Namespace, Name: ro.Name}, stream)
+	}()
+
+	require.Eventually(t, func() bool { return len(stream.sent()) > 0 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, ro.Name, stream.sent()[0].ObjectMeta.Name)
+
+	cancel()
+	require.NoError(t, <-done)
 }
