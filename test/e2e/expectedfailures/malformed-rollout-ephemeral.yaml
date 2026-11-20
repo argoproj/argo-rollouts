@@ -23,10 +23,10 @@ spec:
         resources:
           requests:
             memory: invalid # invalid
-      # NOTE: kubernetes drops the ephemeral containers list completely when one fails to unmarshal
-      # (e.g. when one has an invalid resource quantity). So for better or worse, this rollout will
-      # become healthy.
-      ephemeralContainers: 
+      # NOTE: the CRD schema rejects the invalid quantities at admission, so this manifest never
+      # reaches the cluster. The tolerant informer unit tests still load it directly to verify the
+      # controller survives an object like this if it is already stored.
+      ephemeralContainers:
       - name: malformed-rollout-ephemeral   # duplicated name
         image: argoproj/rollouts-demo:blue
         resources:

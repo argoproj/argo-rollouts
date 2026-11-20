@@ -420,14 +420,21 @@ spec:
 `)
 }
 
+// TestMalformedRollout verifies that the API server rejects a Rollout with an invalid resource
+// quantity. The CRD schema validates container resources like it does for a Deployment, so such
+// objects never reach the controller.
 func (s *FunctionalSuite) TestMalformedRollout() {
 	s.Given().
-		HealthyRollout(`@expectedfailures/malformed-rollout.yaml`)
+		RolloutObjects(`@expectedfailures/malformed-rollout.yaml`).
+		When().
+		ApplyManifestsExpectError("resources.requests.memory in body should match")
 }
 
 func (s *FunctionalSuite) TestMalformedRolloutEphemeralCtr() {
 	s.Given().
-		HealthyRollout(`@expectedfailures/malformed-rollout-ephemeral.yaml`)
+		RolloutObjects(`@expectedfailures/malformed-rollout-ephemeral.yaml`).
+		When().
+		ApplyManifestsExpectError("resources.requests.memory in body should match")
 }
 
 // TestContainerResourceFormats verifies resource requests are accepted in multiple formats and not
