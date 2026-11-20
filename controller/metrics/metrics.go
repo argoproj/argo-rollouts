@@ -47,6 +47,16 @@ type MetricsServer struct {
 const (
 	// MetricsPath is the endpoint to collect rollout metrics
 	MetricsPath = "/metrics"
+
+	// MaxScrapesInFlight is the maximum number of /metrics scrapes served concurrently.
+	// Every scrape walks the whole Rollout, Experiment and AnalysisRun informer caches and
+	// materializes a metric family for each object, so on a cluster with thousands of
+	// Rollouts a single scrape is measured in seconds and allocates accordingly. Clients
+	// that give up (a kubelet probe hitting its timeoutSeconds, or Prometheus hitting its
+	// scrape_timeout) reconnect and scrape again regardless, so without a bound the
+	// in-flight scrapes accumulate until they starve reconciliation of CPU and memory.
+	// Scrapes beyond this limit are rejected immediately with 503 instead of piling up.
+	MaxScrapesInFlight = 10
 )
 
 var (
@@ -134,7 +144,13 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 		reg,
 		// contains process, golang and controller workqueues metrics
 		registry.DefaultGatherer,
-	}, promhttp.HandlerOpts{}))
+	}, promhttp.HandlerOpts{
+		// Deduplicate overlapping scrapes so a probe and a Prometheus scrape that arrive
+		// together walk the informer caches once and share the result, instead of each
+		// paying the full collection cost.
+		CoalesceGather:      true,
+		MaxRequestsInFlight: MaxScrapesInFlight,
+	}))
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    cfg.Addr,

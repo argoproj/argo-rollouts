@@ -35,6 +35,15 @@ spec:
           failureThreshold: 3
           successThreshold: 1
           timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 10
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
