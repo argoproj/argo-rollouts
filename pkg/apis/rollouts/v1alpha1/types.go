@@ -1322,6 +1322,9 @@ const (
 	// RolloutHealthy means that rollout is in a completed state and is healthy. Which means that all the pods have been updated
 	// and are passing their health checks and are ready to serve traffic.
 	RolloutHealthy RolloutConditionType = "Healthy"
+	// RolloutReconcileSucceeded is False when a reconcile stage failed on the last pass. The reason
+	// says which: TrafficRoutingError, ServiceUpdateError or ReconciliationError.
+	RolloutReconcileSucceeded RolloutConditionType = "ReconcileSucceeded"
 )
 
 // RolloutCondition describes the state of a rollout at a certain point.
