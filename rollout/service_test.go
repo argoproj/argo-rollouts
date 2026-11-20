@@ -1,7 +1,9 @@
 package rollout
 
 import (
+	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"testing"
@@ -886,4 +888,144 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 		fmt.Println(stableHash2)
 	})
 
+}
+
+// TestPingPongServiceLabelInjection verifies we inject pod hash labels to both the stable and the
+// canary ping/pong service.
+func TestPingPongServiceLabelInjection(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{
+		PingService: "ping",
+		PongService: "pong",
+	}
+	ro1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Plugins: map[string]json.RawMessage{
+			"argoproj-labs/gatewayAPI": json.RawMessage("{}"),
+		},
+	}
+	ro1.Status.Canary.StablePingPong = v1alpha1.PPPong
+
+	// newService keeps the map by reference, so give each service its own copy.
+	pingSvc := newService("ping", 80, maps.Clone(ro1.Spec.Selector.MatchLabels), nil)
+	pongSvc := newService("pong", 80, maps.Clone(ro1.Spec.Selector.MatchLabels), nil)
+	ro2 := bumpVersion(ro1)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, pingSvc, pongSvc)
+	f.serviceLister = append(f.serviceLister, pingSvc, pongSvc)
+
+	f.objects = append(f.objects, ro2)
+	f.rolloutLister = append(f.rolloutLister, ro2)
+
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := ctrl.newRolloutContext(ro1)
+	assert.NoError(t, err)
+
+	roCtx.newRS = newReplicaSetWithStatus(ro2, 3, 3)
+	roCtx.stableRS = newReplicaSetWithStatus(ro1, 3, 3)
+	newHash := roCtx.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	stableHash := roCtx.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	err = roCtx.reconcilePingAndPongService()
+	assert.NoError(t, err)
+
+	pingHash, pingInjected := pingSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	assert.True(t, pingInjected)
+	assert.Equal(t, newHash, pingHash)
+
+	pongHash, pongInjected := pongSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	assert.True(t, pongInjected)
+	assert.Equal(t, stableHash, pongHash)
+}
+
+// TestPingPongServiceLabelInjectionFullyPromoted verifies we still reconcile the stable ping/pong
+// service once the rollout is fully promoted, while leaving the canary one alone.
+func TestPingPongServiceLabelInjectionFullyPromoted(t *testing.T) {
+	ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{
+		PingService: "ping",
+		PongService: "pong",
+	}
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Plugins: map[string]json.RawMessage{
+			"argoproj-labs/gatewayAPI": json.RawMessage("{}"),
+		},
+	}
+	ro.Status.Canary.StablePingPong = v1alpha1.PPPong
+
+	pingSvc := newService("ping", 80, maps.Clone(ro.Spec.Selector.MatchLabels), nil)
+	pongSvc := newService("pong", 80, maps.Clone(ro.Spec.Selector.MatchLabels), nil)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, pingSvc, pongSvc)
+	f.serviceLister = append(f.serviceLister, pingSvc, pongSvc)
+
+	f.objects = append(f.objects, ro)
+	f.rolloutLister = append(f.rolloutLister, ro)
+
+	stableRS := newReplicaSetWithStatus(ro, 3, 3)
+	stableHash := stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	ro.Status.StableRS = stableHash
+	ro.Status.CurrentPodHash = stableHash
+
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := ctrl.newRolloutContext(ro)
+	assert.NoError(t, err)
+	roCtx.stableRS = stableRS
+	roCtx.newRS = stableRS
+
+	err = roCtx.reconcilePingAndPongService()
+	assert.NoError(t, err)
+
+	pongHash, pongInjected := pongSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	assert.True(t, pongInjected)
+	assert.Equal(t, stableHash, pongHash)
+
+	_, pingInjected := pingSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	assert.False(t, pingInjected)
+}
+
+// TestPingPongStableServiceError verifies we surface the error from the stable ping/pong
+// service instead of continuing on to the canary one.
+func TestPingPongStableServiceError(t *testing.T) {
+	ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{
+		PingService: "ping",
+		PongService: "pong",
+	}
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Plugins: map[string]json.RawMessage{
+			"argoproj-labs/gatewayAPI": json.RawMessage("{}"),
+		},
+	}
+	ro.Status.Canary.StablePingPong = v1alpha1.PPPong
+
+	pingSvc := newService("ping", 80, maps.Clone(ro.Spec.Selector.MatchLabels), nil)
+	pongSvc := newService("pong", 80, maps.Clone(ro.Spec.Selector.MatchLabels), nil)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, pingSvc, pongSvc)
+	f.serviceLister = append(f.serviceLister, pingSvc, pongSvc)
+
+	f.objects = append(f.objects, ro)
+	f.rolloutLister = append(f.rolloutLister, ro)
+
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	roCtx, err := ctrl.newRolloutContext(ro)
+	assert.NoError(t, err)
+
+	roCtx.newRS = newReplicaSetWithStatus(bumpVersion(ro), 3, 3)
+	roCtx.stableRS = newReplicaSetWithStatus(ro, 3, 3)
+	// Point the stable side at a service the lister does not have.
+	roCtx.rollout.Spec.Strategy.Canary.PingPong.PongService = "missing"
+
+	err = roCtx.reconcilePingAndPongService()
+	assert.Error(t, err)
+
+	// The canary service must be left untouched when the stable side fails.
+	_, pingInjected := pingSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	assert.False(t, pingInjected)
 }
