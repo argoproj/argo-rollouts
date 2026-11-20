@@ -1173,35 +1173,77 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 }
 
 func TestCanaryRolloutDoNotIncrementStepIfInconclusiveAnalysis(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
+	tests := []struct {
+		name          string
+		step          v1alpha1.CanaryStep
+		trafficRouted bool
+	}{
+		{
+			name: "setWeight",
+			step: v1alpha1.CanaryStep{SetWeight: int32Ptr(10)},
+		},
+		{
+			name:          "setCanaryScale with traffic routing",
+			step:          v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Weight: int32Ptr(10)}},
+			trafficRouted: true,
+		},
+		{
+			name:          "setWeight with traffic routing",
+			step:          v1alpha1.CanaryStep{SetWeight: int32Ptr(10)},
+			trafficRouted: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
 
-	steps := []v1alpha1.CanaryStep{{
-		SetWeight: int32Ptr(10),
-	}}
-	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	rs1 := newReplicaSetWithStatus(r1, 9, 9)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r2 := bumpVersion(r1)
-	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+			steps := []v1alpha1.CanaryStep{test.step}
+			r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+			if test.trafficRouted {
+				r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+				r1.Spec.Strategy.Canary.CanaryService = "canary"
+				r1.Spec.Strategy.Canary.StableService = "stable"
+			}
+			// with traffic routing the stable ReplicaSet stays fully scaled
+			stableReplicas := 9
+			if test.trafficRouted {
+				stableReplicas = 10
+			}
+			rs1 := newReplicaSetWithStatus(r1, stableReplicas, stableReplicas)
+			rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			r2 := bumpVersion(r1)
+			rs2 := newReplicaSetWithStatus(r2, 1, 1)
+			rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+			f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+			f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
-	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
-		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
-		StartTime: timeutil.MetaNow(),
-	}}
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
+			r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
+			if test.trafficRouted {
+				canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
+				stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
+				f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+				f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+				f.fakeTrafficRouting = newFakeSingleTrafficRoutingReconciler()
+			}
+			r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
+				Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
+				StartTime: timeutil.MetaNow(),
+			}}
+			f.rolloutLister = append(f.rolloutLister, r2)
+			f.objects = append(f.objects, r2)
 
-	// The setWeight step is otherwise complete, but the inconclusive analysis
-	// must keep the rollout at its current step.
-	patchIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
-	patch := f.getPatchedRollout(patchIndex)
-	assert.NotContains(t, patch, "currentStepIndex")
+			// The step is otherwise complete, but the inconclusive analysis
+			// must keep the rollout at its current step.
+			patchIndex := f.expectPatchRolloutAction(r2)
+			f.run(getKey(r2, t))
+			patch := f.getPatchedRollout(patchIndex)
+			assert.NotContains(t, patch, "currentStepIndex")
+			assert.Contains(t, patch, `"phase":"Paused"`)
+			assert.Contains(t, patch, string(v1alpha1.PauseReasonInconclusiveAnalysis))
+		})
+	}
 }
 
 func TestCanaryRolloutDoNotIncrementStepIfBackgroundAnalysisBecomesInconclusive(t *testing.T) {
