@@ -8686,10 +8686,21 @@ spec:
                 description: Phase is the rollout phase. Clients should only rely
                   on the value if status.observedGeneration equals metadata.generation
                 type: string
+              promote:
+                description: |-
+                  Promote is set by the promote action (CLI or dashboard) to request a promotion to the next step.
+                  The controller emits a RolloutPromoted event and clears it in the same status update.
+                type: boolean
               promoteFull:
                 description: PromoteFull indicates if the rollout should perform a
                   full promotion, skipping analysis and pauses.
                 type: boolean
+              promoteFullAt:
+                description: |-
+                  PromoteFullAt indicates when the controller reconciled a full promotion requested via status.promoteFull.
+                  The controller uses it to emit the RolloutPromotedFull event only once per promotion.
+                format: date-time
+                type: string
               readyReplicas:
                 description: Total number of ready pods targeted by this rollout.
                 format: int32

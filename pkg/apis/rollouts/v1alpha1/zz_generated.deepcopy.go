@@ -2610,6 +2610,10 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 		in, out := &in.RestartedAt, &out.RestartedAt
 		*out = (*in).DeepCopy()
 	}
+	if in.PromoteFullAt != nil {
+		in, out := &in.PromoteFullAt, &out.PromoteFullAt
+		*out = (*in).DeepCopy()
+	}
 	if in.ALB != nil {
 		in, out := &in.ALB, &out.ALB
 		*out = new(ALBStatus)

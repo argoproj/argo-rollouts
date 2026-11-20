@@ -110,6 +110,16 @@ const (
 	// rollout that paused amidst a rollout and are bounded by a deadline.
 	RolloutResumedMessage = "Rollout is resumed"
 
+	// RolloutPromotedReason is emitted when a user promotes a paused rollout to the next step
+	RolloutPromotedReason = "RolloutPromoted"
+	// RolloutPromotedMessage is emitted when a user promotes a paused rollout to the next step
+	RolloutPromotedMessage = "Rollout promoted"
+
+	// RolloutPromotedFullReason is emitted when a user fully promotes a rollout, skipping remaining steps
+	RolloutPromotedFullReason = "RolloutPromotedFull"
+	// RolloutPromotedFullMessage is emitted when a user fully promotes a rollout, skipping remaining steps
+	RolloutPromotedFullMessage = "Rollout fully promoted"
+
 	// RolloutStepCompleted indicates when a canary step has completed
 	RolloutStepCompletedReason  = "RolloutStepCompleted"
 	RolloutStepCompletedMessage = "Rollout step %d/%d completed (%s)"

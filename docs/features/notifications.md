@@ -76,6 +76,8 @@ Currently, the following triggers have [built-in templates](https://github.com/a
 * `on-rollout-aborted` when a rollout process is aborted before completion.
 * `on-rollout-completed` when a rollout is finished and all its steps are completed
 * `on-rollout-paused` when a rollout is paused
+* `on-rollout-promoted` when a rollout is promoted to the next step, from the CLI or the dashboard
+* `on-rollout-promoted-full` when a rollout is fully promoted, skipping the remaining steps, analysis and pauses
 * `on-rollout-step-completed` when an individual step inside a rollout definition is completed
 * `on-rollout-updated` when a rollout definition is changed
 * `on-scaling-replica-set` when the number of replicas in a rollout is changed

@@ -360,6 +360,53 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	assert.JSONEq(t, expectedPatch, patch)
 }
 
+// TestCanaryRolloutPromoteRequestEmitsEvent verifies a promote request (status.promote) is acknowledged
+// with a RolloutPromoted event and cleared in the same status patch
+func TestCanaryRolloutPromoteRequestEmitsEvent(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt(1), intstr.FromInt(0))
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	r2.Status.AvailableReplicas = 10
+	r2.Status.ControllerPause = true
+	r2.Status.Promote = true
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs2)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatchTemplate := `{
+	"status":{
+		"controllerPause": null,
+		"conditions" : %s,
+		"currentStepIndex": 1,
+		"promote": null
+	}
+}`
+	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchTemplate, generatedConditions))
+	assert.JSONEq(t, expectedPatch, patch)
+	assert.Contains(t, f.events, conditions.RolloutPromotedReason)
+}
+
 func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

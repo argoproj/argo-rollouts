@@ -1689,6 +1689,14 @@ message RolloutStatus {
   // PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
   optional bool promoteFull = 21;
 
+  // PromoteFullAt indicates when the controller reconciled a full promotion requested via status.promoteFull.
+  // The controller uses it to emit the RolloutPromotedFull event only once per promotion.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time promoteFullAt = 28;
+
+  // Promote is set by the promote action (CLI or dashboard) to request a promotion to the next step.
+  // The controller emits a RolloutPromoted event and clears it in the same status update.
+  optional bool promote = 29;
+
   // Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation
   optional string phase = 22;
 

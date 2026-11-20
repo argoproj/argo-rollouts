@@ -1016,6 +1016,13 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	// Then calculate the abort/pause fields based on the pause context
 	c.pauseContext.CalculatePauseStatus(newStatus)
 
+	// Record when a full promotion was first reconciled, so the event is emitted once
+	c.calculatePromoteFullStatus(newStatus)
+
+	// status.promote is a one-shot request from the promote action. It is acknowledged with a
+	// RolloutPromoted event and cleared in the same patch
+	newStatus.Promote = false
+
 	// After that, calculate the rollout conditions, which requires the abort/pause fields to be evaluated
 	c.calculateRolloutConditions(newStatus)
 
@@ -1058,6 +1065,22 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	return nil
 }
 
+// calculatePromoteFullStatus records when the controller first reconciled a full promotion
+// requested via status.promoteFull. The timestamp is preserved across reconciles so the
+// RolloutPromotedFull event is only emitted once, and cleared when the promotion ends.
+func (c *rolloutContext) calculatePromoteFullStatus(newStatus *v1alpha1.RolloutStatus) {
+	if !newStatus.PromoteFull {
+		newStatus.PromoteFullAt = nil
+		return
+	}
+	if c.rollout.Status.PromoteFullAt != nil {
+		newStatus.PromoteFullAt = c.rollout.Status.PromoteFullAt
+		return
+	}
+	now := timeutil.MetaNow()
+	newStatus.PromoteFullAt = &now
+}
+
 // sendStateChangeEvents emit rollout events on significant state changes
 func (c *rolloutContext) sendStateChangeEvents(prevStatus, newStatus *v1alpha1.RolloutStatus) {
 	prevPaused := len(prevStatus.PauseConditions) > 0
@@ -1071,6 +1094,12 @@ func (c *rolloutContext) sendStateChangeEvents(prevStatus, newStatus *v1alpha1.R
 			// which should not be mistaken as a RolloutResumed
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutResumedReason}, conditions.RolloutResumedMessage)
 		}
+	}
+	if prevStatus.Promote {
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutPromotedReason}, conditions.RolloutPromotedMessage)
+	}
+	if prevStatus.PromoteFull && prevStatus.PromoteFullAt == nil {
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutPromotedFullReason}, conditions.RolloutPromotedFullMessage)
 	}
 }
 

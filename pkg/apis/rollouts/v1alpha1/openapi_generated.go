@@ -4910,6 +4910,19 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"promoteFullAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PromoteFullAt indicates when the controller reconciled a full promotion requested via status.promoteFull. The controller uses it to emit the RolloutPromotedFull event only once per promotion.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"promote": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Promote is set by the promote action (CLI or dashboard) to request a promotion to the next step. The controller emits a RolloutPromoted event and clears it in the same status update.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation",
