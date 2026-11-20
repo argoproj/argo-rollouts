@@ -66,8 +66,24 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 
 		desired := rollout.Spec.Template.DeepCopy()
 		if PodTemplateEqualIgnoreHash(live, desired) {
+			// Guard against a false positive caused by an external mutation of the RS pod
+			// template (e.g. an in-place container restart updating the image field). The
+			// intent of this fallback is only to survive a change in the hash *function*
+			// itself (e.g. a k8s library upgrade). In that case the RS label still encodes
+			// the hash of the original template using the old algorithm, so recomputing the
+			// hash of the *live* RS template with the new algorithm should yield the same
+			// value as the label — confirming it is the function that changed, not the
+			// template. If the recomputed hash differs from the label, the RS template was
+			// genuinely mutated and we must not reuse this RS.
+			liveHash := hash.ComputePodTemplateHash(&rs.Spec.Template, rollout.Status.CollisionCount)
+			rsLabelHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			if liveHash != rsLabelHash {
+				logCtx := logutil.WithRollout(rollout)
+				logCtx.Infof("Skipping RS '%s': pod template matches desired but live hash (%s) differs from RS label (%s), indicating an external mutation", rs.Name, liveHash, rsLabelHash)
+				continue
+			}
 			logCtx := logutil.WithRollout(rollout)
-			logCtx.Infof("ComputePodTemplateHash hash changed (expected: %s, actual: %s)", podHash, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+			logCtx.Infof("ComputePodTemplateHash hash changed (expected: %s, actual: %s)", podHash, rsLabelHash)
 			return rs
 		}
 	}
