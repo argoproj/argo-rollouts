@@ -856,6 +856,18 @@ func (c *rolloutContext) evaluateProgressDeadlineAbort(newStatus *v1alpha1.Rollo
 	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
 }
 
+// isPromotedCanaryWaitingForOldReplicas covers the interval after an old RS's
+// scale-down deadline annotation is removed but before its status reports zero
+// replicas. The promoted RS is available; stale old replica counts should not
+// turn successful cleanup into a progress deadline failure.
+func (c *rolloutContext) isPromotedCanaryWaitingForOldReplicas(newStatus *v1alpha1.RolloutStatus) bool {
+	return c.rollout.Spec.Strategy.Canary != nil &&
+		conditions.RolloutCompleted(newStatus) &&
+		c.newRS != nil &&
+		c.newRS.Status.AvailableReplicas >= defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) &&
+		newStatus.Replicas > newStatus.UpdatedReplicas
+}
+
 func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutStatus) {
 	isPaused := len(newStatus.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
@@ -941,7 +953,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus *v1alpha1.RolloutS
 				conditions.RemoveRolloutCondition(newStatus, v1alpha1.RolloutProgressing)
 			}
 			conditions.SetRolloutCondition(newStatus, *condition)
-		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && conditions.RolloutTimedOut(c.rollout, newStatus):
+		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && !c.isPromotedCanaryWaitingForOldReplicas(newStatus) && conditions.RolloutTimedOut(c.rollout, newStatus):
 
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
