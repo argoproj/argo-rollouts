@@ -1566,11 +1566,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -2931,11 +2927,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -4324,11 +4316,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -8051,11 +8039,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -9416,11 +9400,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -10809,11 +10789,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -14552,11 +14528,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -15917,11 +15889,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -17310,11 +17278,7 @@
                                                                                                 ],
                                                                                                 "type": "object"
                                                                                             },
-                                                                                            "type": "array",
-                                                                                            "x-kubernetes-list-map-keys": [
-                                                                                                "name"
-                                                                                            ],
-                                                                                            "x-kubernetes-list-type": "map"
+                                                                                            "type": "array"
                                                                                         },
                                                                                         "envFrom": {
                                                                                             "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -20659,11 +20623,7 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "type": "array",
-                                                                    "x-kubernetes-list-map-keys": [
-                                                                        "name"
-                                                                    ],
-                                                                    "x-kubernetes-list-type": "map"
+                                                                    "type": "array"
                                                                 },
                                                                 "envFrom": {
                                                                     "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -22024,11 +21984,7 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "type": "array",
-                                                                    "x-kubernetes-list-map-keys": [
-                                                                        "name"
-                                                                    ],
-                                                                    "x-kubernetes-list-type": "map"
+                                                                    "type": "array"
                                                                 },
                                                                 "envFrom": {
                                                                     "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -23417,11 +23373,7 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "type": "array",
-                                                                    "x-kubernetes-list-map-keys": [
-                                                                        "name"
-                                                                    ],
-                                                                    "x-kubernetes-list-type": "map"
+                                                                    "type": "array"
                                                                 },
                                                                 "envFrom": {
                                                                     "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -26448,11 +26400,7 @@
                                                             ],
                                                             "type": "object"
                                                         },
-                                                        "type": "array",
-                                                        "x-kubernetes-list-map-keys": [
-                                                            "name"
-                                                        ],
-                                                        "x-kubernetes-list-type": "map"
+                                                        "type": "array"
                                                     },
                                                     "envFrom": {
                                                         "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -27807,11 +27755,7 @@
                                                             ],
                                                             "type": "object"
                                                         },
-                                                        "type": "array",
-                                                        "x-kubernetes-list-map-keys": [
-                                                            "name"
-                                                        ],
-                                                        "x-kubernetes-list-type": "map"
+                                                        "type": "array"
                                                     },
                                                     "envFrom": {
                                                         "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
@@ -29182,11 +29126,7 @@
                                                             ],
                                                             "type": "object"
                                                         },
-                                                        "type": "array",
-                                                        "x-kubernetes-list-map-keys": [
-                                                            "name"
-                                                        ],
-                                                        "x-kubernetes-list-type": "map"
+                                                        "type": "array"
                                                     },
                                                     "envFrom": {
                                                         "description": "List of sources to populate environment variables in the container.\nThe keys defined within a source may consist of any printable ASCII characters except '='.\nWhen a key exists in multiple\nsources, the value associated with the last source will take precedence.\nValues defined by an Env with a duplicate key will take precedence.\nCannot be updated.",
