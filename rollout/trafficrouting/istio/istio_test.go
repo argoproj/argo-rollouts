@@ -3474,6 +3474,21 @@ spec:
 		assert.Equal(t, "update", actions[0].GetVerb())
 	})
 
+	t.Run("healthy canary proceeds when stable ReplicaSet is unavailable", func(t *testing.T) {
+		ro := createRollout(false)
+		obj := createDestinationRuleObj()
+		client := testutil.NewFakeDynamicClient(obj)
+
+		stableRS := createUnavailableReplicaSet(ro, "stable123")
+		canaryRS := createAvailableReplicaSet(ro, "canary456")
+		r := setupReconciler(ro, client, []*appsv1.ReplicaSet{stableRS, canaryRS})
+
+		err := r.UpdateHash("canary456", "stable123")
+		assert.NoError(t, err)
+		assert.Len(t, client.Actions(), 1)
+		assert.Equal(t, "update", client.Actions()[0].GetVerb())
+	})
+
 	t.Run("works correctly during abort scenarios", func(t *testing.T) {
 		ro := createRollout(true) // Aborted rollout
 		obj := createDestinationRuleObj()
@@ -3549,7 +3564,19 @@ func TestShouldDelayDestinationRuleUpdate(t *testing.T) {
 		assert.Equal(t, "rs-canary456", rsName)
 	})
 
-	t.Run("unavailable stable RS delays", func(t *testing.T) {
+	t.Run("unavailable stable RS does not delay healthy canary progression", func(t *testing.T) {
+		stableRS := createUnavailableRS("stable123", 1)
+		canaryRS := createAvailableRS("canary456", 1)
+		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
+
+		shouldDelay, rsName := r.shouldDelayDestinationRuleUpdate("canary456", "stable123")
+		assert.False(t, shouldDelay)
+		assert.Empty(t, rsName)
+	})
+
+	t.Run("unavailable stable RS still delays abort to stable", func(t *testing.T) {
+		ro.Status.Abort = true
+		t.Cleanup(func() { ro.Status.Abort = false })
 		stableRS := createUnavailableRS("stable123", 1)
 		canaryRS := createAvailableRS("canary456", 1)
 		r.replicaSets = []*appsv1.ReplicaSet{stableRS, canaryRS}
