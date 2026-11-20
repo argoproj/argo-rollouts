@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -15,9 +16,7 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
-// rolloutBlueGreen implements the logic for rolling a new replica set. It runs the blue-green
-// stages in order, then syncs status unless a stage ended the pass without one
-// (stageStopNoStatus).
+// rolloutBlueGreen runs the blue-green stages, then syncs status even if a stage failed.
 func (c *rolloutContext) rolloutBlueGreen() error {
 	previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
 	if err != nil {
@@ -33,7 +32,10 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	if c.skipStatusSync {
 		return stageErr
 	}
-	return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
+	if stageErr != nil {
+		c.carryOverUnreconciledStatus()
+	}
+	return errors.Join(stageErr, c.syncRolloutStatusBlueGreen(previewSvc, activeSvc))
 }
 
 func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
@@ -66,9 +68,6 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 	// Scale down old non-active, non-stable replicasets, if we can.
 	_, err = c.reconcileOtherReplicaSets()
 	if err != nil {
-		return err
-	}
-	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
 		return err
 	}
 	return nil
