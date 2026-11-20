@@ -949,3 +949,90 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
+
+// TestIsWaitingForReplicaSetScaleDown verifies that isWaitingForReplicaSetScaleDown only reports
+// that the rollout is waiting for a replicaset scale down when an "other" (neither new nor stable)
+// ReplicaSet carries a scale-down-deadline annotation whose deadline has not yet passed. An expired
+// or malformed deadline must not latch this to true forever, and annotations on the new/stable RS
+// themselves must never count. See https://github.com/argoproj/argo-rollouts/issues/4971
+func TestIsWaitingForReplicaSetScaleDown(t *testing.T) {
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+
+	newRS := rs("foo-new", 1, nil, timeutil.MetaNow(), nil)
+	stableRS := rs("foo-stable", 1, nil, timeutil.MetaNow(), nil)
+
+	otherRSWithDeadline := func(deadline string) *appsv1.ReplicaSet {
+		other := rs("foo-other", 1, nil, timeutil.MetaNow(), nil)
+		other.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+		return other
+	}
+
+	futureDeadline := timeutil.MetaNow().Add(time.Hour).UTC().Format(time.RFC3339)
+	pastDeadline := timeutil.MetaNow().Add(-time.Hour).UTC().Format(time.RFC3339)
+	malformedDeadline := "not-a-valid-timestamp"
+
+	tests := []struct {
+		name     string
+		newRS    *appsv1.ReplicaSet
+		stableRS *appsv1.ReplicaSet
+		allRSs   []*appsv1.ReplicaSet
+		expected bool
+	}{
+		{
+			name:     "other RS with a future (live) scale-down deadline",
+			newRS:    newRS,
+			stableRS: stableRS,
+			allRSs:   []*appsv1.ReplicaSet{newRS, stableRS, otherRSWithDeadline(futureDeadline)},
+			expected: true,
+		},
+		{
+			name:     "other RS with an expired scale-down deadline must not block progress forever",
+			newRS:    newRS,
+			stableRS: stableRS,
+			allRSs:   []*appsv1.ReplicaSet{newRS, stableRS, otherRSWithDeadline(pastDeadline)},
+			expected: false,
+		},
+		{
+			name:     "other RS with a malformed scale-down deadline fails open",
+			newRS:    newRS,
+			stableRS: stableRS,
+			allRSs:   []*appsv1.ReplicaSet{newRS, stableRS, otherRSWithDeadline(malformedDeadline)},
+			expected: false,
+		},
+		{
+			name:     "other RS without any scale-down deadline annotation",
+			newRS:    newRS,
+			stableRS: stableRS,
+			allRSs:   []*appsv1.ReplicaSet{newRS, stableRS, rs("foo-other", 1, nil, timeutil.MetaNow(), nil)},
+			expected: false,
+		},
+		{
+			name:     "no other RSs present",
+			newRS:    newRS,
+			stableRS: stableRS,
+			allRSs:   []*appsv1.ReplicaSet{newRS, stableRS},
+			expected: false,
+		},
+		{
+			name:     "a future deadline on the newRS itself does not count as an other RS",
+			newRS:    otherRSWithDeadline(futureDeadline),
+			stableRS: stableRS,
+			allRSs:   []*appsv1.ReplicaSet{otherRSWithDeadline(futureDeadline), stableRS},
+			expected: false,
+		},
+		{
+			name:     "a future deadline on the stableRS itself does not count as an other RS",
+			newRS:    newRS,
+			stableRS: otherRSWithDeadline(futureDeadline),
+			allRSs:   []*appsv1.ReplicaSet{newRS, otherRSWithDeadline(futureDeadline)},
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := isWaitingForReplicaSetScaleDown(r, test.newRS, test.stableRS, test.allRSs)
+			assert.Equal(t, test.expected, result)
+		})
+	}
+}
