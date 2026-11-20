@@ -416,6 +416,10 @@ type RolloutTrafficRouting struct {
 
 type MangedRoutes struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// InheritFrom is the name of an existing route whose configuration is copied into this managed route.
+	// The match conditions of the managed route are added to the match conditions of the inherited route.
+	// +optional
+	InheritFrom string `json:"inheritFrom,omitempty" protobuf:"bytes,2,opt,name=inheritFrom"`
 	//Possibly name for future use
 	//canaryRoute bool
 }

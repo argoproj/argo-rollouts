@@ -427,6 +427,9 @@ spec:
         # setHeaderRoute and setMirrorRoute steps.
         managedRoutes:
           - name: set-header
+            # Supports Istio and plugins only: copies the configuration of an existing route (not a managed route)
+            # into this managed route, adding the setHeaderRoute or setMirrorRoute match conditions to its own.
+            inheritFrom: primary
           - name: mirror-route
         # Istio traffic routing configuration
         istio:
