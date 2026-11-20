@@ -241,12 +241,25 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 // ShouldVerifyWeight We use this to test if we should verify weights because weight verification could involve
 // API calls to the cloud provider which could incur rate limiting
 func ShouldVerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32) bool {
+	if ro.Status.StableRS == "" || IsFullyPromoted(ro) {
+		return false
+	}
+	// An abort drives the canary weight to 0, and the canary is scaled down once the router reports
+	// that shift has taken effect, so it has to be verified whichever step the rollout was on when
+	// it was aborted. CurrentStepIndex is reset to 0 on abort and step 0 is not necessarily a
+	// setWeight step, so the check below is not enough on its own.
+	if ro.Status.Abort && desiredWeight == 0 {
+		// Nothing left to protect once the canary is at 0 replicas; skipping avoids polling the
+		// cloud provider every resync for a parked aborted rollout.
+		return ro.Status.UpdatedReplicas > 0
+	}
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 	// If we are in the middle of an update at a setWeight step, also perform weight verification.
 	// Note that we don't do this every reconciliation because weight verification typically involves
-	// API calls to the cloud provider which could incur rate limitingq
-	shouldVerifyWeight := (ro.Status.StableRS != "" && !IsFullyPromoted(ro) && currentStep != nil && currentStep.SetWeight != nil) ||
-		(ro.Status.StableRS != "" && !IsFullyPromoted(ro) && currentStep == nil && desiredWeight == weightutil.MaxTrafficWeight(ro)) // We are at end of rollout
-
-	return shouldVerifyWeight
+	// API calls to the cloud provider which could incur rate limiting
+	if currentStep != nil {
+		return currentStep.SetWeight != nil
+	}
+	// We are at end of rollout
+	return desiredWeight == weightutil.MaxTrafficWeight(ro)
 }
