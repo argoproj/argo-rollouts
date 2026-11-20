@@ -14,7 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -3223,4 +3226,109 @@ func TestSkipPostPromotionAnalysisRun(t *testing.T) {
 		result := skipPostPromotionAnalysisRun(rollout, newRS, currentAr)
 		assert.False(t, result, "Should not skip when currentAr is not nil, even if ReplicaSet becomes unsaturated")
 	})
+}
+
+func TestGetAnalysisRunsForRolloutUsesOwnerIndex(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.UID = "rollout-uid"
+	other := r.DeepCopy()
+	other.Name = "other"
+	other.UID = "other-uid"
+
+	owned := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r)
+	notOwned := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, other)
+	otherNamespace := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r)
+	otherNamespace.Namespace = "other-ns"
+	f.analysisRunLister = append(f.analysisRunLister, owned, notOwned, otherNamespace)
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	ars, err := c.getAnalysisRunsForRollout(r)
+	assert.NoError(t, err)
+	assert.Len(t, ars, 1)
+	assert.Equal(t, owned.Name, ars[0].Name)
+	assert.Equal(t, owned.Namespace, ars[0].Namespace)
+
+	ars[0].Labels["mutated"] = "true"
+	cached, err := c.analysisRunLister.AnalysisRuns(owned.Namespace).Get(owned.Name)
+	assert.NoError(t, err)
+	assert.NotContains(t, cached.Labels, "mutated")
+}
+
+func TestIndexAnalysisRunByControllerUID(t *testing.T) {
+	at := analysisTemplate("bar")
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.UID = "rollout-uid"
+
+	owned := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r)
+	unowned := owned.DeepCopy()
+	unowned.OwnerReferences = nil
+	ownedMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(owned)
+	assert.NoError(t, err)
+
+	tests := []struct {
+		name string
+		obj  any
+		want []string
+	}{
+		{name: "not a metav1.Object", obj: "not-an-object", want: nil},
+		{name: "no controller ref", obj: unowned, want: nil},
+		{name: "typed", obj: owned, want: []string{"rollout-uid"}},
+		{name: "unstructured", obj: &unstructured.Unstructured{Object: ownedMap}, want: []string{"rollout-uid"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := indexAnalysisRunByControllerUID(tt.obj)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetAnalysisRunsForRolloutIndexError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	c.analysisRunIndexer = cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+
+	ars, err := c.getAnalysisRunsForRollout(r)
+	assert.EqualError(t, err, "Index with name byOwnerUID does not exist")
+	assert.Nil(t, ars)
+}
+
+func TestGetAnalysisRunsForRolloutSkipsUnconvertible(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.UID = "rollout-uid"
+
+	valid := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r)
+	validMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(valid)
+	assert.NoError(t, err)
+
+	invalid := valid.DeepCopy()
+	invalid.Name = "invalid"
+	invalidMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(invalid)
+	assert.NoError(t, err)
+	invalidMap["spec"] = "bad"
+
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	c.analysisRunIndexer = cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{
+		analysisRunByOwnerUIDIndex: indexAnalysisRunByControllerUID,
+	})
+	assert.NoError(t, c.analysisRunIndexer.Add(&unstructured.Unstructured{Object: validMap}))
+	assert.NoError(t, c.analysisRunIndexer.Add(&unstructured.Unstructured{Object: invalidMap}))
+
+	ars, err := c.getAnalysisRunsForRollout(r)
+	assert.NoError(t, err)
+	assert.Len(t, ars, 1)
+	assert.Equal(t, valid.Name, ars[0].Name)
 }

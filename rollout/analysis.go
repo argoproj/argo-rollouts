@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -22,6 +21,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
@@ -30,24 +30,44 @@ const (
 			"terminate": true
 		}
 	}`
+
+	// analysisRunByOwnerUIDIndex indexes AnalysisRuns by their controller-owner UID,
+	// so a Rollout can fetch its owned ARs in O(owned) instead of O(namespace).
+	analysisRunByOwnerUIDIndex = "byOwnerUID"
 )
+
+// indexAnalysisRunByControllerUID is a cache.IndexFunc that returns the controller
+// owner UID for an AnalysisRun, or no keys if it has no controller. Accepts both
+// *v1alpha1.AnalysisRun and *unstructured.Unstructured (both satisfy metav1.Object),
+// so the indexer works whether or not a typed transform is installed on the cache.
+func indexAnalysisRunByControllerUID(obj any) ([]string, error) {
+	meta, ok := obj.(metav1.Object)
+	if !ok {
+		return nil, nil
+	}
+	ref := metav1.GetControllerOf(meta)
+	if ref == nil {
+		return nil, nil
+	}
+	return []string{string(ref.UID)}, nil
+}
 
 // getAnalysisRunsForRollout get all analysisRuns owned by the Rollout
 func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1alpha1.AnalysisRun, error) {
 	ctx := context.TODO()
-	analysisRuns, err := c.analysisRunLister.AnalysisRuns(rollout.Namespace).List(labels.Everything())
+	items, err := c.analysisRunIndexer.ByIndex(analysisRunByOwnerUIDIndex, string(rollout.UID))
 	if err != nil {
 		return nil, err
 	}
-	ownedByRollout := make([]*v1alpha1.AnalysisRun, 0)
-	seen := make(map[string]bool)
-	for i := range analysisRuns {
-		e := analysisRuns[i]
-		controllerRef := metav1.GetControllerOf(e)
-		if controllerRef != nil && controllerRef.UID == rollout.UID {
-			ownedByRollout = append(ownedByRollout, e)
-			seen[e.Name] = true
+	ownedByRollout := make([]*v1alpha1.AnalysisRun, 0, len(items))
+	seen := make(map[string]bool, len(items))
+	for _, obj := range items {
+		ar := unstructuredutil.ObjectToAnalysisRun(obj)
+		if ar == nil || ar.Namespace != rollout.Namespace {
+			continue
 		}
+		ownedByRollout = append(ownedByRollout, ar.DeepCopy())
+		seen[ar.Name] = true
 	}
 	arStatuses := []*v1alpha1.RolloutAnalysisRunStatus{
 		rollout.Status.Canary.CurrentBackgroundAnalysisRunStatus,
@@ -59,7 +79,7 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 		if arStatus == nil || seen[arStatus.Name] {
 			continue
 		}
-		// We recorded a run in the rollout status, but it didn't appear in the lister.
+		// We recorded a run in the rollout status, but it didn't appear in the indexer.
 		// Perform a get to see if it truly exists.
 		ar, err := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(rollout.Namespace).Get(ctx, arStatus.Name, metav1.GetOptions{})
 		if err == nil && ar != nil {
