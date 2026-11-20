@@ -121,6 +121,24 @@ export function applyWatchEvent<T, E extends WatchEvent>(items: T[], change: E, 
     }
 }
 
+// watchListItems applies the watch events to items.current and emits items.current at
+// most once per interval. items.current is read when emitting, not when the event is
+// applied, so that a list set while events are buffered is not overwritten.
+export function watchListItems<T, E extends WatchEvent>(
+    changes: Observable<E>,
+    items: {current: T[]},
+    findItem: (item: T, change: E) => boolean,
+    getItem: (change: E) => T
+): Observable<T[]> {
+    return changes.pipe(
+        map((change) => {
+            items.current = applyWatchEvent(items.current, change, findItem, getItem);
+        }),
+        latestPerInterval(BUFFER_TIME),
+        map(() => items.current)
+    );
+}
+
 // NOTE: findItem and getItem must be React.useCallback functions
 export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (item: T, change: E) => boolean, getItem: (change: E) => T, init?: T[]): T[] {
     const [items, setItems] = React.useState(init as T[]);
@@ -133,14 +151,14 @@ export function useWatchList<T, E extends WatchEvent>(url: string, findItem: (it
 
     React.useEffect(() => {
         const stream = fromEventSource(url).pipe(map((res) => JSON.parse(res).result as E));
-        let watch = stream.pipe(
-            repeat(),
-            retryWhen((errors) => errors.pipe(delay(500))),
-            map((change) => {
-                latestItems.current = applyWatchEvent(latestItems.current, change, findItem, getItem);
-                return latestItems.current;
-            }),
-            latestPerInterval(BUFFER_TIME)
+        let watch = watchListItems(
+            stream.pipe(
+                repeat(),
+                retryWhen((errors) => errors.pipe(delay(500)))
+            ),
+            latestItems,
+            findItem,
+            getItem
         );
 
         const sub = handlePageVisibility(() => watch).subscribe((l) => {

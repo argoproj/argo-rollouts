@@ -1,5 +1,5 @@
 import {Subject} from 'rxjs';
-import {applyWatchEvent, latestPerInterval} from './watch';
+import {applyWatchEvent, latestPerInterval, watchListItems} from './watch';
 
 interface Item {
     name: string;
@@ -72,6 +72,32 @@ describe('latestPerInterval', () => {
         source.next(4);
         jest.advanceTimersByTime(500);
         expect(received).toEqual([3, 4]);
+
+        sub.unsubscribe();
+    });
+});
+
+describe('watchListItems', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('emits the current list when it was replaced while events were buffered', () => {
+        const changes = new Subject<Event>();
+        const items = {current: [] as Item[]};
+        const received: Item[][] = [];
+        const sub = watchListItems(changes, items, findItem, getItem).subscribe((l) => received.push(l));
+
+        changes.next({type: 'Updated', item: {name: 'a', value: 2}});
+        const loaded = [{name: 'a', value: 1}];
+        items.current = loaded;
+        jest.advanceTimersByTime(500);
+
+        expect(received).toEqual([loaded]);
+
+        changes.next({type: 'Updated', item: {name: 'a', value: 3}});
+        jest.advanceTimersByTime(500);
+
+        expect(received[1]).toEqual([{name: 'a', value: 3}]);
 
         sub.unsubscribe();
     });
