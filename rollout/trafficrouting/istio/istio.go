@@ -28,6 +28,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 const Http = "http"
@@ -155,6 +156,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 
 func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, rolloutVsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r.rollout, false)
+	maxTrafficWeight := int64(weightutil.MaxTrafficWeight(r.rollout))
 	canarySubset := ""
 	stableSubset := ""
 	var additionalSubsetNames []string
@@ -197,21 +199,21 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 		if len(httpRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Http, routeIdx, httpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+		patches = processRoutes(Http, routeIdx, httpRoutes[routeIdx].Route, desiredWeight, maxTrafficWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	// Process TLS Routes
 	for _, routeIdx := range tlsRouteIndexesToPatch {
 		if len(tlsRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, maxTrafficWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	// Process TCP Routes
 	for _, routeIdx := range tcpRouteIndexesToPatch {
 		if len(tcpRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Tcp, routeIdx, tcpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+		patches = processRoutes(Tcp, routeIdx, tcpRoutes[routeIdx].Route, desiredWeight, maxTrafficWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	return patches
 }
@@ -220,9 +222,9 @@ func isAnAdditionalSubsetName(subset string, additionalSubsetNames []string) boo
 	return subset != "" && additionalSubsetNames != nil && slices.Contains(additionalSubsetNames, subset)
 }
 
-func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
+func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight, maxTrafficWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
-	stableWeight := 100 - desiredWeight
+	stableWeight := maxTrafficWeight - desiredWeight
 
 	// handle additional destinations weight distribution
 	for _, dest := range additionalDestinations {
