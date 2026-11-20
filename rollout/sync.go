@@ -277,6 +277,9 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
+	if err := c.syncStaleDesiredReplicasAnnotation(context.TODO()); err != nil {
+		return fmt.Errorf("failed to syncStaleDesiredReplicasAnnotation in syncReplicasOnly: %w", err)
+	}
 	newStatus := c.rollout.Status.DeepCopy()
 
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
@@ -314,6 +317,51 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	return c.persistRolloutStatus(newStatus)
 }
 
+// syncStaleDesiredReplicasAnnotation aligns the desired-replicas annotation with the rollout's
+// spec.replicas on the ReplicaSets that are already at the desired size. Those ReplicaSets need no
+// scaling, so the strategy reconcilers leave them untouched -- and while progress is halted (e.g. a
+// paused rollout) the reconcilers do not run at all. Left as-is, an annotation written by a
+// since-removed HPA keeps isScalingEvent reporting a scaling event on every sync while the
+// ReplicaSet stays parked at the stale count (#4407).
+func (c *rolloutContext) syncStaleDesiredReplicasAnnotation(ctx context.Context) error {
+	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+
+	synced := make(map[string]bool)
+	for _, rs := range controller.FilterActiveReplicaSets([]*appsv1.ReplicaSet{c.newRS, c.stableRS}) {
+		// newRS and stableRS are the same ReplicaSet once a rollout is fully promoted
+		if synced[rs.Name] {
+			continue
+		}
+		synced[rs.Name] = true
+
+		// A size mismatch is a genuine scaling event: leave it to the strategy reconcilers, which
+		// rewrite the annotation as part of scaling.
+		if rs.Spec.Replicas == nil || *rs.Spec.Replicas != rolloutReplicas {
+			continue
+		}
+		if !annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas) {
+			continue
+		}
+
+		rsCopy := rs.DeepCopy()
+		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
+		updatedRS, err := c.updateReplicaSet(ctx, rsCopy)
+		if err != nil {
+			return fmt.Errorf("failed to updateReplicaSet in syncStaleDesiredReplicasAnnotation: %w", err)
+		}
+		c.log.Infof("Synced stale desired-replicas annotation on ReplicaSet '%s' to %d", rs.Name, rolloutReplicas)
+
+		// Keep the context in step so the reconcilers below do not repeat the same update.
+		if c.newRS != nil && c.newRS.Name == updatedRS.Name {
+			c.newRS = updatedRS
+		}
+		if c.stableRS != nil && c.stableRS.Name == updatedRS.Name {
+			c.stableRS = updatedRS
+		}
+	}
+	return nil
+}
+
 // isScalingEvent checks whether the provided rollout has been updated with a scaling event
 // by looking at the desired-replicas annotation in the active replica sets of the rollout.
 //
@@ -325,6 +373,8 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
 	}
 
+	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
+
 	// We only care about scaling events on the newRS and stableRS because these are the only replicasets that we ever
 	// adjust the replicas counts on as well as the desired annotation. When we have stacked rollouts going the middle
 	// replicasets will never have the desired annotation updated this can cause a tight loop of isScalingEvent -> syncReplicasOnly -> isScalingEvent
@@ -333,7 +383,7 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 		if !ok {
 			continue
 		}
-		if desired != defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas) {
+		if desired != rolloutReplicas {
 			return true, nil
 		}
 	}
