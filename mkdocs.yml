@@ -73,6 +73,12 @@ nav:
   - InfluxDB: analysis/influxdb.md
   - Apache SkyWalking: analysis/skywalking.md
 - Experiments: features/experiment.md
+- RolloutPlugin:
+  - Overview: features/rolloutplugin/index.md
+  - Specification: features/rolloutplugin/specification.md
+  - Actions and Lifecycle: features/rolloutplugin/actions.md
+  - StatefulSet Plugin: features/rolloutplugin/statefulset.md
+  - Writing a Resource Plugin: features/rolloutplugin/plugins.md
 - Notifications:
   - Overview: features/notifications.md
   - Services:

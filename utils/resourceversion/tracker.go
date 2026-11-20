@@ -39,6 +39,22 @@ func (t *Tracker) Forget(key string) {
 	delete(t.lastWritten, key)
 }
 
+// Observed is the inverse of IsCacheStale, and also drops the record for key once cachedRV has
+// caught up with it. It suits callers that never see the object's deletion to call Forget on.
+func (t *Tracker) Observed(key, cachedRV string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	last, ok := t.lastWritten[key]
+	if !ok {
+		return true
+	}
+	if cmp, err := CompareResourceVersion(cachedRV, last); err == nil && cmp < 0 {
+		return false
+	}
+	delete(t.lastWritten, key)
+	return true
+}
+
 // IsCacheStale reports whether cachedRV is strictly older than the last ResourceVersion
 // we wrote for key. Returns false when we have no record, when the cache is at or ahead
 // of our last write, or when either ResourceVersion is malformed (fail open).

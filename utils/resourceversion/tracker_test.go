@@ -119,3 +119,21 @@ func TestTrackerConcurrentRecordAndIsCacheStale(t *testing.T) {
 	assert.True(t, tracker.IsCacheStale(keyA, "999"))
 	assert.True(t, tracker.IsCacheStale(keyB, "999"))
 }
+
+func TestTrackerObserved(t *testing.T) {
+	key := "uid-a"
+	tracker := NewTracker()
+
+	assert.True(t, tracker.Observed(key, "100"), "no record")
+
+	tracker.Record(key, "200")
+	assert.False(t, tracker.Observed(key, "199"), "cache behind our write")
+	assert.True(t, tracker.IsCacheStale(key, "199"), "a stale read keeps the record")
+
+	assert.True(t, tracker.Observed(key, "201"), "cache caught up")
+	assert.False(t, tracker.IsCacheStale(key, "199"), "the record is dropped once observed")
+
+	tracker.Record(key, "300")
+	assert.True(t, tracker.Observed(key, "abc"), "malformed cached RV fails open")
+	assert.True(t, tracker.Observed(key, "1"), "the malformed read still dropped the record")
+}

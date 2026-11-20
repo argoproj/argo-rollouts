@@ -378,3 +378,17 @@ func GetDescribeTagsLimit() int {
 func SetDescribeTagsLimit(limit int) {
 	defaultDescribeTagsLimit = limit
 }
+
+// GetRolloutPluginTimeoutSecondsOrDefault returns spec.timeoutSeconds
+// or DefaultProgressDeadlineSeconds when unset.
+func GetRolloutPluginTimeoutSecondsOrDefault(rolloutPlugin *v1alpha1.RolloutPlugin) int32 {
+	if rolloutPlugin.Spec.TimeoutSeconds != nil {
+		return *rolloutPlugin.Spec.TimeoutSeconds
+	}
+	return DefaultProgressDeadlineSeconds
+}
+
+// GetRolloutPluginTimeoutAbort returns spec.timeoutAbort.
+func GetRolloutPluginTimeoutAbort(rolloutPlugin *v1alpha1.RolloutPlugin) bool {
+	return rolloutPlugin.Spec.TimeoutAbort
+}

@@ -430,3 +430,22 @@ func TestSetDefaults(t *testing.T) {
 	SetDescribeTagsLimit(2)
 	assert.Equal(t, 2, GetDescribeTagsLimit())
 }
+
+func TestGetRolloutPluginTimeoutSecondsOrDefault(t *testing.T) {
+	seconds := int32(42)
+	rp := &v1alpha1.RolloutPlugin{Spec: v1alpha1.RolloutPluginSpec{TimeoutSeconds: &seconds}}
+	assert.Equal(t, int32(42), GetRolloutPluginTimeoutSecondsOrDefault(rp))
+
+	assert.Equal(t, DefaultProgressDeadlineSeconds, GetRolloutPluginTimeoutSecondsOrDefault(&v1alpha1.RolloutPlugin{}))
+
+	// spec.plugin.config is opaque to the controller and must not influence the deadline.
+	rpConfig := &v1alpha1.RolloutPlugin{Spec: v1alpha1.RolloutPluginSpec{
+		Plugin: v1alpha1.PluginStep{Config: []byte(`{"timeoutSeconds": 5}`)},
+	}}
+	assert.Equal(t, DefaultProgressDeadlineSeconds, GetRolloutPluginTimeoutSecondsOrDefault(rpConfig))
+}
+
+func TestGetRolloutPluginTimeoutAbort(t *testing.T) {
+	assert.True(t, GetRolloutPluginTimeoutAbort(&v1alpha1.RolloutPlugin{Spec: v1alpha1.RolloutPluginSpec{TimeoutAbort: true}}))
+	assert.False(t, GetRolloutPluginTimeoutAbort(&v1alpha1.RolloutPlugin{}))
+}

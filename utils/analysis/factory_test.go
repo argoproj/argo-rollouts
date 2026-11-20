@@ -482,7 +482,7 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	assert.Equal(t, arg, newMetric.SuccessCondition)
 }
 
-func Test_extractValueFromRollout(t *testing.T) {
+func Test_ExtractValueFromObject(t *testing.T) {
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
@@ -555,19 +555,19 @@ func Test_extractValueFromRollout(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := extractValueFromRollout(ro, tt.path)
+			got, err := ExtractValueFromObject(ro, tt.path)
 			if err != nil {
 				if tt.wantErr != "" {
 					assert.EqualError(t, err, tt.wantErr)
 				} else {
-					t.Errorf("extractValueFromRollout() error = %v", err)
+					t.Errorf("ExtractValueFromObject() error = %v", err)
 				}
 
 				return
 			}
 
 			if got != tt.want {
-				t.Errorf("extractValueFromRollout() = %v, want %v", got, tt.want)
+				t.Errorf("ExtractValueFromObject() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -17,6 +17,7 @@ rules:
   - analysistemplates
   - clusteranalysistemplates
   - analysisruns
+  - rolloutplugins
   verbs:
   - get
   - list
@@ -43,6 +44,8 @@ rules:
   - analysistemplates
   - clusteranalysistemplates
   - analysisruns
+  - rolloutplugins
+  - rolloutplugins/status
   verbs:
   - create
   - delete
@@ -74,6 +77,8 @@ rules:
   - analysistemplates
   - clusteranalysistemplates
   - analysisruns
+  - rolloutplugins
+  - rolloutplugins/status
   verbs:
   - create
   - delete

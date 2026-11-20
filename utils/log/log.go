@@ -22,6 +22,8 @@ const (
 	ExperimentKey = "experiment"
 	// AnalysisRunKey defines the key for the analysisrun field
 	AnalysisRunKey = "analysisrun"
+	// RolloutPluginKey defines the key for the rolloutplugin field
+	RolloutPluginKey = "rolloutplugin"
 	// ServiceKey defines the key for the service field
 	ServiceKey = "service"
 	// IngressKey defines the key for the ingress field
@@ -60,6 +62,8 @@ func WithObject(obj runtime.Object) *log.Entry {
 			kind = "clusteranalysistemplate"
 		case *v1alpha1.Experiment:
 			kind = "experiment"
+		case *v1alpha1.RolloutPlugin:
+			kind = "rolloutplugin"
 		}
 	}
 	objectMeta, err := meta.Accessor(obj)
@@ -86,6 +90,8 @@ func KindNamespaceName(logCtx *log.Entry) (string, string, string) {
 		kind = "Experiment"
 	} else if nameIf, ok = logCtx.Data["clusteranalysistemplate"]; ok {
 		kind = "ClusterAnalysisTemplate"
+	} else if nameIf, ok = logCtx.Data["rolloutplugin"]; ok {
+		kind = "RolloutPlugin"
 	}
 	name, _ := nameIf.(string)
 	namespace, _ := logCtx.Data["namespace"].(string)
