@@ -4,16 +4,20 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	rolloutapi "github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	fakeoptions "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
@@ -22,13 +26,11 @@ func newTestServer(t *testing.T, objects ...runtime.Object) *ArgoRolloutsServer 
 	t.Helper()
 	tf, o := fakeoptions.NewFakeArgoRolloutsOptions(objects...)
 	t.Cleanup(tf.Cleanup)
-	return &ArgoRolloutsServer{
-		Options: ServerOptions{
-			KubeClientset:     o.KubeClient,
-			RolloutsClientset: o.RolloutsClient,
-			DynamicClientset:  o.DynamicClient,
-		},
-	}
+	return NewServer(ServerOptions{
+		KubeClientset:     o.KubeClient,
+		RolloutsClientset: o.RolloutsClient,
+		DynamicClientset:  o.DynamicClient,
+	})
 }
 
 func TestGetRollout(t *testing.T) {
@@ -171,4 +173,93 @@ func TestNewHTTPServer(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestListRolloutInfos(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	namespace := objects.Rollouts[0].Namespace
+	stableRS := objects.ReplicaSets[0]
+	unownedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "unowned", Namespace: namespace, UID: "unowned-uid"},
+	}
+	multiOwnerPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "multi-owner",
+			Namespace: namespace,
+			UID:       "multi-owner-uid",
+			OwnerReferences: []metav1.OwnerReference{
+				{Kind: "Node", Name: "node", UID: "node-uid"},
+				{Kind: "ReplicaSet", Name: stableRS.Name, UID: stableRS.UID},
+			},
+		},
+	}
+	allPods := append([]*corev1.Pod{unownedPod, multiOwnerPod}, objects.Pods...)
+	s := newTestServer(t, append(objects.AllObjects(), unownedPod, multiOwnerPod)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := s.ListRolloutInfos(ctx, &rolloutapi.RolloutInfoListQuery{Namespace: namespace})
+
+	require.NoError(t, err)
+	require.Len(t, list.Rollouts, len(objects.Rollouts))
+	rollouts := map[string]*v1alpha1.Rollout{}
+	for _, ro := range objects.Rollouts {
+		rollouts[ro.Name] = ro
+	}
+	var names []string
+	ownedPods := 0
+	for _, ri := range list.Rollouts {
+		names = append(names, ri.ObjectMeta.Name)
+		expected := info.NewRolloutInfo(rollouts[ri.ObjectMeta.Name], objects.ReplicaSets, allPods, nil, nil, nil)
+		assert.Equal(t, expected.ReplicaSets, ri.ReplicaSets)
+		for _, rs := range ri.ReplicaSets {
+			ownedPods += len(rs.Pods)
+		}
+	}
+	assert.Positive(t, ownedPods)
+	assert.IsIncreasing(t, names)
+}
+
+type fakeRolloutInfoStream struct {
+	grpc.ServerStream
+	ctx context.Context
+
+	mu    sync.Mutex
+	infos []*rolloutapi.RolloutInfo
+}
+
+func (f *fakeRolloutInfoStream) Context() context.Context {
+	return f.ctx
+}
+
+func (f *fakeRolloutInfoStream) Send(i *rolloutapi.RolloutInfo) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.infos = append(f.infos, i)
+	return nil
+}
+
+func (f *fakeRolloutInfoStream) sent() []*rolloutapi.RolloutInfo {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]*rolloutapi.RolloutInfo{}, f.infos...)
+}
+
+func TestWatchRolloutInfo(t *testing.T) {
+	objects := testdata.NewCanaryRollout()
+	ro := objects.Rollouts[0]
+	s := newTestServer(t, objects.AllObjects()...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream := &fakeRolloutInfoStream{ctx: ctx}
+	done := make(chan error, 1)
+	go func() {
+		done <- s.WatchRolloutInfo(&rolloutapi.RolloutInfoQuery{Namespace: ro.Namespace, Name: ro.Name}, stream)
+	}()
+
+	require.Eventually(t, func() bool { return len(stream.sent()) > 0 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, ro.Name, stream.sent()[0].ObjectMeta.Name)
+
+	cancel()
+	require.NoError(t, <-done)
 }

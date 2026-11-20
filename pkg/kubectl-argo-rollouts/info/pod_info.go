@@ -14,22 +14,21 @@ import (
 )
 
 func addPodInfos(rsInfos []*rollout.ReplicaSetInfo, allPods []*corev1.Pod) []*rollout.ReplicaSetInfo {
-	var uids []types.UID
-	uidToRSInfoIdx := make(map[types.UID]int)
+	uidToRSInfoIdx := make(map[types.UID]int, len(rsInfos))
 	for i, rsInfo := range rsInfos {
-		uids = append(uids, rsInfo.ObjectMeta.UID)
 		uidToRSInfoIdx[rsInfo.ObjectMeta.UID] = i
 	}
 
 	for _, pod := range allPods {
-		owner := ownerRef(pod.OwnerReferences, uids)
-		if owner == nil {
-			continue
+		for _, owner := range pod.OwnerReferences {
+			idx, ok := uidToRSInfoIdx[owner.UID]
+			if !ok {
+				continue
+			}
+			podInfo := newPodInfo(pod)
+			rsInfos[idx].Pods = append(rsInfos[idx].Pods, &podInfo)
+			break
 		}
-
-		podInfo := newPodInfo(pod)
-		idx := uidToRSInfoIdx[owner.UID]
-		rsInfos[idx].Pods = append(rsInfos[idx].Pods, &podInfo)
 	}
 
 	for _, rsInfo := range rsInfos {
