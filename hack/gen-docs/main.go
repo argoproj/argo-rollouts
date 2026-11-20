@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	controllercmd "github.com/argoproj/argo-rollouts/cmd/rollouts-controller/commands"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
@@ -23,6 +24,7 @@ import (
 func main() {
 	generateNotificationsDocs()
 	generatePluginsDocs()
+	generateControllerDocs()
 }
 
 func generateNotificationsDocs() {
@@ -71,6 +73,17 @@ func generatePluginsDocs() {
 		if e := updateMkDocsNav("Kubectl Plugin", "Commands", files); e != nil {
 			log.Fatal(e)
 		}
+	}
+}
+
+// generateControllerDocs renders the flags of the rollouts-controller binary
+// from its cobra command, so the reference can never drift from the code.
+// The page is linked from mkdocs.yml by hand (single page, no nav section).
+func generateControllerDocs() {
+	os.RemoveAll("./docs/generated/argo-rollouts")
+	os.MkdirAll("./docs/generated/argo-rollouts/", 0755)
+	if _, err := GenMarkdownTree(controllercmd.NewCommand(), "./docs/generated/argo-rollouts"); err != nil {
+		log.Fatal(err)
 	}
 }
 

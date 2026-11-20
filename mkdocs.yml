@@ -17,6 +17,9 @@ markdown_extensions:
 nav:
 - Overview: index.md
 - Installation: installation.md
+- Controller Flags:
+  - Overview: controller-flags.md
+  - Flag Reference: generated/argo-rollouts/argo-rollouts.md
 - Concepts: concepts.md
 - Architecture: architecture.md
 - Getting Started:
