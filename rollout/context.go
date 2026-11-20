@@ -12,7 +12,9 @@ import (
 type rolloutContext struct {
 	reconcilerBase
 
-	log *log.Entry
+	log                *log.Entry
+	traceAttempt       *rolloutTraceAttempt
+	pendingTraceResult *rolloutTraceResult
 	// rollout is the rollout being reconciled
 	rollout *v1alpha1.Rollout
 	// newRollout is the rollout after reconciliation. used to write back to informer

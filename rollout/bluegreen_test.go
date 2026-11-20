@@ -29,7 +29,7 @@ var (
 	noTimestamp = metav1.Time{}
 )
 
-func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, activeSvc string, previewSvc string) *v1alpha1.Rollout {
+func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, activeSvc, previewSvc string) *v1alpha1.Rollout {
 	rollout := newRollout(name, replicas, revisionHistoryLimit, map[string]string{"foo": "bar"})
 	abortScaleDownDelaySeconds := int32(0)
 	rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
@@ -1028,7 +1028,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	ctrl, _, _ := f.newController(noResyncPeriodFunc)
-	roCtx, err := ctrl.newRolloutContext(ro)
+	roCtx, err := ctrl.newRolloutContext(ro, nil)
 	assert.NoError(t, err)
 
 	err = roCtx.syncRolloutStatusBlueGreen(nil, activeSvc)
