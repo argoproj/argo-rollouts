@@ -172,6 +172,8 @@ spec:
 
 The AnalysisRun will first get an access token using that information, and provide it as an `Authorization: Bearer` header for the metric provider call.
 
+The Prometheus `timeout` covers both OAuth2 token acquisition and the query. Token requests, including authentication retries, share the remaining measurement timeout. Valid tokens are cached within each Prometheus client until they need refreshing.
+
 ### With Basic Authentication (Grafana Cloud prometheus instance)
 
 You can setup a `Basic Authentication` is typically the use case with a prometheus instance in Grafana Cloud using the following values:

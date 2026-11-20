@@ -330,8 +330,7 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 			TokenURL:     metric.Provider.Prometheus.Authentication.OAuth2.TokenURL,
 			Scopes:       metric.Provider.Prometheus.Authentication.OAuth2.Scopes,
 		}
-		ctx := context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)
-		httpClient = oauthCfg.Client(ctx)
+		httpClient = &http.Client{Transport: newOAuth2RoundTripper(oauthCfg, httpClient)}
 	}
 
 	prometheusApiConfig := api.Config{
