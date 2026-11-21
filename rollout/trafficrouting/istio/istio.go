@@ -1199,6 +1199,10 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 	if len(routeNames) == 0 && len(httpRoutesNotWithinManagedRoutes) > 1 {
 		return fmt.Errorf("spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
 	}
+	if len(routeNames) == 0 && len(httpRoutes) > 0 && len(httpRoutesNotWithinManagedRoutes) == 0 {
+		// Only managed routes are left, so there is no default route for SetWeight to patch.
+		return fmt.Errorf("spec.http[] in VirtualService must have exactly one route that is not a managed route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
+	}
 	return nil
 }
 

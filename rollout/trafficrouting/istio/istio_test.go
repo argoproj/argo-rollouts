@@ -4285,4 +4285,8 @@ func TestValidateHTTPRoutesDefaultRouteWithManagedRoute(t *testing.T) {
 		{Name: "primary", Route: []VirtualServiceRouteDestination{stable}},
 	})
 	assert.Error(t, err)
+
+	// Only the managed route is left: there is no default route to patch.
+	err = ValidateHTTPRoutes(rollout, nil, []VirtualServiceHTTPRoute{managed})
+	assert.ErrorContains(t, err, "not a managed route")
 }
