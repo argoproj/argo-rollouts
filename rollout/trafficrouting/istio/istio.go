@@ -1369,6 +1369,10 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 	if err != nil {
 		return nil, fmt.Errorf("[createMirrorRoute] failed to get virtual service http route for keeping non-mirror weights set: %w", err)
 	}
+	if len(route) == 0 {
+		// A mirror route without destinations is rejected by Istio, so fail here instead of writing one.
+		return nil, fmt.Errorf("[createMirrorRoute] no http route with destinations found in virtual service '%s' to keep the non-mirror weights set, list the route in the rollout's istio virtualService routes", virtualService.Name)
+	}
 
 	var istioMatch []RouteMatch
 	for _, match := range mirrorRouting.Match {
@@ -1383,7 +1387,7 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		Host:   canarySvc,
 		Subset: subset,
 	}
-	if len(route) >= 0 && route[0].Destination.Port != nil {
+	if route[0].Destination.Port != nil {
 		// We try to pull the port from any of the routes destinations that are supposed to be updated via SetWeight
 		mirrorDestinations.Port = &Port{Number: route[0].Destination.Port.Number}
 	}
