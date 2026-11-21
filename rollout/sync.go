@@ -1022,6 +1022,12 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	// Calculate the phase. This requires the conditions to be calculated first
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 
+	// Scale down a referenced Deployment once the Rollout becomes Healthy (workloadRef.scaleDown: onsuccess).
+	// Done before the status is persisted so that a failed scale-down is retried on the next reconcile.
+	if err := c.scaleDownWorkloadOnSuccess(newStatus); err != nil {
+		return err
+	}
+
 	// Calculate duration status - handles all duration tracking state transitions.
 	// Completion metrics are stashed here and emitted only after the patch succeeds.
 	newStatus.Duration = c.calculateStatusDuration(newStatus)
@@ -1359,13 +1365,28 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
 
-	if revision == 1 && c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
-		var targetScale int32 = 0
-		err := c.scaleDeployment(&targetScale)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
+}
+
+// scaleDownWorkloadOnSuccess implements `workloadRef.scaleDown: onsuccess`: the referenced Deployment is
+// scaled to zero once the Rollout has fully promoted the current ReplicaSet and becomes Healthy.
+//
+// It runs when the Rollout transitions into the Healthy phase rather than inside promoteStable, because
+// promoteStable may run before the Rollout is Healthy (for example on the initial deploy, where
+// shouldFullPromote short-circuits) and is not called again afterwards. Checking on the transition also
+// means the scale-down is retried on the next reconcile if the Deployment update fails, since the status
+// is only persisted after this returns, and that later revisions scale the Deployment down too when the
+// first one never did.
+func (c *rolloutContext) scaleDownWorkloadOnSuccess(newStatus *v1alpha1.RolloutStatus) error {
+	if c.rollout.Spec.WorkloadRef == nil || c.rollout.Spec.WorkloadRef.ScaleDown != v1alpha1.ScaleDownOnSuccess {
+		return nil
+	}
+	if newStatus.Phase != v1alpha1.RolloutPhaseHealthy || c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy {
+		return nil
+	}
+	if newStatus.StableRS == "" || newStatus.StableRS != newStatus.CurrentPodHash {
+		return nil
+	}
+	var targetScale int32 = 0
+	return c.scaleDeployment(&targetScale)
 }
