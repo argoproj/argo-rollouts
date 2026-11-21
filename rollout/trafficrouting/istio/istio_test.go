@@ -4143,3 +4143,110 @@ spec:
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to update kubernetes virtual service")
 }
+
+// TestHttpSetWeightSingleRouteNoNameWithMirrorRoute checks that the default route keeps following SetWeight
+// after a managed mirror route has been added, when the Rollout does not list any routes.
+func TestHttpSetWeightSingleRouteNoNameWithMirrorRoute(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	_, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, druleLister, nil)
+	client.ClearActions()
+
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "test-mirror-1"}}
+
+	assert.NoError(t, r.SetWeight(30))
+	assert.NoError(t, r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	}))
+	assert.NoError(t, r.SetWeight(40))
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Len(t, httpRoutes, 2)
+	assert.Equal(t, "test-mirror-1", httpRoutes[0].Name)
+	checkDestination(t, httpRoutes[0].Route, "canary", 40)
+	checkDestination(t, httpRoutes[0].Route, "stable", 60)
+	assert.Equal(t, "", httpRoutes[1].Name)
+	checkDestination(t, httpRoutes[1].Route, "canary", 40)
+	checkDestination(t, httpRoutes[1].Route, "stable", 60)
+}
+
+const singleNamedRouteVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+// TestHttpSetWeightSingleNamedRouteWithHeaderRoute checks that a single named route is still patched by SetWeight
+// after a managed header route has been added, when the Rollout does not list any routes.
+func TestHttpSetWeightSingleNamedRouteWithHeaderRoute(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleNamedRouteVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	_, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, druleLister, nil)
+	client.ClearActions()
+
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{{Name: "test-header-1"}}
+
+	assert.NoError(t, r.SetWeight(30))
+	assert.NoError(t, r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "test-header-1",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName:  "agent",
+			HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+		}},
+	}))
+	assert.NoError(t, r.SetWeight(40))
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Len(t, httpRoutes, 2)
+	assert.Equal(t, "test-header-1", httpRoutes[0].Name)
+	assert.Equal(t, "primary", httpRoutes[1].Name)
+	checkDestination(t, httpRoutes[1].Route, "canary", 40)
+	checkDestination(t, httpRoutes[1].Route, "stable", 60)
+}
+
+func TestGetDefaultHttpRouteIndexesToPatch(t *testing.T) {
+	managed := map[string]bool{"managed-1": true, "managed-2": true}
+	tests := []struct {
+		name     string
+		routes   []VirtualServiceHTTPRoute
+		expected []int
+	}{
+		{name: "single unnamed route", routes: []VirtualServiceHTTPRoute{{}}, expected: []int{0}},
+		{name: "single named route", routes: []VirtualServiceHTTPRoute{{Name: "primary"}}, expected: []int{0}},
+		{name: "unnamed route after managed routes", routes: []VirtualServiceHTTPRoute{{Name: "managed-1"}, {Name: "managed-2"}, {}}, expected: []int{2}},
+		{name: "named route after managed routes", routes: []VirtualServiceHTTPRoute{{Name: "managed-1"}, {Name: "primary"}}, expected: []int{1}},
+		{name: "first unnamed of several routes", routes: []VirtualServiceHTTPRoute{{Name: "primary"}, {}, {}}, expected: []int{1}},
+		{name: "several named routes", routes: []VirtualServiceHTTPRoute{{Name: "primary"}, {Name: "secondary"}}, expected: nil},
+		{name: "only managed routes", routes: []VirtualServiceHTTPRoute{{Name: "managed-1"}}, expected: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getDefaultHttpRouteIndexesToPatch(tt.routes, managed))
+		})
+	}
+}

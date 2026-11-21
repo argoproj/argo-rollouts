@@ -166,21 +166,33 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 
 	// Go through all the routes on the Istio Virtual Service looking for routes that are Istio mirror routes as well as on the
 	// managedRoutes field on the rollout object so that we can update the Istio mirror upon set weight calls
+	managedRouteNames := map[string]bool{}
+	var managedMirrorRouteNames []string
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting != nil && r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes != nil {
+		for _, managedRoute := range r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+			managedRouteNames[managedRoute.Name] = true
+		}
 		for _, httpRoute := range httpRoutes {
-			if httpRoute.Mirror != nil {
-				for _, managedRoute := range r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
-					//Make sure we only add mirror routes from the managedRoutes field to the list of routes to update for setWeight
-					if managedRoute.Name == httpRoute.Name {
-						rolloutVsvcRouteNames = append(rolloutVsvcRouteNames, httpRoute.Name)
-					}
-				}
+			//Make sure we only add mirror routes from the managedRoutes field to the list of routes to update for setWeight
+			if httpRoute.Mirror != nil && managedRouteNames[httpRoute.Name] {
+				managedMirrorRouteNames = append(managedMirrorRouteNames, httpRoute.Name)
 			}
 		}
 	}
 
 	// err can be ignored because we already called ValidateHTTPRoutes earlier
-	httpRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(rolloutVsvcRouteNames, httpRoutes)
+	var httpRouteIndexesToPatch []int
+	if len(rolloutVsvcRouteNames) == 0 {
+		// The rollout does not list any routes, so the default route has to be picked before the managed mirror
+		// routes are added. Looking it up by the mirror route names would patch the mirror routes only.
+		httpRouteIndexesToPatch = getDefaultHttpRouteIndexesToPatch(httpRoutes, managedRouteNames)
+		if len(managedMirrorRouteNames) > 0 {
+			mirrorRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(managedMirrorRouteNames, httpRoutes)
+			httpRouteIndexesToPatch = append(httpRouteIndexesToPatch, mirrorRouteIndexesToPatch...)
+		}
+	} else {
+		httpRouteIndexesToPatch, _ = getHttpRouteIndexesToPatch(append(rolloutVsvcRouteNames, managedMirrorRouteNames...), httpRoutes)
+	}
 	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(rolloutVsvcTLSRoutes, tlsRoutes)
 	tcpRouteIndexesToPatch, _ := getTcpRouteIndexesToPatch(rolloutVsvcTCPRoutes, tcpRoutes)
 
@@ -1007,6 +1019,26 @@ func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualService
 		}
 	}
 	return routeIndexesToPatch, nil
+}
+
+// getDefaultHttpRouteIndexesToPatch returns the route to patch when the rollout does not list any routes: the only
+// route that is not one of the rollout's managed routes, or else the first route without a name.
+func getDefaultHttpRouteIndexesToPatch(httpRoutes []VirtualServiceHTTPRoute, managedRouteNames map[string]bool) []int {
+	var candidates []int
+	for i, route := range httpRoutes {
+		if route.Name == "" || !managedRouteNames[route.Name] {
+			candidates = append(candidates, i)
+		}
+	}
+	if len(candidates) == 1 {
+		return candidates
+	}
+	for _, i := range candidates {
+		if httpRoutes[i].Name == "" {
+			return []int{i}
+		}
+	}
+	return nil
 }
 
 func searchHttpRoute(routeName string, httpRoutes []VirtualServiceHTTPRoute) int {
