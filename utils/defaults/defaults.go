@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -377,4 +378,19 @@ func GetDescribeTagsLimit() int {
 // SetDescribeTagsLimit sets the limit of resources can be requested in a single call
 func SetDescribeTagsLimit(limit int) {
 	defaultDescribeTagsLimit = limit
+}
+
+// GetOldReplicaSetScaleDownBatchSize returns how many pods of an old ReplicaSet a canary scales down
+// per batch when oldReplicaSetScaleDown is set. Percentages are of the rollout's replicas, rounded up. It is at least 1.
+func GetOldReplicaSetScaleDownBatchSize(rollout *v1alpha1.Rollout) int32 {
+	batch := int32(1)
+	if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown != nil &&
+		rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown.MaxUnavailable != nil {
+		value, err := intstr.GetScaledValueFromIntOrPercent(rollout.Spec.Strategy.Canary.OldReplicaSetScaleDown.MaxUnavailable, int(GetReplicasOrDefault(rollout.Spec.Replicas)), true)
+		if err == nil && value > 1 {
+			// A batch larger than the ReplicaSet scales it to zero, so clamping keeps the conversion safe.
+			batch = int32(min(value, math.MaxInt32))
+		}
+	}
+	return batch
 }
