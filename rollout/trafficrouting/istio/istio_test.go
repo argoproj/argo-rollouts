@@ -2826,7 +2826,7 @@ func TestSingleTlsRouteReconcile(t *testing.T) {
 }
 
 // TestCreateMirrorRouteNoSetWeightRoute covers a VirtualService whose single http route is named while the Rollout
-// does not list any routes: once a managed route has been added there is no route left to take the port from.
+// does not list any routes: once a managed route has been added no route is selected to copy the destinations from.
 func TestCreateMirrorRouteNoSetWeightRoute(t *testing.T) {
 	httpRoutes := []VirtualServiceHTTPRoute{
 		{Name: "test-mirror-1"},
@@ -2850,12 +2850,14 @@ func TestCreateMirrorRouteNoSetWeightRoute(t *testing.T) {
 	assert.NotPanics(t, func() {
 		mirrorRoute, err = createMirrorRoute(v1alpha1.IstioVirtualService{Name: "vsvc"}, httpRoutes, setMirror, "canary", "")
 	})
+	assert.ErrorContains(t, err, "no http route with destinations found in virtual service 'vsvc'")
+	assert.Nil(t, mirrorRoute)
+
+	// Listing the route makes the same VirtualService work again.
+	mirrorRoute, err = createMirrorRoute(v1alpha1.IstioVirtualService{Name: "vsvc", Routes: []string{"primary"}}, httpRoutes, setMirror, "canary", "")
 	assert.NoError(t, err)
 	assert.Equal(t, "test-mirror-2", mirrorRoute["name"])
-	mirror, ok := mirrorRoute["mirror"].(map[string]any)
-	assert.True(t, ok)
-	assert.Equal(t, "canary", mirror["host"])
-	assert.NotContains(t, mirror, "port")
+	assert.Len(t, mirrorRoute["route"], 2)
 }
 
 func TestHttpReconcileMirrorRouteWithExtraFields(t *testing.T) {
