@@ -4250,3 +4250,39 @@ func TestGetDefaultHttpRouteIndexesToPatch(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateHTTPRoutesDefaultRouteWithManagedRoute checks that the default route SetWeight patches is validated
+// when the Rollout does not list any routes and a managed route sits in front of a single named route.
+func TestValidateHTTPRoutesDefaultRouteWithManagedRoute(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable",
+					CanaryService: "canary",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ManagedRoutes: []v1alpha1.MangedRoutes{{Name: "managed"}},
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualService: &v1alpha1.IstioVirtualService{},
+						},
+					},
+				},
+			},
+		},
+	}
+	stable := VirtualServiceRouteDestination{Destination: VirtualServiceDestination{Host: "stable"}}
+	canary := VirtualServiceRouteDestination{Destination: VirtualServiceDestination{Host: "canary"}}
+	managed := VirtualServiceHTTPRoute{Name: "managed", Route: []VirtualServiceRouteDestination{stable, canary}}
+
+	err := ValidateHTTPRoutes(rollout, nil, []VirtualServiceHTTPRoute{
+		managed,
+		{Name: "primary", Route: []VirtualServiceRouteDestination{stable, canary}},
+	})
+	assert.NoError(t, err)
+
+	err = ValidateHTTPRoutes(rollout, nil, []VirtualServiceHTTPRoute{
+		managed,
+		{Name: "primary", Route: []VirtualServiceRouteDestination{stable}},
+	})
+	assert.Error(t, err)
+}

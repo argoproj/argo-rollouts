@@ -1158,9 +1158,20 @@ func searchTcpRoute(tcpRoute v1alpha1.TCPRoute, istioTcpRoutes []VirtualServiceT
 func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
 	stableSvc, canarySvc := trafficrouting.GetStableAndCanaryServices(r, false)
 
-	routeIndexesToPatch, err := getHttpRouteIndexesToPatch(routeNames, httpRoutes)
-	if err != nil {
-		return err
+	var routeIndexesToPatch []int
+	if len(routeNames) == 0 {
+		// Validate the same default route that SetWeight patches.
+		managedRouteNames := map[string]bool{}
+		for _, managedRoute := range r.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+			managedRouteNames[managedRoute.Name] = true
+		}
+		routeIndexesToPatch = getDefaultHttpRouteIndexesToPatch(httpRoutes, managedRouteNames)
+	} else {
+		var err error
+		routeIndexesToPatch, err = getHttpRouteIndexesToPatch(routeNames, httpRoutes)
+		if err != nil {
+			return err
+		}
 	}
 	for _, routeIndex := range routeIndexesToPatch {
 		route := httpRoutes[routeIndex]
