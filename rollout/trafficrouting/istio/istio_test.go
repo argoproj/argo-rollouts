@@ -2825,6 +2825,39 @@ func TestSingleTlsRouteReconcile(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestCreateMirrorRouteNoSetWeightRoute covers a VirtualService whose single http route is named while the Rollout
+// does not list any routes: once a managed route has been added there is no route left to take the port from.
+func TestCreateMirrorRouteNoSetWeightRoute(t *testing.T) {
+	httpRoutes := []VirtualServiceHTTPRoute{
+		{Name: "test-mirror-1"},
+		{
+			Name: "primary",
+			Route: []VirtualServiceRouteDestination{
+				{Destination: VirtualServiceDestination{Host: "stable"}, Weight: 100},
+				{Destination: VirtualServiceDestination{Host: "canary"}, Weight: 0},
+			},
+		},
+	}
+	setMirror := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-2",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	}
+
+	var mirrorRoute map[string]any
+	var err error
+	assert.NotPanics(t, func() {
+		mirrorRoute, err = createMirrorRoute(v1alpha1.IstioVirtualService{Name: "vsvc"}, httpRoutes, setMirror, "canary", "")
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "test-mirror-2", mirrorRoute["name"])
+	mirror, ok := mirrorRoute["mirror"].(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "canary", mirror["host"])
+	assert.NotContains(t, mirror, "port")
+}
+
 func TestHttpReconcileMirrorRouteWithExtraFields(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvcWithExtra)

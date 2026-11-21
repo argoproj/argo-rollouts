@@ -1383,7 +1383,7 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		Host:   canarySvc,
 		Subset: subset,
 	}
-	if len(route) >= 0 && route[0].Destination.Port != nil {
+	if len(route) > 0 && route[0].Destination.Port != nil {
 		// We try to pull the port from any of the routes destinations that are supposed to be updated via SetWeight
 		mirrorDestinations.Port = &Port{Number: route[0].Destination.Port.Number}
 	}
