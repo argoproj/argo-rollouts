@@ -925,6 +925,16 @@ func TestScaleDownDeploymentOnSuccess(t *testing.T) {
 		require.Error(t, ctx.scaleDownWorkloadOnSuccess(healthy("2f646bf702", "2f646bf702")))
 	})
 
+	t.Run("does not persist the status when the deployment cannot be scaled", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		ctx.pauseContext.rollout = ctx.rollout
+		status := &v1alpha1.RolloutStatus{UpdatedReplicas: 1, AvailableReplicas: 1, CurrentPodHash: "2f646bf702", StableRS: "2f646bf702"}
+		require.Error(t, ctx.persistRolloutStatus(status))
+		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status.Phase)
+		assert.Empty(t, ctx.argoprojclientset.(*fake.Clientset).Actions(), "the status must not be patched, so that the scale-down is retried")
+	})
+
 	t.Run("promoteStable no longer scales the deployment itself", func(t *testing.T) {
 		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
 		require.NoError(t, ctx.promoteStable(&v1alpha1.RolloutStatus{CurrentPodHash: "2f646bf702", StableRS: "15fb5ffc01"}, "reason"))
