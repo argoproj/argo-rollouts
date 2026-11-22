@@ -379,7 +379,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 		}
 		desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ex, template)
 		// only requeue if we are not meeting our desired replicas, since if we are at our desired
-		// replicas, then theres nothing to check on
+		// replicas, then there's nothing to check on
 		if ts.AvailableReplicas != desiredReplicaCount && ts.LastTransitionTime != nil {
 			progressDeadlineDuration := ts.LastTransitionTime.Add(time.Second * time.Duration(deadlineSeconds)).Sub(now)
 			if candidateDuration == nil || progressDeadlineDuration < *candidateDuration {
@@ -623,7 +623,7 @@ func (ec *experimentContext) assessTemplates() (v1alpha1.AnalysisPhase, string) 
 }
 
 // assessTemplates examines all the analysisrun statuses, and returns the worst of the statuses.
-// This status will be under consideration as the experiment status (dependant on other factors).
+// This status will be under consideration as the experiment status (dependent on other factors).
 // Any Failed, Error, Inconclusive runs will cause the Experiment to complete prematurely. If there
 // are no analyses, will return AnalysisPhaseSuccessful.
 func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, string) {

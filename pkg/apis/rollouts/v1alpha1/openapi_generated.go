@@ -1668,7 +1668,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 					},
 					"replicaProgressThreshold": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion. Defaults to 100% of total replicas.",
+							Description: "ReplicaProgressThreshold is the threshold number or percentage of pods that need to be available before a rollout promotion. Defaults to 100% of total replicas.",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ReplicaProgressThreshold"),
 						},
 					},
@@ -2489,7 +2489,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref common.ReferenceCall
 					},
 					"availableAt": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration of specificed in the spec.",
+							Description: "AvailableAt the time when all the templates become healthy and the experiment should start tracking the time to run for the duration specified in the spec.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
