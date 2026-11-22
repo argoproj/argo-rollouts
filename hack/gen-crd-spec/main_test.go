@@ -123,8 +123,48 @@ func TestGeneratedCRDsAcceptDuplicateEnvNames(t *testing.T) {
 			// but it must have something to look at.
 			assert.Equal(t, 0, removeEnvListType(crd), "run `make gen-crd` to regenerate the CRDs")
 			assert.Positive(t, countContainerEnvLists(crd), "no container env list found in %s", path)
+
+			// Check every name-keyed env list independently of the cleanup matcher:
+			// the matcher only recognizes container env lists (it requires valueFrom in the
+			// item schema), but the API server rejects duplicate names based on the name key
+			// alone, so an env list the matcher skips would still break pod templates.
+			envLists := allNameKeyedEnvLists(crd)
+			require.NotEmpty(t, envLists, "no name-keyed env list found in %s", path)
+			for _, env := range envLists {
+				assert.Equal(t, "array", env["type"])
+				assert.NotContains(t, env, "x-kubernetes-list-type")
+				assert.NotContains(t, env, "x-kubernetes-list-map-keys")
+			}
 		})
 	}
+}
+
+// allNameKeyedEnvLists returns every "env" schema in node that is an array whose
+// items have a "name" property, whether or not isContainerEnvSchema recognizes it.
+func allNameKeyedEnvLists(node any) []map[string]any {
+	var out []map[string]any
+	switch n := node.(type) {
+	case map[string]any:
+		if props, ok := n["properties"].(map[string]any); ok {
+			if env, ok := props["env"].(map[string]any); ok && env["type"] == "array" {
+				if items, ok := env["items"].(map[string]any); ok {
+					if itemProps, ok := items["properties"].(map[string]any); ok {
+						if _, hasName := itemProps["name"]; hasName {
+							out = append(out, env)
+						}
+					}
+				}
+			}
+		}
+		for _, child := range n {
+			out = append(out, allNameKeyedEnvLists(child)...)
+		}
+	case []any:
+		for _, child := range n {
+			out = append(out, allNameKeyedEnvLists(child)...)
+		}
+	}
+	return out
 }
 
 func countContainerEnvLists(node any) int {
