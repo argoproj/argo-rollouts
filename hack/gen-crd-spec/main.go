@@ -114,6 +114,9 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	for i := range objs {
 		obj := objs[i]
 		removeK8S118Fields(obj)
+		if removeEnvListType(obj.Object) == 0 {
+			panic(fmt.Sprintf("no container env list found for kind %s", crdKind(obj)))
+		}
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
 		crds = append(crds, crd)
@@ -260,6 +263,61 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
+}
+
+// listTypeKeys are the structural schema fields that make the API server enforce
+// uniqueness of the entries of a list.
+var listTypeKeys = []string{"x-kubernetes-list-type", "x-kubernetes-list-map-keys"}
+
+// isContainerEnvSchema reports whether the schema is the "env" list of a container. The
+// "valueFrom" check separates it from other properties that happen to be called env.
+func isContainerEnvSchema(schema map[string]any) bool {
+	if schema["type"] != "array" {
+		return false
+	}
+	items, ok := schema["items"].(map[string]any)
+	if !ok {
+		return false
+	}
+	props, ok := items["properties"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasName := props["name"]
+	_, hasValueFrom := props["valueFrom"]
+	return hasName && hasValueFrom
+}
+
+// removeEnvListType removes the list-map markers that the Kubernetes API types put on the
+// env list of a container and returns how many lists were changed.
+//
+// With the markers the API server rejects a pod template that sets the same variable name
+// twice. A Deployment accepts such a template and the kubelet uses the last definition, so a
+// Rollout, which is meant to be a drop-in replacement for a Deployment, has to accept it too.
+// See https://github.com/argoproj/argo-rollouts/issues/5201.
+func removeEnvListType(node any) int {
+	removed := 0
+	switch n := node.(type) {
+	case map[string]any:
+		if props, ok := n["properties"].(map[string]any); ok {
+			if env, ok := props["env"].(map[string]any); ok && isContainerEnvSchema(env) {
+				for _, key := range listTypeKeys {
+					if _, found := env[key]; found {
+						delete(env, key)
+						removed++
+					}
+				}
+			}
+		}
+		for _, child := range n {
+			removed += removeEnvListType(child)
+		}
+	case []any:
+		for _, child := range n {
+			removed += removeEnvListType(child)
+		}
+	}
+	return removed
 }
 
 func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinition {
