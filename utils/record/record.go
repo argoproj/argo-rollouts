@@ -83,10 +83,11 @@ type EventRecorderAdapter struct {
 
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any)
 	// apiFactory is a notifications engine API factory
-	apiFactory api.Factory
+	apiFactory                     api.Factory
+	selfServiceNotificationEnabled bool
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory, selfServiceNotificationEnabled bool) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -95,12 +96,13 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	k8srecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	recorder := &EventRecorderAdapter{
-		Recorder:                    k8srecorder,
-		RolloutEventCounter:         rolloutEventCounter,
-		NotificationFailedCounter:   notificationFailedCounter,
-		NotificationSuccessCounter:  notificationSuccessCounter,
-		NotificationSendPerformance: notificationSendPerformance,
-		apiFactory:                  apiFactory,
+		Recorder:                       k8srecorder,
+		RolloutEventCounter:            rolloutEventCounter,
+		NotificationFailedCounter:      notificationFailedCounter,
+		NotificationSuccessCounter:     notificationSuccessCounter,
+		NotificationSendPerformance:    notificationSendPerformance,
+		apiFactory:                     apiFactory,
+		selfServiceNotificationEnabled: selfServiceNotificationEnabled,
 	}
 	recorder.eventf = recorder.defaultEventf
 	return recorder
@@ -198,6 +200,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 			[]string{"namespace", "name"},
 		),
 		NewFakeApiFactory(),
+		false,
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
@@ -237,7 +240,7 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		}
 
 		if e.apiFactory != nil {
-			apis, err := e.apiFactory.GetAPIsFromNamespace(namespace)
+			apis, err := e.getNotificationAPIs(namespace)
 			if err != nil {
 				logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
 				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
@@ -257,6 +260,19 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		logFn = logCtx.Warnf
 	}
 	logFn(messageFmt, args...)
+}
+
+func (e *EventRecorderAdapter) getNotificationAPIs(namespace string) (map[string]api.API, error) {
+	if e.selfServiceNotificationEnabled {
+		return e.apiFactory.GetAPIsFromNamespace(namespace)
+	}
+
+	notificationAPI, err := e.apiFactory.GetAPI()
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]api.API{namespace: notificationAPI}, nil
 }
 
 func (e *EventRecorderAdapter) K8sRecorder() record.EventRecorder {
