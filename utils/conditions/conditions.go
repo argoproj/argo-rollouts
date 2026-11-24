@@ -20,6 +20,8 @@ import (
 const (
 	// InvalidSpecReason indicates that the spec is invalid
 	InvalidSpecReason = "InvalidSpec"
+	// DuplicateEphemeralMetadataReason indicates that a label/annotation is defined both in the pod template and in ephemeral metadata
+	DuplicateEphemeralMetadataReason = "DuplicateEphemeralMetadata"
 	// MissingFieldMessage the message to indicate rollout is missing a field
 	MissingFieldMessage = "Rollout has missing field '%s'"
 	// RolloutSelectAllMessage the message to indicate that the rollout has an empty selector

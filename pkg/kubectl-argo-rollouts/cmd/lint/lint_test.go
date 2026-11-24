@@ -112,3 +112,22 @@ func TestLintInvalidRollout(t *testing.T) {
 		runCmd(t.filename, t.errmsg)
 	}
 }
+
+func TestLintRolloutWithEphemeralMetadataOverrideWarning(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+
+	cmd := NewCmdLint(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"-f", "testdata/warning-ephemeral-metadata-override.yml"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t,
+		"Warning: Rollout \"warning-rollout\" defines label \"role\" in both spec.template.metadata.labels and spec.strategy.canary.canaryMetadata.labels. Overriding pod template metadata with ephemeral metadata is deprecated and will be prohibited in a future version of Argo Rollouts. Define it in only one place.\n"+
+			"Warning: Rollout \"warning-rollout\" defines label \"role\" in both spec.template.metadata.labels and spec.strategy.canary.stableMetadata.labels. Overriding pod template metadata with ephemeral metadata is deprecated and will be prohibited in a future version of Argo Rollouts. Define it in only one place.\n",
+		stderr)
+}
