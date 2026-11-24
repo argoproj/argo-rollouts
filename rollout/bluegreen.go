@@ -186,7 +186,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
 		if c.isReplicaSetReferenced(targetRS) {
-			// We might get here if user interrupted an an update in order to move back to stable.
+			// We might get here if user interrupted an update in order to move back to stable.
 			c.log.Infof("Skip scale down of older RS '%s': still referenced", targetRS.Name)
 			continue
 		}

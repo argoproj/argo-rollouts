@@ -436,7 +436,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 	}()
 
 	if ec.ex.Status.AvailableAt == nil {
-		// If we are not not available yet, don't start any runs
+		// If we are not available yet, don't start any runs
 		if analysis.IsClusterScope() {
 			if err := ec.verifyClusterAnalysisTemplate(analysis); err != nil {
 				msg := fmt.Sprintf("ClusterAnalysisTemplate verification failed for analysis '%s': %v", analysis.Name, err.Error())
