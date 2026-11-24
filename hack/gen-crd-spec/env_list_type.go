@@ -7,14 +7,17 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// analysisJobPodSpecPath is the job pod spec shared by the analysis CRDs.
+const analysisJobPodSpecPath = "spec.metrics[].provider.job.spec.template.spec"
+
 // podSpecPaths locates the embedded pod spec in each CRD, using the same
 // "field[]" notation as setValidationOverride.
 var podSpecPaths = map[string]string{
 	"Rollout":                 "spec.template.spec",
 	"Experiment":              "spec.templates[].template.spec",
-	"AnalysisTemplate":        "spec.metrics[].provider.job.spec.template.spec",
-	"ClusterAnalysisTemplate": "spec.metrics[].provider.job.spec.template.spec",
-	"AnalysisRun":             "spec.metrics[].provider.job.spec.template.spec",
+	"AnalysisTemplate":        analysisJobPodSpecPath,
+	"ClusterAnalysisTemplate": analysisJobPodSpecPath,
+	"AnalysisRun":             analysisJobPodSpecPath,
 }
 
 var containerListFields = []string{"containers", "initContainers", "ephemeralContainers"}
