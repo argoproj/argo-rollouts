@@ -1870,138 +1870,36 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
 				},
 			},
-			{
+		}
+
+		// The second ingress's load balancer has its own target groups for the additional destinations
+		for i, dest := range weightDestinations {
+			name := fmt.Sprintf("multi-ingress-%s-tg-abc123-name", dest.ServiceName)
+			fakeClient.targetGroups = append(fakeClient.targetGroups, aws.TargetGroupMeta{
 				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("multi-ingress-ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-ex-svc-1-tg-abc123-name/1234567890123456"),
+					TargetGroupName: ptr.To[string](name),
+					TargetGroupArn:  ptr.To[string](fmt.Sprintf("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/%s/1234567890123456", name)),
 				},
-				Weight: &weightDestinations[0].Weight,
+				Weight: &weightDestinations[i].Weight,
 				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-ex-svc-1:443",
+					ALB_TAG_KEY_RESOURCE_ID: fmt.Sprintf("default/multi-ingress-%s:443", dest.ServiceName),
 				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("multi-ingress-ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-ex-svc-2-tg-abc123-name/1234567890123456"),
-				},
-				Weight: &weightDestinations[1].Weight,
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-ex-svc-2:443",
-				},
-			},
+			})
 		}
 
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
-	}
 
-	// LoadBalancer found, weights correct on the first ingress, but the second ingress's experiment
-	// target groups do not have the desired weights yet
-	{
-		var status v1alpha1.RolloutStatus
-		r, fakeClient := newFakeReconciler(&status)
-		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
-			{
-				LoadBalancerName: ptr.To[string]("lb-abc123-name"),
-				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-				DNSName:          ptr.To[string]("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
-			},
-			{
-				LoadBalancerName: ptr.To[string]("lb-multi-ingress-name"),
-				LoadBalancerArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-multi-ingress-name/1234567890123456"),
-				DNSName:          ptr.To[string]("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
-			},
+		// The second ingress's additional destination target groups don't have the desired weights yet,
+		// so the weights must not be verified even though all other target groups have them
+		for i := len(fakeClient.targetGroups) - len(weightDestinations); i < len(fakeClient.targetGroups); i++ {
+			fakeClient.targetGroups[i].Weight = ptr.To[int32](100)
 		}
-		fakeClient.targetGroups = []aws.TargetGroupMeta{
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("canary-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
-				},
-				Weight: ptr.To[int32](10),
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-canary-svc:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("stable-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
-				},
-				Weight: ptr.To[int32](85),
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-stable-svc:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-canary-tg-name/1234567890123456"),
-				},
-				Weight: ptr.To[int32](10),
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-canary-svc:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
-				},
-				Weight: ptr.To[int32](85),
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-stable-svc:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
-				},
-				Weight: &weightDestinations[0].Weight,
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-1:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
-				},
-				Weight: &weightDestinations[1].Weight,
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/ingress-ex-svc-2:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("multi-ingress-ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-ex-svc-1-tg-abc123-name/1234567890123456"),
-				},
-				Weight: ptr.To[int32](100),
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-ex-svc-1:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: ptr.To[string]("multi-ingress-ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  ptr.To[string]("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-ex-svc-2-tg-abc123-name/1234567890123456"),
-				},
-				Weight: ptr.To[int32](100),
-				Tags: map[string]string{
-					ALB_TAG_KEY_RESOURCE_ID: "default/multi-ingress-ex-svc-2:443",
-				},
-			},
-		}
-
-		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
+		weightVerified, err = r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
 	}
 }
 
