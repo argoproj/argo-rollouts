@@ -621,7 +621,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
-	// Pass in objects to to dynamicClient
+	// Pass in objects to dynamicClient
 	scheme := runtime.NewScheme()
 	v1alpha1.AddToScheme(scheme)
 	tgbGVR := schema.GroupVersionResource{

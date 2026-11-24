@@ -118,7 +118,7 @@ func (o *ListOptions) PrintRolloutUpdates(ctx context.Context, rolloutIf argopro
 	ticker := time.NewTicker(500 * time.Millisecond)
 
 	// prevLines remembers the most recent rollout lines we printed, so that we only print new lines
-	// when they have have changed in a meaningful way
+	// when they have changed in a meaningful way
 	prevLines := make(map[infoKey]rolloutInfo)
 	for _, ro := range roList.Items {
 		roLine := newRolloutInfo(ro)

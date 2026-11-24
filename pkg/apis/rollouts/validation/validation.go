@@ -67,7 +67,7 @@ const (
 	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// InvalidTrafficRoutingMessage indicates that both canary and stable service must be set to use Traffic Routing
 	InvalidTrafficRoutingMessage = "Canary service and Stable service must to be set to use Traffic Routing"
-	// InvalidAnalysisArgsMessage indicates that arguments provided in analysis steps are refrencing un-supported metadatafield.
+	// InvalidAnalysisArgsMessage indicates that arguments provided in analysis steps are referencing un-supported metadatafield.
 	//supported fields are "metadata.annotations", "metadata.labels", "metadata.name", "metadata.namespace", "metadata.uid"
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
 	// InvalidCanaryScaleDownDelay indicates that canary.scaleDownDelaySeconds cannot be used

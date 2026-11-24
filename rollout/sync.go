@@ -489,7 +489,7 @@ func (c *rolloutContext) calculateStatusDuration(newStatus *v1alpha1.RolloutStat
 		if podSpecChanged {
 			// First rollout or Rollout was interrupted mid-execution
 			if c.isRollback() {
-				// If the rollout is a rollback, we keep the the current duration
+				// If the rollout is a rollback, we keep the current duration
 				// The user explicitly reverted the rollout to the previous pod spec
 				status := v1alpha1.CompletionStatusRolledBack
 				if c.isFastRollback() {

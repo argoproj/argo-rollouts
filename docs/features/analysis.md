@@ -858,6 +858,33 @@ As illustrated, `failureLimit` takes priority if violated. However, if neither i
     * A background analysis with `count` not specified when terminated at the end of the rollout.
     * Any analysis with `count` specified and not yet reached when the rollout is aborted.
 
+## InconclusiveLimit and ConsecutiveErrorLimit
+
+Two more per-metric limits control what happens to measurements that are neither a success nor a failure:
+
+* `inconclusiveLimit` is the maximum number of measurements that may be `Inconclusive` (neither the success condition
+  nor the failure condition matched) before the whole metric is considered `Inconclusive`. The default is `0`, so a single
+  inconclusive measurement makes the metric inconclusive. See [Inconclusive Runs](#inconclusive-runs) for what that means
+  for the rollout.
+* `consecutiveErrorLimit` is the maximum number of measurements in a row that may end in `Error` (for example the
+  provider could not be queried) before the metric is considered `Error`. The default is `4`. The counter resets as soon as
+  a measurement completes with any other result, so intermittent provider errors do not fail the analysis.
+
+```yaml
+  metrics:
+  - name: success-rate
+    interval: 5m
+    failureLimit: 3
+    inconclusiveLimit: 2
+    consecutiveErrorLimit: 5
+    successCondition: result[0] >= 0.95
+    failureCondition: result[0] < 0.90
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: ...
+```
+
 ## Dry-Run Mode
 
 !!! important

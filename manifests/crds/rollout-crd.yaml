@@ -769,7 +769,7 @@ spec:
                         type: object
                       replicaProgressThreshold:
                         description: |-
-                          ReplicaProgressThreshold is the threhold number or percentage of pods that need to be available before a rollout promotion.
+                          ReplicaProgressThreshold is the threshold number or percentage of pods that need to be available before a rollout promotion.
                           Defaults to 100% of total replicas.
                         properties:
                           type:
