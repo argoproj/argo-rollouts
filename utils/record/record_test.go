@@ -1125,4 +1125,25 @@ func TestSendNotificationsOncePer(t *testing.T) {
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "failed to patch notified state")
 	})
+
+	t.Run("NullNotifiedStateDoesNotPanic", func(t *testing.T) {
+		r := newRollout("abc")
+		r.Annotations[notifiedAnnotation] = "null"
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+	})
+
+	t.Run("DefaultEventfPropagatesNotifiedAnnotation", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+		rec.EventRecorderAdapter.apiFactory = &recordingAPIFactory{api: mockAPI}
+
+		rec.Eventf(r, EventOptions{EventReason: "FooReason"}, "event 1")
+		rec.Eventf(r, EventOptions{EventReason: "FooReason"}, "event 2")
+		assert.Equal(t, 1, *sent)
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+	})
 }

@@ -257,14 +257,30 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 			}
 
 			// Notifications record their oncePer state on the object, so work on a copy to leave the
-			// caller's object untouched.
+			// caller's object untouched, then propagate the updated notified annotation back so later
+			// events in the same reconcile pass see it.
+			targetObj := object
 			if ro, ok := object.(*v1alpha1.Rollout); ok {
-				object = ro.DeepCopy()
+				targetObj = ro.DeepCopy()
 			}
 			for _, api := range apis {
-				err := e.sendNotifications(api, object, opts)
+				err := e.sendNotifications(api, targetObj, opts)
 				if err != nil {
 					logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+				}
+			}
+			if ro, ok := object.(*v1alpha1.Rollout); ok {
+				if copyRo, ok := targetObj.(*v1alpha1.Rollout); ok {
+					if updated := copyRo.GetAnnotations(); updated != nil {
+						if val, exists := updated[subscriptions.NotifiedAnnotationKey()]; exists {
+							ann := ro.GetAnnotations()
+							if ann == nil {
+								ann = make(map[string]string)
+							}
+							ann[subscriptions.NotifiedAnnotationKey()] = val
+							ro.SetAnnotations(ann)
+						}
+					}
 				}
 			}
 		}
@@ -518,7 +534,11 @@ func (e *EventRecorderAdapter) notifiedState(object runtime.Object) (notificatio
 	if !ok || e.rolloutsClient == nil {
 		return nil, "", false
 	}
-	return notificationcontroller.NewStateFromRes(ro), ro.GetAnnotations()[subscriptions.NotifiedAnnotationKey()], true
+	state := notificationcontroller.NewStateFromRes(ro)
+	if state == nil {
+		state = notificationcontroller.NotificationsState{}
+	}
+	return state, ro.GetAnnotations()[subscriptions.NotifiedAnnotationKey()], true
 }
 
 // persistNotifiedState patches the notified annotation of the Rollout if the state changed. Only
@@ -562,7 +582,11 @@ func emptyConditionOncePer(cfg api.Config, trigger string, key string, objMap ma
 	if index < 0 || index >= len(conditions) || conditions[index].OncePer == "" {
 		return ""
 	}
-	val, err := expr.Eval(conditions[index].OncePer, map[string]any{"rollout": objMap, "time": timeExprs})
+	env := map[string]any{"rollout": objMap, "time": timeExprs}
+	if ctx, ok := objMap["context"]; ok {
+		env["context"] = ctx
+	}
+	val, err := expr.Eval(conditions[index].OncePer, env)
 	if err != nil {
 		log.Errorf("Failed to execute oncePer expression, trigger: %s : %v", trigger, err)
 		return ""
