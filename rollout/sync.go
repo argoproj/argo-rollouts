@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -372,12 +373,19 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
-		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+		removeScaleDownDeadline := fullScaleDown && !c.shouldDelayScaleDownOnAbort()
+		if removeScaleDownDeadline {
 			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSet
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
+		cachedRS := rs
 		rs, err = c.updateReplicaSet(ctx, rsCopy)
+		if errors.IsConflict(err) {
+			// The ReplicaSet was written to after we read it. If only its status or metadata changed, the scale can
+			// still be applied with a patch instead of failing this reconcile.
+			rs, err = c.patchReplicaSetScaleAfterConflict(ctx, cachedRS, newScale, rolloutReplicas, removeScaleDownDeadline, err)
+		}
 		if err != nil {
 			return scaled, rs, fmt.Errorf("failed to updateReplicaSet in scaleReplicaSet: %w", err)
 		}
@@ -389,6 +397,65 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		}
 	}
 	return scaled, rs, err
+}
+
+// patchReplicaSetScaleAfterConflict applies the scale that scaleReplicaSet could not Update because of a conflict.
+//
+// The Update carries the resourceVersion of the ReplicaSet that was read at the start of the reconcile, so it is
+// rejected if anything wrote to the ReplicaSet since then. That includes the status updates the ReplicaSet
+// controller makes each time one of its pods changes readiness. On a large ReplicaSet those can be frequent enough
+// that the Update is rejected on every reconcile, and the Rollout stops progressing.
+//
+// A JSON merge patch carries no resourceVersion and cannot conflict, so it is only sent after checking that the live
+// ReplicaSet is the one the scale was computed for (same UID) and that its spec is unchanged (same generation, which
+// the API server increments on every spec change and on nothing else). Otherwise the conflict is returned and the
+// Rollout is reconciled again, as it would be without the patch.
+//
+// The patch sets only what the Update would have changed: spec.replicas, the desired-replicas annotation and, when
+// removeScaleDownDeadline is set, the removal of the scale-down-deadline annotation.
+func (c *rolloutContext) patchReplicaSetScaleAfterConflict(ctx context.Context, rs *appsv1.ReplicaSet, newScale, rolloutReplicas int32, removeScaleDownDeadline bool, conflictErr error) (*appsv1.ReplicaSet, error) {
+	client := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace)
+
+	live, err := client.Get(ctx, rs.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting replicaset %s after an update conflict: %w", rs.Name, err)
+	}
+	if live.UID != rs.UID || live.Generation != rs.Generation {
+		c.log.Infof("Conflict updating ReplicaSet '%s' and its spec has changed (generation %d, was %d): not patching the scale", rs.Name, live.Generation, rs.Generation)
+		return nil, conflictErr
+	}
+
+	patch, err := replicaSetScalePatch(rs.UID, newScale, rolloutReplicas, removeScaleDownDeadline)
+	if err != nil {
+		return nil, fmt.Errorf("error creating the scale patch for replicaset %s: %w", rs.Name, err)
+	}
+	patched, err := client.Patch(ctx, rs.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error patching the scale of replicaset %s after an update conflict: %w", rs.Name, err)
+	}
+	c.log.Infof("Conflict updating ReplicaSet '%s' with an unchanged spec (generation %d): patched replicas to %d", rs.Name, rs.Generation, newScale)
+	return patched, nil
+}
+
+// replicaSetScalePatch returns the JSON merge patch that scales a ReplicaSet.
+//
+// The UID is a precondition: the API server rejects the patch if the ReplicaSet was deleted and recreated under the
+// same name. A null annotation value removes the annotation and is ignored if the annotation is absent.
+func replicaSetScalePatch(uid patchtypes.UID, newScale, rolloutReplicas int32, removeScaleDownDeadline bool) ([]byte, error) {
+	annots := map[string]any{
+		annotations.DesiredReplicasAnnotation: strconv.Itoa(int(rolloutReplicas)),
+	}
+	if removeScaleDownDeadline {
+		annots[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nil
+	}
+	meta := map[string]any{"annotations": annots}
+	if uid != "" {
+		meta["uid"] = string(uid)
+	}
+	return json.Marshal(map[string]any{
+		"metadata": meta,
+		"spec":     map[string]any{"replicas": newScale},
+	})
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
