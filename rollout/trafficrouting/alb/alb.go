@@ -311,7 +311,8 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			}
 		}
 	}
-	return ptr.To[bool](numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
+	// Each ingress has its own canary target group and its own target group for every additional destination
+	return ptr.To[bool](numVerifiedWeights == len(ingresses)*(1+len(additionalDestinations))), nil
 }
 
 func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBalancer, log *logrus.Entry) {
