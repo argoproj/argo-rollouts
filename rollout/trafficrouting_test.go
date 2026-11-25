@@ -425,7 +425,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -490,7 +490,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 
 	t.Run("DynamicStableScale true", func(t *testing.T) {
@@ -907,14 +907,14 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 
-	rs1ScaleDownIndex := f.expectUpdateReplicaSetAction(rs1) // scale down ReplicaSet
-	_ = f.expectPatchRolloutAction(r3)                       // updates the rollout status
+	rs1ScaleDownIndex := f.expectPatchReplicaSetAction(rs1) // scale down ReplicaSet
+	_ = f.expectPatchRolloutAction(r3)                      // updates the rollout status
 	f.run(getKey(r3, t))
 
-	rs1Updated := f.getUpdatedReplicaSet(rs1ScaleDownIndex)
+	rs1Updated := f.getPatchedReplicaSet(rs1ScaleDownIndex)
 	assert.Equal(t, int32(0), *rs1Updated.Spec.Replicas)
-	_, ok := rs1Updated.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
-	assert.False(t, ok, "annotation not removed")
+	// A merge patch removes an annotation by naming it with a null value.
+	assert.Contains(t, f.getReplicaSetScalePatch(rs1ScaleDownIndex), fmt.Sprintf(`"%s":null`, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey), "annotation not removed")
 }
 
 // TestDynamicScalingDontIncreaseWeightWhenAborted verifies we don't increase the traffic weight if
@@ -1046,7 +1046,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStepWeightsAvailabilityWhenAbort
 	f.objects = append(f.objects, r2)
 
 	f.expectPatchRolloutAction(r2)
-	f.expectUpdateReplicaSetAction(rs1)
+	f.expectPatchReplicaSetAction(rs1)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1414,10 +1414,10 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs1)                 // Updates the revision annotation from 1 to 3 from func isScalingEvent
-	f.expectUpdateRolloutAction(r2)                     // Update the rollout revision from 1 to 3
-	scaleUpIndex := f.expectUpdateReplicaSetAction(rs1) // Scale The replicaset from 1 to 10 from func scaleReplicaSet
-	f.expectPatchRolloutAction(r2)                      // Updates the rollout status from the scaling to 10 action
+	f.expectUpdateReplicaSetAction(rs1)                // Updates the revision annotation from 1 to 3 from func isScalingEvent
+	f.expectUpdateRolloutAction(r2)                    // Update the rollout revision from 1 to 3
+	scaleUpIndex := f.expectPatchReplicaSetAction(rs1) // Scale The replicaset from 1 to 10 from func scaleReplicaSet
+	f.expectPatchRolloutAction(r2)                     // Updates the rollout status from the scaling to 10 action
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(func(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
@@ -1444,7 +1444,7 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.run(getKey(r1, t))
 
 	// Make sure we scale up stable ReplicaSet to 10
-	rs1Updated := f.getUpdatedReplicaSet(scaleUpIndex)
+	rs1Updated := f.getPatchedReplicaSet(scaleUpIndex)
 	assert.Equal(t, int32(10), *rs1Updated.Spec.Replicas)
 }
 
@@ -1523,7 +1523,7 @@ func TestDontWeightOrHaveManagedRoutesDuringInterruptedUpdate(t *testing.T) {
 		},
 	}
 
-	f.expectUpdateReplicaSetAction(rs3)
+	f.expectPatchReplicaSetAction(rs3)
 	f.run(getKey(r3, t))
 
 	// Make sure that our weight is zero
@@ -1594,7 +1594,7 @@ func TestCheckReplicaSetAvailable(t *testing.T) {
 
 	fix.expectUpdateReplicaSetAction(replicaSet1)
 	fix.expectUpdateRolloutAction(rollout2)
-	fix.expectUpdateReplicaSetAction(replicaSet1)
+	fix.expectPatchReplicaSetAction(replicaSet1)
 	fix.expectPatchRolloutAction(rollout2)
 	fix.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	fix.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1920,7 +1920,7 @@ func TestNewRolloutResetsWeightBeforeUpdatingHash(t *testing.T) {
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 
 	f.expectPatchRolloutAction(r3)
-	f.expectUpdateReplicaSetAction(rs3) // Scale up new canary
+	f.expectPatchReplicaSetAction(rs3) // Scale up new canary
 	f.run(getKey(r3, t))
 
 	t.Logf("Operation order: %v", operationOrder)
@@ -2291,7 +2291,7 @@ func TestDynamicStableScaleNewCanarySupersedeShouldNotOverloadStable(t *testing.
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(ptr.To[bool](true), nil)
 
 	f.expectPatchRolloutAction(r3)
-	f.expectUpdateReplicaSetAction(rs3) // Scale up new canary C
+	f.expectPatchReplicaSetAction(rs3) // Scale up new canary C
 	f.run(getKey(r3, t))
 
 	// With dynamicStableScale=true, stable (A) only has 1/10 pods available.

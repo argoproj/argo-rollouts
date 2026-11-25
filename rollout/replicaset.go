@@ -93,11 +93,12 @@ func (c *reconcilerBase) forgetReplicaSet(rs *appsv1.ReplicaSet) {
 // staleReplicaSet returns the first of the given ReplicaSets, as read from the informer, that is older than this
 // controller's last write to it, or nil if the informer has observed all of our writes.
 //
-// The scale-down-deadline annotation is written with a patch that carries no resourceVersion, so the API server does
-// not reject it when it is computed from an outdated ReplicaSet. This check takes the place of that rejection for
-// the one kind of outdated read the controller can detect itself: a reconcile that starts before the informer has
-// delivered the controller's own previous write. Changes made by others, such as the status updates of the
-// ReplicaSet controller, are not covered.
+// The scale and the scale-down-deadline annotation are written with patches that carry no resourceVersion, so the
+// API server does not reject them when they are computed from an outdated ReplicaSet. This check takes the place of
+// that rejection for the one kind of outdated read the controller can detect itself: a reconcile that starts before
+// the informer has delivered the controller's own previous write. Changes made by others, such as the status
+// updates of the ReplicaSet controller, are not covered and do not need to be: they do not change what the patches
+// write.
 //
 // Only ReplicaSets that are in the informer are compared. A ReplicaSet that was written to and is not in the list is
 // not treated as stale, because that cannot be told apart from a ReplicaSet that has since been deleted.

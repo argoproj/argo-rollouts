@@ -3,18 +3,22 @@ package rollout
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	testclient "k8s.io/client-go/testing"
@@ -28,6 +32,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	resourceversionutil "github.com/argoproj/argo-rollouts/utils/resourceversion"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"context"
@@ -407,12 +412,12 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
 	f.expectGetRolloutAction(r2)                           // re-seed between syncs
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: patch status
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // sync 2: scale new ReplicaSet to 10
+	updatedRS2Index := f.expectPatchReplicaSetAction(rs2)  // sync 2: scale new ReplicaSet to 10
 	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
-	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	updatedRS2 := f.getPatchedReplicaSet(updatedRS2Index)
 	assert.Equal(t, int32(10), *updatedRS2.Spec.Replicas) // verify we ignored steps and fully scaled it
 
 	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
@@ -929,12 +934,12 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r2)                       // sync 1: update status
 	f.expectGetRolloutAction(r2)                                // re-seed between syncs
 	updatedROIndex := f.expectPatchRolloutAction(r2)            // sync 2: patch status
-	updatedRS2Index := f.expectUpdateReplicaSetAction(stableRs) // sync 2: scale RS
+	updatedRS2Index := f.expectPatchReplicaSetAction(stableRs)  // sync 2: scale RS
 	f.runWithSyncs(getKey(r2, t), 2)
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
-	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	updatedRS2 := f.getPatchedReplicaSet(updatedRS2Index)
 	assert.Equal(t, int32(1), *updatedRS2.Spec.Replicas)
 
 	updateRO := f.getPatchedRollout(updatedROIndex)
@@ -948,4 +953,328 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(13), roStatus.Status.Replicas)
 	assert.Equal(t, int32(13), roStatus.Status.ReadyReplicas)
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
+}
+
+// scalePatchFixture holds a rolloutContext whose kube client contains a ReplicaSet as it is in the API, and the
+// older copy of it that the controller read from its informer.
+type scalePatchFixture struct {
+	roCtx      *rolloutContext
+	kubeclient *k8sfake.Clientset
+	rollout    *v1alpha1.Rollout
+	// cached is the copy the controller read at the start of the reconcile.
+	cached *appsv1.ReplicaSet
+}
+
+// newScalePatchFixture creates a 10-replica canary Rollout and its 10-replica ReplicaSet. mutateCached changes the
+// ReplicaSet before the controller "reads" it, mutateLive changes the one in the API afterwards. By default the two
+// differ in what the status updates of the ReplicaSet controller change: the resourceVersion and the status.
+//
+// The kube client rejects an Update that does not carry the resourceVersion of the live ReplicaSet, as the API
+// server does.
+func newScalePatchFixture(t *testing.T, mutateCached func(*appsv1.ReplicaSet), mutateLive func(*appsv1.ReplicaSet)) *scalePatchFixture {
+	t.Helper()
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
+	ro := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt32(1), intstr.FromInt32(0))
+
+	cached := newReplicaSetWithStatus(ro, 10, 10)
+	cached.Generation = 3
+	cached.ResourceVersion = "100"
+	if mutateCached != nil {
+		mutateCached(cached)
+	}
+
+	live := cached.DeepCopy()
+	live.ResourceVersion = "250"
+	live.Status.ReadyReplicas = 7
+	live.Status.AvailableReplicas = 7
+	if mutateLive != nil {
+		mutateLive(live)
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset(live)
+	kubeclient.PrependReactor("update", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+		update := action.(testclient.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+		if update.ResourceVersion != live.ResourceVersion {
+			return true, nil, k8serrors.NewConflict(appsv1.Resource("replicasets"), update.Name, errors.New("the object has been modified; please apply your changes to the latest version and try again"))
+		}
+		return false, nil, nil
+	})
+	roCtx := &rolloutContext{
+		log:     logutil.WithRollout(ro),
+		rollout: ro,
+		reconcilerBase: reconcilerBase{
+			kubeclientset:            kubeclient,
+			recorder:                 record.NewFakeEventRecorder(),
+			replicaSetVersionTracker: resourceversionutil.NewTracker(),
+		},
+		pauseContext: &pauseContext{rollout: ro},
+	}
+	return &scalePatchFixture{roCtx: roCtx, kubeclient: kubeclient, rollout: ro, cached: cached}
+}
+
+// replicaSetVerbs returns the verbs of the ReplicaSet requests that were made, in order.
+func (f *scalePatchFixture) replicaSetVerbs() []string {
+	verbs := []string{}
+	for _, action := range f.kubeclient.Actions() {
+		if action.GetResource().Resource == "replicasets" {
+			verbs = append(verbs, action.GetVerb())
+		}
+	}
+	return verbs
+}
+
+// scalePatch returns the only ReplicaSet patch that was made.
+func (f *scalePatchFixture) scalePatch(t *testing.T) testclient.PatchAction {
+	t.Helper()
+	var patches []testclient.PatchAction
+	for _, action := range f.kubeclient.Actions() {
+		if patch, ok := action.(testclient.PatchAction); ok && action.GetResource().Resource == "replicasets" {
+			patches = append(patches, patch)
+		}
+	}
+	require.Len(t, patches, 1)
+	return patches[0]
+}
+
+func (f *scalePatchFixture) liveReplicaSet(t *testing.T) *appsv1.ReplicaSet {
+	t.Helper()
+	live, err := f.kubeclient.AppsV1().ReplicaSets(f.cached.Namespace).Get(context.Background(), f.cached.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	return live
+}
+
+func (f *scalePatchFixture) events() []string {
+	return f.roCtx.recorder.(*record.FakeEventRecorder).Events()
+}
+
+// The scale is a merge patch of the fields that change. It is applied although the ReplicaSet in the API has a newer
+// resourceVersion than the copy the scale was computed for, which would reject an Update.
+func TestScaleReplicaSetPatchesTheScale(t *testing.T) {
+	f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		// An outdated desired-replicas annotation, to show that the patch corrects it.
+		rs.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+	}, nil)
+
+	// The fixture is set up so that an Update of the cached copy is rejected.
+	_, err := f.roCtx.updateReplicaSet(context.Background(), f.cached.DeepCopy())
+	require.True(t, k8serrors.IsConflict(err), "got: %v", err)
+	f.kubeclient.ClearActions()
+
+	scaled, updated, err := f.roCtx.scaleReplicaSet(f.cached, 4, f.rollout, "down")
+
+	require.NoError(t, err)
+	assert.True(t, scaled)
+	assert.Equal(t, []string{"patch"}, f.replicaSetVerbs())
+
+	patch := f.scalePatch(t)
+	assert.Equal(t, patchtypes.MergePatchType, patch.GetPatchType())
+	assert.Empty(t, patch.GetSubresource())
+	// Compared as exact bytes: the patch must contain nothing else, in particular no resourceVersion.
+	assert.Equal(t, fmt.Sprintf(
+		`{"metadata":{"annotations":{"rollout.argoproj.io/desired-replicas":"10"},"uid":"%s"},"spec":{"replicas":4}}`,
+		f.cached.UID), string(patch.GetPatch()))
+
+	live := f.liveReplicaSet(t)
+	assert.Equal(t, int32(4), *live.Spec.Replicas)
+	assert.Equal(t, "10", live.Annotations[annotations.DesiredReplicasAnnotation])
+	// Everything the patch does not name is left as it was in the API.
+	assert.Equal(t, int32(7), live.Status.ReadyReplicas)
+	assert.Equal(t, f.cached.Annotations[annotations.RevisionAnnotation], live.Annotations[annotations.RevisionAnnotation])
+	assert.Equal(t, f.cached.Spec.Template, live.Spec.Template)
+
+	// The caller gets the ReplicaSet as the API has it, and the copy it passed in is not modified.
+	assert.Equal(t, int32(4), *updated.Spec.Replicas)
+	assert.Equal(t, int32(7), updated.Status.ReadyReplicas)
+	assert.Equal(t, int32(10), *f.cached.Spec.Replicas)
+	assert.Equal(t, "20", f.cached.Annotations[annotations.DesiredReplicasAnnotation])
+
+	assert.Equal(t, []string{conditions.ScalingReplicaSetReason}, f.events())
+
+	// The write is recorded, so that no reconcile starts from the copy that predates it.
+	assert.Equal(t, f.cached, f.roCtx.staleReplicaSet([]*appsv1.ReplicaSet{f.cached}))
+	assert.Nil(t, f.roCtx.staleReplicaSet([]*appsv1.ReplicaSet{live}))
+}
+
+// The patch names the replica count only if the scale changes, and an annotation only if its value changes.
+func TestScaleReplicaSetPatchesOnlyWhatChanges(t *testing.T) {
+	t.Run("only the scale", func(t *testing.T) {
+		f := newScalePatchFixture(t, nil, nil)
+
+		scaled, _, err := f.roCtx.scaleReplicaSet(f.cached, 4, f.rollout, "down")
+
+		require.NoError(t, err)
+		assert.True(t, scaled)
+		assert.Equal(t, fmt.Sprintf(`{"metadata":{"uid":"%s"},"spec":{"replicas":4}}`, f.cached.UID), string(f.scalePatch(t).GetPatch()))
+		assert.Equal(t, int32(4), *f.liveReplicaSet(t).Spec.Replicas)
+	})
+	t.Run("only the desired-replicas annotation", func(t *testing.T) {
+		f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			rs.Annotations[annotations.DesiredReplicasAnnotation] = "20"
+		}, func(rs *appsv1.ReplicaSet) {
+			// Something else scaled the ReplicaSet after it was read. A patch that only has to correct the
+			// annotation must not undo that.
+			rs.Spec.Replicas = ptr.To[int32](8)
+		})
+
+		scaled, _, err := f.roCtx.scaleReplicaSet(f.cached, 10, f.rollout, "down")
+
+		require.NoError(t, err)
+		assert.False(t, scaled, "the replica count did not change")
+		assert.Equal(t, fmt.Sprintf(`{"metadata":{"annotations":{"rollout.argoproj.io/desired-replicas":"10"},"uid":"%s"}}`, f.cached.UID), string(f.scalePatch(t).GetPatch()))
+		live := f.liveReplicaSet(t)
+		assert.Equal(t, int32(8), *live.Spec.Replicas)
+		assert.Equal(t, "10", live.Annotations[annotations.DesiredReplicasAnnotation])
+		assert.Empty(t, f.events())
+	})
+}
+
+// Scaling to zero removes the scale-down-deadline annotation, but only if the copy the scale was computed for has it.
+func TestScaleReplicaSetScaleDownDeadline(t *testing.T) {
+	future := time.Now().Add(time.Minute).UTC().Format(time.RFC3339)
+	past := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+
+	t.Run("removed on a full scale-down", func(t *testing.T) {
+		f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = past
+		}, nil)
+
+		scaled, _, err := f.roCtx.scaleReplicaSet(f.cached, 0, f.rollout, "down")
+
+		require.NoError(t, err)
+		assert.True(t, scaled)
+		assert.Equal(t, fmt.Sprintf(`{"metadata":{"annotations":{"scale-down-deadline":null},"uid":"%s"},"spec":{"replicas":0}}`, f.cached.UID), string(f.scalePatch(t).GetPatch()))
+		live := f.liveReplicaSet(t)
+		assert.Equal(t, int32(0), *live.Spec.Replicas)
+		assert.NotContains(t, live.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		assert.Contains(t, live.Annotations, annotations.RevisionAnnotation)
+	})
+	t.Run("not removed if the scale was computed without it", func(t *testing.T) {
+		// The ReplicaSet was given a deadline after the copy was read. newRolloutContext does not start a reconcile
+		// from such a copy if the deadline was our own write (see staleReplicaSet). If a scale to zero is computed
+		// from one anyway, it does not also take away a deadline it never took into account.
+		f := newScalePatchFixture(t, nil, func(rs *appsv1.ReplicaSet) {
+			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = future
+		})
+
+		_, _, err := f.roCtx.scaleReplicaSet(f.cached, 0, f.rollout, "down")
+
+		require.NoError(t, err)
+		assert.NotContains(t, string(f.scalePatch(t).GetPatch()), v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		assert.Equal(t, future, f.liveReplicaSet(t).Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+	})
+	t.Run("kept when an aborted Rollout delays the scale-down", func(t *testing.T) {
+		f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = past
+		}, nil)
+		f.rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		f.rollout.Status.Abort = true
+		f.roCtx.stableRS = f.cached
+		require.True(t, f.roCtx.shouldDelayScaleDownOnAbort())
+
+		scaled, _, err := f.roCtx.scaleReplicaSet(f.cached, 0, f.rollout, "down")
+
+		require.NoError(t, err)
+		assert.True(t, scaled)
+		assert.NotContains(t, string(f.scalePatch(t).GetPatch()), v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		live := f.liveReplicaSet(t)
+		assert.Equal(t, int32(0), *live.Spec.Replicas)
+		assert.Equal(t, past, live.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+	})
+}
+
+// A ReplicaSet that is already as scaleReplicaSet wants it is not written to.
+func TestScaleReplicaSetSendsNothingWhenNothingChanges(t *testing.T) {
+	// A Rollout that was scaled to zero and aborted keeps the scale-down-deadline of its canary. The deadline makes
+	// ReplicasAnnotationsNeedUpdate report a change, but there is none to make.
+	f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		rs.Spec.Replicas = ptr.To[int32](0)
+		rs.Annotations[annotations.DesiredReplicasAnnotation] = "0"
+		rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = time.Now().Add(time.Minute).UTC().Format(time.RFC3339)
+	}, nil)
+	f.rollout.Spec.Replicas = ptr.To[int32](0)
+	f.rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	f.rollout.Status.Abort = true
+	f.roCtx.stableRS = f.cached
+	require.True(t, f.roCtx.shouldDelayScaleDownOnAbort())
+	require.True(t, annotations.ReplicasAnnotationsNeedUpdate(f.cached, 0))
+
+	scaled, rs, err := f.roCtx.scaleReplicaSet(f.cached, 0, f.rollout, "down")
+
+	require.NoError(t, err)
+	assert.False(t, scaled)
+	assert.Equal(t, f.cached, rs)
+	assert.Empty(t, f.replicaSetVerbs())
+	assert.Empty(t, f.events())
+}
+
+// If the patch is rejected, its error is returned, no scaling event is recorded and no write is remembered.
+func TestScaleReplicaSetReturnsPatchError(t *testing.T) {
+	f := newScalePatchFixture(t, nil, nil)
+	f.kubeclient.PrependReactor("patch", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+		return true, nil, k8serrors.NewForbidden(appsv1.Resource("replicasets"), f.cached.Name, errors.New("not allowed"))
+	})
+
+	scaled, _, err := f.roCtx.scaleReplicaSet(f.cached, 4, f.rollout, "down")
+
+	require.Error(t, err)
+	assert.True(t, k8serrors.IsForbidden(err), "got: %v", err)
+	assert.False(t, scaled)
+	assert.Equal(t, []string{"patch"}, f.replicaSetVerbs())
+	assert.Equal(t, int32(10), *f.liveReplicaSet(t).Spec.Replicas)
+	assert.Empty(t, f.events())
+	assert.Nil(t, f.roCtx.staleReplicaSet([]*appsv1.ReplicaSet{f.cached}))
+}
+
+func TestReplicaSetScalePatch(t *testing.T) {
+	newRS := func(uid string, replicas int32, annotations map[string]string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "foo", UID: patchtypes.UID(uid), ResourceVersion: "100", Annotations: annotations},
+			Spec:       appsv1.ReplicaSetSpec{Replicas: &replicas},
+		}
+	}
+	tests := []struct {
+		name   string
+		from   *appsv1.ReplicaSet
+		scaled *appsv1.ReplicaSet
+		want   string
+	}{
+		{
+			name:   "scale",
+			from:   newRS("abc", 100, map[string]string{"a": "1"}),
+			scaled: newRS("abc", 90, map[string]string{"a": "1"}),
+			want:   `{"metadata":{"uid":"abc"},"spec":{"replicas":90}}`,
+		},
+		{
+			name:   "annotations added, changed and removed, the others left alone",
+			from:   newRS("abc", 100, map[string]string{"keep": "1", "change": "1", "remove": "1"}),
+			scaled: newRS("abc", 100, map[string]string{"keep": "1", "change": "2", "add": "1"}),
+			want:   `{"metadata":{"annotations":{"add":"1","change":"2","remove":null},"uid":"abc"}}`,
+		},
+		{
+			name:   "scale and annotations",
+			from:   newRS("abc", 100, nil),
+			scaled: newRS("abc", 0, map[string]string{"a": "1"}),
+			want:   `{"metadata":{"annotations":{"a":"1"},"uid":"abc"},"spec":{"replicas":0}}`,
+		},
+		{
+			name:   "no uid precondition when the uid is unknown",
+			from:   newRS("", 100, nil),
+			scaled: newRS("", 90, nil),
+			want:   `{"spec":{"replicas":90}}`,
+		},
+		{
+			name:   "nothing to change",
+			from:   newRS("abc", 100, map[string]string{"a": "1"}),
+			scaled: newRS("abc", 100, map[string]string{"a": "1"}),
+			want:   "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			patch, err := replicaSetScalePatch(test.from, test.scaled)
+			require.NoError(t, err)
+			// Compared as exact bytes: the patch must contain nothing else, in particular no resourceVersion.
+			assert.Equal(t, test.want, string(patch))
+		})
+	}
 }

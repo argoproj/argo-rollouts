@@ -344,9 +344,11 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				t.Errorf("expected 1 action during scale, got: %v", fake.Actions())
 				return
 			}
-			updated := k8sfake.Actions()[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-			if e, a := test.expectedNewReplicas, int(*(updated.Spec.Replicas)); e != a {
-				t.Errorf("expected update to %d replicas, got %d", e, a)
+			patched := replicaSetFromScalePatch(t, k8sfake.Actions()[0])
+			if patched.Spec.Replicas == nil {
+				t.Errorf("expected the patch to set %d replicas, got none", test.expectedNewReplicas)
+			} else if e, a := test.expectedNewReplicas, int(*(patched.Spec.Replicas)); e != a {
+				t.Errorf("expected patch to %d replicas, got %d", e, a)
 			}
 		})
 	}
@@ -421,10 +423,10 @@ func TestReconcileNewReplicaSetAbortDelaySyncsReplicasAnnotation(t *testing.T) {
 			assert.False(t, scaled)
 
 			actions := k8sfake.Actions()
-			assert.NotEmpty(t, actions, "expected an update syncing the desired-replicas annotation")
-			updated := actions[0].(core.UpdateAction).GetObject().(*appsv1.ReplicaSet)
-			assert.Equal(t, int32(5), *updated.Spec.Replicas, "newRS must be held at scale during the abort delay")
-			assert.Equal(t, "4", updated.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must track spec.replicas so isScalingEvent() terminates")
+			assert.NotEmpty(t, actions, "expected a patch syncing the desired-replicas annotation")
+			patched := replicaSetFromScalePatch(t, actions[0])
+			assert.Nil(t, patched.Spec.Replicas, "newRS must be held at scale during the abort delay: the patch must not name spec.replicas")
+			assert.Equal(t, "4", patched.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must track spec.replicas so isScalingEvent() terminates")
 		})
 	}
 }
@@ -478,14 +480,14 @@ func TestAbortScaleDownDelayDoesNotWedgeScalingEvent(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2) // desired-replicas annotation sync
-	f.expectPatchReplicaSetAction(rs2)                    // scale-down-deadline added
+	patchedRSIndex := f.expectPatchReplicaSetAction(rs2) // desired-replicas annotation sync
+	f.expectPatchReplicaSetAction(rs2)                   // scale-down-deadline added
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
-	assert.Equal(t, int32(5), *updatedRS.Spec.Replicas, "canary RS must be held at scale during the abort delay")
-	assert.Equal(t, "4", updatedRS.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must be synced so the scaling event terminates and the next reconcile takes the full path")
+	patchedRS := f.getPatchedReplicaSet(patchedRSIndex)
+	assert.Nil(t, patchedRS.Spec.Replicas, "canary RS must be held at scale during the abort delay: the patch must not name spec.replicas")
+	assert.Equal(t, "4", patchedRS.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must be synced so the scaling event terminates and the next reconcile takes the full path")
 }
 
 func TestReconcileOldReplicaSet(t *testing.T) {
@@ -1238,7 +1240,8 @@ func TestDeletedReplicaSetIsForgotten(t *testing.T) {
 // The Rollout is a traffic-routed canary. V1 was its stable ReplicaSet until V2 was fully promoted, and the
 // controller then gave V1 a scale-down-deadline, with a patch. V3 was applied right after. The informer has not
 // delivered that patch yet, so V1 looks like an intermediate ReplicaSet without a deadline, and those are scaled to
-// zero at once. The reconcile has to wait instead.
+// zero at once. The scale is a patch without a resourceVersion, so the API server would not reject it: the reconcile
+// has to wait instead.
 func TestSyncHandlerWaitsForReplicaSetInformerToObserveOwnWrite(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

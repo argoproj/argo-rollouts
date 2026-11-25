@@ -43,11 +43,19 @@ func (c *rolloutContext) reconcileBlueGreenStableReplicaSet() error {
 	}
 
 	c.log.Infof("Reconciling stable ReplicaSet '%s'", c.stableRS.Name)
-	_, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
+	stableIsNewRS := c.newRS != nil && c.newRS.Name == c.stableRS.Name
+	_, scaledRS, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
 	if err != nil {
 		return fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileBlueGreenStableReplicaSet: %w", err)
 	}
-	return err
+	if stableIsNewRS {
+		// Once the Rollout is fully promoted the stable ReplicaSet is also the new one, which reconcileNewReplicaSet
+		// scales next. Hand it the ReplicaSet as it is after this scale. With the copy from before the scale it
+		// would send the same scale a second time and record a second scaling event for it.
+		c.stableRS = scaledRS
+		c.newRS = scaledRS
+	}
+	return nil
 }
 
 func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service) error {

@@ -246,7 +246,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	f.objects = append(f.objects, r2, at)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -307,7 +307,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	f.objects = append(f.objects, r2, at)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -369,7 +369,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	f.objects = append(f.objects, r2, cat)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -481,7 +481,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	f.objects = append(f.objects, r2, cat, at)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -562,7 +562,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplateAndInnerTempl
 	f.objects = append(f.objects, r2, cat, at, at2, cat2, cat3, cat4)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -644,7 +644,7 @@ func TestCreateBackgroundAnalysisRunWithTemplatesAndNoMetrics(t *testing.T) {
 	f.objects = append(f.objects, r2, cat, at, at2, cat2, cat3, cat4)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -717,7 +717,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	expectedAR := ar.DeepCopy()
 	expectedAR.Name = ar.Name + ".1"
 	createdIndex := f.expectCreateAnalysisRunAction(expectedAR) // this succeeds
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -782,7 +782,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 
 	f.expectCreateAnalysisRunAction(ar) // this fails due to conflict
 	f.expectGetAnalysisRunAction(ar)    // get will retrieve the existing one to compare semantic equality
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -1122,7 +1122,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1907,7 +1907,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs1)   // create replica set
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectGetRolloutAction(r1)          // second reconciliation
-	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
+	f.expectPatchReplicaSetAction(rs1)    // scale replica set
 	f.expectPatchRolloutAction(r1)        // patch status
 	f.runWithSyncs(getKey(r1, t), 2)
 }
@@ -1943,7 +1943,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.expectCreateReplicaSetAction(rs1)   // create replica set
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectGetRolloutAction(r1)          // second reconciliation
-	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
+	f.expectPatchReplicaSetAction(rs1)    // scale replica set
 	f.expectPatchRolloutAction(r1)        // patch status
 	f.runWithSyncs(getKey(r1, t), 2)
 }
@@ -1984,7 +1984,7 @@ func TestDoNotCreateBackgroundAnalysisRunWhenWithinRollbackWindow(t *testing.T) 
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
 
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 }
@@ -2123,7 +2123,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs)   // create replica set
 	f.expectUpdateRolloutStatusAction(r) // update rollout conditions
 	f.expectGetRolloutAction(r)          // second reconciliation
-	f.expectUpdateReplicaSetAction(rs)   // scale RS
+	f.expectPatchReplicaSetAction(rs)    // scale RS
 	f.expectPatchRolloutAction(r)        // patch status
 	f.runWithSyncs(getKey(r, t), 2)
 }
@@ -2811,7 +2811,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 	f.objects = append(f.objects, r2, at)
 
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
-	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchReplicaSetAction(rs2)
 	_ = f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -2857,7 +2857,7 @@ func TestCancelBackgroundAnalysisRunWhenRolloutAnalysisHasNoTemplate(t *testing.
 
 	_ = f.expectPatchAnalysisRunAction(ar)
 	patchIndex := f.expectPatchRolloutAction(r2)
-	_ = f.expectUpdateReplicaSetAction(rs1)
+	_ = f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
