@@ -39,7 +39,6 @@ import (
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	pluginutil "github.com/argoproj/argo-rollouts/utils/plugin"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
 	"github.com/argoproj/argo-rollouts/utils/version"
 )
@@ -116,7 +115,6 @@ func newCommand() *cobra.Command {
 				log.SetFormatter(createFormatter(logFormat))
 				logger.SetFormatter(createFormatter(logFormat))
 			}
-			pluginutil.SetLogFormat(logFormat)
 			logutil.SetKLogLogger(logger)
 			logutil.SetKLogLevel(klogLevel)
 
