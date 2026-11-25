@@ -1046,10 +1046,16 @@ func (f *fixture) expectGetExperimentAction(ex *v1alpha1.Experiment) int {
 	return len
 }
 
-func (f *fixture) expectUpdateRolloutAction(rollout *v1alpha1.Rollout) int {
-	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout)
+// expectPatchRolloutObjectAction expects a merge patch on the Rollout main
+// resource (not the status subresource), as issued for the revision annotation
+// and the spec.replicas default.
+func (f *fixture) expectPatchRolloutObjectAction(rollout *v1alpha1.Rollout) int {
+	rolloutSchema := schema.GroupVersionResource{
+		Resource: "rollouts",
+		Version:  "v1alpha1",
+	}
 	len := len(f.actions)
-	f.actions = append(f.actions, action)
+	f.actions = append(f.actions, core.NewPatchAction(rolloutSchema, rollout.Namespace, rollout.Name, types.MergePatchType, nil))
 	return len
 }
 
@@ -1531,16 +1537,18 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	f.expectUpdateRolloutStatusAction(r)          // sync 1: create RS and set Progressing condition, then exit early
-	f.expectGetRolloutAction(r)                   // second reconciliation
-	updateIndex := f.expectUpdateRolloutAction(r) // sync 2: default .spec.replicas, then exit early
-	f.expectGetRolloutAction(r)                   // third reconciliation
-	f.expectPatchRolloutAction(r)                 // sync 3: patch status
+	f.expectUpdateRolloutStatusAction(r)              // sync 1: create RS and set Progressing condition, then exit early
+	f.expectGetRolloutAction(r)                       // second reconciliation
+	patchIndex := f.expectPatchRolloutObjectAction(r) // sync 2: default .spec.replicas, then exit early
+	f.expectGetRolloutAction(r)                       // third reconciliation
+	f.expectPatchRolloutAction(r)                     // sync 3: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
 	f.runWithSyncs(getKey(r, t), 3)
-	updatedRollout := f.getUpdatedRollout(updateIndex)
-	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
+	patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+	assert.Equal(t, defaults.DefaultReplicas, *patchedRollout.Spec.Replicas)
+	assert.Equal(t, r.ResourceVersion, patchedRollout.ResourceVersion)
+	assert.Empty(t, patchedRollout.Spec.Template.Spec.Containers, "patch must not carry the normalized pod template")
 }
 
 func TestSyncHandlerLogsUnderlyingErrorFromNewRolloutContext(t *testing.T) {

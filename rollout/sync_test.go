@@ -403,7 +403,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // sync 1: create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // sync 1: update rollout revision
+	f.expectPatchRolloutObjectAction(r2)                   // sync 1: patch rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                  // sync 1: update rollout conditions
 	f.expectGetRolloutAction(r2)                           // re-seed between syncs
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)  // sync 2: patch status
@@ -925,7 +925,7 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, oldRs, stableRs)
 
 	createdRS2Index := f.expectCreateReplicaSetAction(stableRs) // sync 1: create RS
-	f.expectUpdateRolloutAction(r2)                             // sync 1: update rollout revision
+	f.expectPatchRolloutObjectAction(r2)                        // sync 1: patch rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                       // sync 1: update status
 	f.expectGetRolloutAction(r2)                                // re-seed between syncs
 	updatedROIndex := f.expectPatchRolloutAction(r2)            // sync 2: patch status
