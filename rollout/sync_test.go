@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -32,6 +34,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"context"
@@ -1323,4 +1326,559 @@ func TestSyncRolloutPatchesScaleAfterUpdateConflict(t *testing.T) {
 	live, err := f.kubeclient.AppsV1().ReplicaSets(rs1.Namespace).Get(context.Background(), rs1.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, int32(2), *live.Spec.Replicas)
+}
+
+// The tests below cover the patch that replaces an Update of a ReplicaSet's revision or ephemeral metadata after a
+// conflict. See patchReplicaSetAfterConflict.
+
+var (
+	canaryRole = &v1alpha1.PodTemplateMetadata{Labels: map[string]string{"role": "canary"}}
+	stableRole = &v1alpha1.PodTemplateMetadata{Labels: map[string]string{"role": "stable"}}
+)
+
+// withEphemeralMetadata returns the ReplicaSet as the controller leaves it after it has
+// applied the metadata.
+func withEphemeralMetadata(rs *appsv1.ReplicaSet, metadata *v1alpha1.PodTemplateMetadata) *appsv1.ReplicaSet {
+	rs, _ = replicasetutil.SyncReplicaSetEphemeralPodMetadata(rs, metadata)
+	return rs
+}
+
+// replicaSetPatchFixture holds a rolloutContext whose kube client contains the "live"
+// ReplicaSet, and the stale copy the controller would have read from its informer.
+type replicaSetPatchFixture struct {
+	roCtx      *rolloutContext
+	kubeclient *k8sfake.Clientset
+	rollout    *v1alpha1.Rollout
+	cached     *appsv1.ReplicaSet
+}
+
+// newReplicaSetPatchFixture creates a 10-replica canary Rollout with canary and stable
+// metadata, and its ReplicaSet. The live ReplicaSet differs from the cached one in what
+// a status write changes, and in whatever mutateLive changes.
+func newReplicaSetPatchFixture(t *testing.T, mutateCached, mutateLive func(*appsv1.ReplicaSet)) *replicaSetPatchFixture {
+	t.Helper()
+	ro := newCanaryRollout("foo", 10, nil, []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}, ptr.To[int32](0), intstr.FromInt32(1), intstr.FromInt32(0))
+	ro.Spec.Strategy.Canary.CanaryMetadata = canaryRole
+	ro.Spec.Strategy.Canary.StableMetadata = stableRole
+
+	cached := newReplicaSetWithStatus(ro, 10, 10)
+	cached.Generation = 3
+	cached.ResourceVersion = "100"
+	cached.Annotations["someone-elses/annotation"] = "kept"
+	if mutateCached != nil {
+		mutateCached(cached)
+	}
+	live := cached.DeepCopy()
+	live.ResourceVersion = "250"
+	live.Status.ReadyReplicas = 7
+	live.Status.AvailableReplicas = 7
+	if mutateLive != nil {
+		mutateLive(live)
+	}
+
+	kubeclient := k8sfake.NewSimpleClientset(live)
+	roCtx := &rolloutContext{
+		log:     logutil.WithRollout(ro),
+		rollout: ro,
+		reconcilerBase: reconcilerBase{
+			kubeclientset:               kubeclient,
+			argoprojclientset:           fake.NewSimpleClientset(ro),
+			recorder:                    record.NewFakeEventRecorder(),
+			ephemeralMetadataThreads:    DefaultEphemeralMetadataThreads,
+			ephemeralMetadataPodRetries: DefaultEphemeralMetadataPodRetries,
+		},
+		pauseContext: &pauseContext{rollout: ro},
+	}
+	return &replicaSetPatchFixture{roCtx: roCtx, kubeclient: kubeclient, rollout: ro, cached: cached}
+}
+
+// conflictOnUpdate makes every Update of a ReplicaSet fail with a conflict.
+func (f *replicaSetPatchFixture) conflictOnUpdate() {
+	f.kubeclient.PrependReactor("update", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+		rs := action.(testclient.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+		return true, nil, replicaSetConflict(rs.Name)
+	})
+}
+
+// replicaSetVerbs returns the verbs of the requests made for ReplicaSets, in order.
+func (f *replicaSetPatchFixture) replicaSetVerbs() []string {
+	var verbs []string
+	for _, action := range f.kubeclient.Actions() {
+		if action.GetResource().Resource == "replicasets" {
+			verbs = append(verbs, action.GetVerb())
+		}
+	}
+	return verbs
+}
+
+// patch returns the one ReplicaSet patch that was sent.
+func (f *replicaSetPatchFixture) patch(t *testing.T) string {
+	t.Helper()
+	var patches []testclient.PatchAction
+	for _, action := range f.kubeclient.Actions() {
+		if patch, ok := action.(testclient.PatchAction); ok && action.GetResource().Resource == "replicasets" {
+			patches = append(patches, patch)
+		}
+	}
+	require.Len(t, patches, 1)
+	assert.Equal(t, types.MergePatchType, patches[0].GetPatchType())
+	assert.Empty(t, patches[0].GetSubresource())
+	return string(patches[0].GetPatch())
+}
+
+func (f *replicaSetPatchFixture) live(t *testing.T) *appsv1.ReplicaSet {
+	t.Helper()
+	rs, err := f.kubeclient.AppsV1().ReplicaSets(f.cached.Namespace).Get(context.Background(), f.cached.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	return rs
+}
+
+// The stable metadata replaces the canary metadata of a promoted ReplicaSet. The Update
+// conflicts with a status write, so the change is patched.
+func TestSyncEphemeralMetadataPatchesAfterConflict(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		*rs = *withEphemeralMetadata(rs, canaryRole)
+	}, nil)
+	f.conflictOnUpdate()
+
+	err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update", "get", "patch"}, f.replicaSetVerbs())
+	assert.JSONEq(t, fmt.Sprintf(`{
+		"metadata": {"uid": "%s", "annotations": {"rollout.argoproj.io/ephemeral-metadata": "{\"labels\":{\"role\":\"stable\"}}"}},
+		"spec": {"template": {"metadata": {"labels": {"role": "stable"}}}}
+	}`, f.cached.UID), f.patch(t))
+
+	live := f.live(t)
+	assert.Equal(t, "stable", live.Spec.Template.Labels["role"])
+	assert.Equal(t, `{"labels":{"role":"stable"}}`, live.Annotations[replicasetutil.EphemeralMetadataAnnotation])
+	// Everything the patch does not name is left as the API had it.
+	assert.Equal(t, int32(7), live.Status.ReadyReplicas)
+	assert.Equal(t, int32(10), *live.Spec.Replicas)
+	assert.Equal(t, "kept", live.Annotations["someone-elses/annotation"])
+	assert.Equal(t, f.cached.Annotations[annotations.DesiredReplicasAnnotation], live.Annotations[annotations.DesiredReplicasAnnotation])
+	assert.Equal(t, f.cached.Spec.Template.Labels["foo"], live.Spec.Template.Labels["foo"])
+	assert.Equal(t, f.cached.Spec.Template.Spec, live.Spec.Template.Spec)
+}
+
+// Removing the metadata from a ReplicaSet that is no longer the stable one. After an abort
+// or a rollback that ReplicaSet is the abandoned canary, which still has its pods.
+func TestSyncEphemeralMetadataPatchRemovesMetadata(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		*rs = *withEphemeralMetadata(rs, stableRole)
+	}, nil)
+	f.conflictOnUpdate()
+
+	err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update", "get", "patch"}, f.replicaSetVerbs())
+	assert.JSONEq(t, fmt.Sprintf(`{
+		"metadata": {"uid": "%s", "annotations": {"rollout.argoproj.io/ephemeral-metadata": null}},
+		"spec": {"template": {"metadata": {"labels": {"role": null}}}}
+	}`, f.cached.UID), f.patch(t))
+
+	live := f.live(t)
+	assert.NotContains(t, live.Spec.Template.Labels, "role")
+	assert.NotContains(t, live.Annotations, replicasetutil.EphemeralMetadataAnnotation)
+	assert.Equal(t, "kept", live.Annotations["someone-elses/annotation"])
+	assert.Equal(t, "bar", live.Spec.Template.Labels["foo"])
+	assert.Equal(t, int32(7), live.Status.ReadyReplicas)
+}
+
+// The pods are synced after the ReplicaSet was patched, as they are after an Update.
+func TestSyncEphemeralMetadataSyncsPodsAfterPatch(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		*rs = *withEphemeralMetadata(rs, canaryRole)
+	}, nil)
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name:            "foo-pod",
+		Namespace:       f.cached.Namespace,
+		Labels:          map[string]string{"foo": "bar", "role": "canary", v1alpha1.DefaultRolloutUniqueLabelKey: f.cached.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]},
+		OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(f.cached, schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"})},
+	}}
+	_, err := f.kubeclient.CoreV1().Pods(pod.Namespace).Create(context.Background(), pod, metav1.CreateOptions{})
+	require.NoError(t, err)
+	f.kubeclient.ClearActions()
+	f.conflictOnUpdate()
+
+	err = f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+	require.NoError(t, err)
+	updated, err := f.kubeclient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "stable", updated.Labels["role"])
+}
+
+// The patch is computed from the live ReplicaSet, not from the controller's copy.
+func TestSyncEphemeralMetadataPatchUsesLiveReplicaSet(t *testing.T) {
+	t.Run("the live ReplicaSet already has the change", func(t *testing.T) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			*rs = *withEphemeralMetadata(rs, canaryRole)
+		}, func(rs *appsv1.ReplicaSet) {
+			*rs = *withEphemeralMetadata(rs, stableRole)
+		})
+		before := f.live(t)
+		f.kubeclient.ClearActions()
+		f.conflictOnUpdate()
+
+		err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"update", "get"}, f.replicaSetVerbs())
+		assert.Equal(t, before, f.live(t))
+	})
+	t.Run("another writer changed other fields", func(t *testing.T) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			*rs = *withEphemeralMetadata(rs, canaryRole)
+		}, func(rs *appsv1.ReplicaSet) {
+			// A scale and a label that the controller's copy does not have.
+			rs.Generation = 4
+			rs.Spec.Replicas = ptr.To[int32](4)
+			rs.Annotations[annotations.DesiredReplicasAnnotation] = "4"
+			rs.Spec.Template.Labels["added-by"] = "someone-else"
+		})
+		f.conflictOnUpdate()
+
+		err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"update", "get", "patch"}, f.replicaSetVerbs())
+		live := f.live(t)
+		assert.Equal(t, "stable", live.Spec.Template.Labels["role"])
+		assert.Equal(t, "someone-else", live.Spec.Template.Labels["added-by"])
+		assert.Equal(t, int32(4), *live.Spec.Replicas)
+		assert.Equal(t, "4", live.Annotations[annotations.DesiredReplicasAnnotation])
+	})
+}
+
+// Cases in which the conflict is returned and nothing is patched.
+func TestSyncEphemeralMetadataDoesNotPatch(t *testing.T) {
+	t.Run("the ReplicaSet was deleted and recreated", func(t *testing.T) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			*rs = *withEphemeralMetadata(rs, canaryRole)
+		}, func(rs *appsv1.ReplicaSet) {
+			rs.UID = types.UID("a-different-uid")
+		})
+		before := f.live(t)
+		f.kubeclient.ClearActions()
+		f.conflictOnUpdate()
+
+		err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+		require.Error(t, err)
+		assert.True(t, k8serrors.IsConflict(err), "the original conflict is returned: %v", err)
+		assert.Equal(t, []string{"update", "get"}, f.replicaSetVerbs())
+		assert.Equal(t, before, f.live(t))
+	})
+	t.Run("the ReplicaSet is gone", func(t *testing.T) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			*rs = *withEphemeralMetadata(rs, canaryRole)
+		}, nil)
+		require.NoError(t, f.kubeclient.AppsV1().ReplicaSets(f.cached.Namespace).Delete(context.Background(), f.cached.Name, metav1.DeleteOptions{}))
+		f.kubeclient.ClearActions()
+		f.conflictOnUpdate()
+
+		err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+		require.Error(t, err)
+		assert.True(t, k8serrors.IsNotFound(err), "got: %v", err)
+		assert.Equal(t, []string{"update", "get"}, f.replicaSetVerbs())
+	})
+	t.Run("the Update fails for another reason", func(t *testing.T) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+			*rs = *withEphemeralMetadata(rs, canaryRole)
+		}, nil)
+		f.kubeclient.PrependReactor("update", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+			return true, nil, replicaSetForbidden("foo")
+		})
+
+		err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+		require.Error(t, err)
+		assert.True(t, k8serrors.IsForbidden(err), "got: %v", err)
+		assert.Equal(t, []string{"update"}, f.replicaSetVerbs())
+	})
+}
+
+// Without a conflict the ReplicaSet is updated exactly as upstream does it.
+func TestSyncEphemeralMetadataUpdatesWithoutConflict(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		*rs = *withEphemeralMetadata(rs, canaryRole)
+	}, func(rs *appsv1.ReplicaSet) {
+		rs.ResourceVersion = "100"
+	})
+
+	err := f.roCtx.syncEphemeralMetadata(context.Background(), f.cached, stableRole)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update"}, f.replicaSetVerbs())
+	assert.Equal(t, "stable", f.live(t).Spec.Template.Labels["role"])
+}
+
+// syncReplicaSetRevision: the revision annotations, the annotations copied from the
+// Rollout and minReadySeconds are patched after a conflict.
+func TestSyncReplicaSetRevisionPatchesAfterConflict(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		rs.Annotations[annotations.RevisionAnnotation] = "1"
+	}, nil)
+	f.rollout.Annotations["copied-from/rollout"] = "yes"
+	f.rollout.Spec.MinReadySeconds = 10
+	// A ReplicaSet at revision 3, so the new ReplicaSet has to become revision 4.
+	older := newReplicaSetWithStatus(f.rollout, 0, 0)
+	older.Name = "foo-older"
+	older.Annotations[annotations.RevisionAnnotation] = "3"
+	f.roCtx.newRS = f.cached
+	f.roCtx.olderRSs = []*appsv1.ReplicaSet{older}
+	f.conflictOnUpdate()
+
+	rs, err := f.roCtx.syncReplicaSetRevision()
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update", "get", "patch"}, f.replicaSetVerbs())
+	assert.JSONEq(t, fmt.Sprintf(`{
+		"metadata": {"uid": "%s", "annotations": {
+			"rollout.argoproj.io/revision": "4",
+			"rollout.argoproj.io/revision-history": "1",
+			"copied-from/rollout": "yes"}},
+		"spec": {"minReadySeconds": 10}
+	}`, f.cached.UID), f.patch(t))
+
+	live := f.live(t)
+	assert.Equal(t, "4", live.Annotations[annotations.RevisionAnnotation])
+	assert.Equal(t, "1", live.Annotations[annotations.RevisionHistoryAnnotation])
+	assert.Equal(t, "yes", live.Annotations["copied-from/rollout"])
+	assert.Equal(t, int32(10), live.Spec.MinReadySeconds)
+	assert.Equal(t, "kept", live.Annotations["someone-elses/annotation"])
+	assert.Equal(t, int32(7), live.Status.ReadyReplicas)
+	assert.Equal(t, int32(10), *live.Spec.Replicas)
+	// The caller gets the patched ReplicaSet.
+	assert.Equal(t, "4", rs.Annotations[annotations.RevisionAnnotation])
+	assert.Equal(t, int32(7), rs.Status.ReadyReplicas)
+}
+
+// The revision is computed again from the live ReplicaSet: if it already moved on, the
+// revision history is not written a second time.
+func TestSyncReplicaSetRevisionPatchUsesLiveReplicaSet(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		rs.Annotations[annotations.RevisionAnnotation] = "1"
+	}, func(rs *appsv1.ReplicaSet) {
+		rs.Annotations[annotations.RevisionAnnotation] = "4"
+		rs.Annotations[annotations.RevisionHistoryAnnotation] = "1"
+	})
+	older := newReplicaSetWithStatus(f.rollout, 0, 0)
+	older.Name = "foo-older"
+	older.Annotations[annotations.RevisionAnnotation] = "3"
+	f.roCtx.newRS = f.cached
+	f.roCtx.olderRSs = []*appsv1.ReplicaSet{older}
+	before := f.live(t)
+	f.kubeclient.ClearActions()
+	f.conflictOnUpdate()
+
+	rs, err := f.roCtx.syncReplicaSetRevision()
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update", "get"}, f.replicaSetVerbs())
+	assert.Equal(t, before, f.live(t))
+	assert.Equal(t, "4", rs.Annotations[annotations.RevisionAnnotation])
+	assert.Equal(t, "1", rs.Annotations[annotations.RevisionHistoryAnnotation])
+}
+
+func TestSyncReplicaSetRevisionUpdatesWithoutConflict(t *testing.T) {
+	f := newReplicaSetPatchFixture(t, nil, func(rs *appsv1.ReplicaSet) {
+		rs.ResourceVersion = "100"
+	})
+	f.rollout.Spec.MinReadySeconds = 10
+	f.roCtx.newRS = f.cached
+
+	_, err := f.roCtx.syncReplicaSetRevision()
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update"}, f.replicaSetVerbs())
+	assert.Equal(t, int32(10), f.live(t).Spec.MinReadySeconds)
+}
+
+func TestReplicaSetChangePatch(t *testing.T) {
+	base := func() *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "rs", UID: "abc", Annotations: map[string]string{"a": "1", "b": "2"}, Labels: map[string]string{"l": "1"}},
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: ptr.To[int32](3),
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "x", "role": "canary"}},
+					Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "c", Image: "i"}}},
+				},
+			},
+		}
+	}
+	tests := []struct {
+		name   string
+		change func(*appsv1.ReplicaSet)
+		want   string
+	}{
+		{
+			name: "set, change and remove annotations",
+			change: func(rs *appsv1.ReplicaSet) {
+				rs.Annotations = map[string]string{"a": "changed", "c": "new"}
+			},
+			want: `{"metadata":{"annotations":{"a":"changed","b":null,"c":"new"},"uid":"abc"}}`,
+		},
+		{
+			name: "pod template labels and annotations",
+			change: func(rs *appsv1.ReplicaSet) {
+				rs.Spec.Template.Labels = map[string]string{"app": "x", "role": "stable"}
+				rs.Spec.Template.Annotations = map[string]string{"t": "1"}
+			},
+			want: `{"metadata":{"uid":"abc"},"spec":{"template":{"metadata":{"annotations":{"t":"1"},"labels":{"role":"stable"}}}}}`,
+		},
+		{
+			name:   "minReadySeconds",
+			change: func(rs *appsv1.ReplicaSet) { rs.Spec.MinReadySeconds = 10 },
+			want:   `{"metadata":{"uid":"abc"},"spec":{"minReadySeconds":10}}`,
+		},
+		{
+			name: "nothing to change",
+			change: func(rs *appsv1.ReplicaSet) {
+				rs.Spec.Template.Annotations = map[string]string{}
+			},
+			want: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			live, desired := base(), base()
+			test.change(desired)
+			patch, err := replicaSetChangePatch(live, desired)
+			require.NoError(t, err)
+			// Exact bytes: the patch must contain nothing else, in particular no resourceVersion.
+			assert.Equal(t, test.want, string(patch))
+		})
+	}
+
+	// A change to any other field is refused, so that it is never applied in part.
+	unsupported := map[string]func(*appsv1.ReplicaSet){
+		"replicas":        func(rs *appsv1.ReplicaSet) { rs.Spec.Replicas = ptr.To[int32](5) },
+		"labels":          func(rs *appsv1.ReplicaSet) { rs.Labels["l"] = "2" },
+		"container image": func(rs *appsv1.ReplicaSet) { rs.Spec.Template.Spec.Containers[0].Image = "other" },
+		"selector":        func(rs *appsv1.ReplicaSet) { rs.Spec.Selector = &metav1.LabelSelector{} },
+		"owner":           func(rs *appsv1.ReplicaSet) { rs.OwnerReferences = []metav1.OwnerReference{{Name: "o"}} },
+	}
+	for name, change := range unsupported {
+		t.Run("refuses a change of "+name, func(t *testing.T) {
+			live, desired := base(), base()
+			change(desired)
+			desired.Annotations["a"] = "changed"
+			patch, err := replicaSetChangePatch(live, desired)
+			assert.ErrorIs(t, err, errUnsupportedReplicaSetChange)
+			assert.Nil(t, patch)
+		})
+	}
+}
+
+// The affinity is the one nested object the patch carries. Applying the patch to the
+// live affinity has to give exactly the desired affinity, including removed rules.
+func TestReplicaSetChangePatchAffinity(t *testing.T) {
+	term := func(hash string) corev1.PodAffinityTerm {
+		return corev1.PodAffinityTerm{
+			TopologyKey: "kubernetes.io/hostname",
+			LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: v1alpha1.DefaultRolloutUniqueLabelKey, Operator: metav1.LabelSelectorOpIn, Values: []string{hash}},
+			}},
+		}
+	}
+	required := func(hash string) *corev1.Affinity {
+		return &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{term(hash)}}}
+	}
+	withNodeAffinity := required("old")
+	withNodeAffinity.NodeAffinity = &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+		NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: "pool", Operator: corev1.NodeSelectorOpIn, Values: []string{"a"}}}}},
+	}}
+	onlyNodeAffinity := &corev1.Affinity{NodeAffinity: withNodeAffinity.NodeAffinity}
+
+	tests := []struct {
+		name          string
+		live, desired *corev1.Affinity
+	}{
+		{name: "added", live: nil, desired: required("new")},
+		{name: "removed", live: required("old"), desired: nil},
+		{name: "the injected rule points at another ReplicaSet", live: required("old"), desired: required("new")},
+		{name: "the injected rule is removed and the rest is kept", live: withNodeAffinity, desired: onlyNodeAffinity},
+		{name: "the injected rule is added to an existing affinity", live: onlyNodeAffinity, desired: withNodeAffinity},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			live := &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Name: "rs", UID: "abc"}}
+			live.Spec.Template.Spec.Affinity = test.live
+			desired := live.DeepCopy()
+			desired.Spec.Template.Spec.Affinity = test.desired
+
+			patch, err := replicaSetChangePatch(live, desired)
+			require.NoError(t, err)
+
+			// Apply the patch the way the API server does, and compare.
+			liveJSON, err := json.Marshal(live)
+			require.NoError(t, err)
+			patchedJSON, err := jsonpatch.MergePatch(liveJSON, patch)
+			require.NoError(t, err)
+			patched := &appsv1.ReplicaSet{}
+			require.NoError(t, json.Unmarshal(patchedJSON, patched))
+			assert.Equal(t, test.desired, patched.Spec.Template.Spec.Affinity)
+			assert.Equal(t, desired, patched)
+		})
+	}
+}
+
+// The whole reconcile after an abort: the canary ReplicaSet is no longer the new or the
+// stable one, so its canary metadata is removed. That Update conflicts and is patched,
+// and the reconcile goes on to sync the pods instead of failing.
+func TestSyncRolloutPatchesEphemeralMetadataAfterUpdateConflict(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newCanaryRollout("foo", 3, nil, nil, ptr.To[int32](1), intstr.FromInt32(1), intstr.FromInt32(1))
+	r1.Spec.Strategy.Canary.CanaryMetadata = canaryRole
+	r1.Spec.Strategy.Canary.StableMetadata = stableRole
+	r2 := bumpVersion(r1)
+	// The Rollout is back on the pod template of revision 1, which is the stable one.
+	r3 := r2.DeepCopy()
+	r3.Spec.Template = r1.Spec.Template
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+	r3.Status.CurrentPodHash = r1.Status.CurrentPodHash
+	r3.Annotations[annotations.RevisionAnnotation] = "3"
+
+	rs1 := withEphemeralMetadata(newReplicaSetWithStatus(r1, 3, 3), stableRole)
+	rs1.Annotations[annotations.RevisionAnnotation] = "3"
+	// The abandoned canary: scaled down, but still carrying the canary metadata.
+	rs2 := withEphemeralMetadata(newReplicaSetWithStatus(r2, 0, 0), canaryRole)
+	rs2.Annotations[annotations.RevisionAnnotation] = "2"
+
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.expectUpdateReplicaSetAction(rs2) // remove the canary metadata, rejected with a conflict
+	f.expectGetReplicaSetAction(rs2)    // the live ReplicaSet is read
+	patchIndex := f.expectPatchReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r3)
+
+	key := fmt.Sprintf("%s/%s", r3.Namespace, r3.Name)
+	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
+	f.kubeclient.PrependReactor("update", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
+		rs := action.(testclient.UpdateAction).GetObject().(*appsv1.ReplicaSet)
+		return true, nil, replicaSetConflict(rs.Name)
+	})
+
+	f.runController(key, true, false, c, i, k8sI)
+
+	patch := filterInformerActions(f.kubeclient.Actions())[patchIndex].(testclient.PatchAction)
+	assert.JSONEq(t, fmt.Sprintf(`{
+		"metadata": {"uid": "%s", "annotations": {"rollout.argoproj.io/ephemeral-metadata": null}},
+		"spec": {"template": {"metadata": {"labels": {"role": null}}}}
+	}`, rs2.UID), string(patch.GetPatch()))
+	live, err := f.kubeclient.AppsV1().ReplicaSets(rs2.Namespace).Get(context.Background(), rs2.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotContains(t, live.Spec.Template.Labels, "role")
+	assert.NotContains(t, live.Annotations, replicasetutil.EphemeralMetadataAnnotation)
 }
