@@ -48,7 +48,7 @@ argo-rollouts [flags]
       --kubeconfig string                             Path to a kube config. Only required if out-of-cluster
       --leader-elect                                  If true, controller will perform leader election between instances to ensure no more than one instance of controller operates at a time (default true)
       --leader-election-lease-duration duration       The duration that non-leader candidates will wait after observing a leadership renewal until attempting to acquire leadership of a led but unrenewed leader slot. This is effectively the maximum duration that a leader can be stopped before it is replaced by another candidate. This is only applicable if leader election is enabled. (default 15s)
-      --leader-election-renew-deadline duration       The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled. (default 10s)
+      --leader-election-renew-deadline duration       The duration that the acting leader will keep retrying to renew its leadership slot before it stops leading. This must be less than the lease duration. This is only applicable if leader election is enabled. (default 10s)
       --leader-election-retry-period duration         The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled. (default 2s)
       --logformat string                              Set the logging format. One of: text|json
       --loglevel string                               Set the logging level. One of: debug|info|warn|error (default "info")
