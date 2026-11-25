@@ -22,6 +22,25 @@ spec:
         prometheus.io/port: '8090'
 ```
 
+### Scrape cost on large clusters
+
+Producing the `/metrics` response means walking every Rollout, Experiment and AnalysisRun the
+controller watches and emitting a set of metrics for each one. On a cluster with thousands of
+Rollouts a single scrape takes seconds, so set `scrape_timeout` comfortably above that and
+`scrape_interval` above the timeout.
+
+The controller protects itself from scrapes it cannot keep up with:
+
+* Scrapes that overlap are coalesced. They share one collection cycle and one result instead
+  of each walking the caches separately.
+* At most 10 scrapes are served concurrently. Anything beyond that is answered with
+  `503 Service Unavailable` rather than queued, so a client that scrapes faster than the
+  controller can collect cannot exhaust its memory.
+
+For the same reason, do not use `/metrics` as a liveness or readiness probe. The controller
+serves `/healthz` on port 8080 for that, which answers immediately regardless of how many
+Rollouts exist.
+
 You can always see if the controller is reached successfully in the Prometheus "Targets" screen:
 
 [![Prometheus Scraping Argo Rollouts metrics](controller-metrics-assets/prometheus-target.png)](controller-metrics-assets/prometheus-target.png)
