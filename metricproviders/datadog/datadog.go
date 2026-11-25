@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -40,6 +40,7 @@ const (
 type Provider struct {
 	logCtx log.Entry
 	config datadogConfig
+	client *http.Client
 }
 
 type datadogQueryAttributes struct {
@@ -303,34 +304,23 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	// Send Request. The client timeout defaults to 10s and can be overridden via the
-	// metric's spec (e.g. for expensive v2 formula queries that take longer to return).
-	timeout := time.Duration(10) * time.Second
-	if dd.RequestTimeout != "" {
-		timeout, err = dd.RequestTimeout.Duration()
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
-	}
-	httpClient := &http.Client{
-		Timeout: timeout,
-	}
-	response, err := httpClient.Do(request)
+	response, metadata, err := p.sendRequest(request)
+	measurement.Metadata = metadata
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 	defer response.Body.Close()
 
-	value, status, metadata, err := p.parseResponse(metric, response, dd.ApiVersion)
+	value, status, responseMetadata, err := p.parseResponse(metric, response, dd.ApiVersion)
+	maps.Copy(measurement.Metadata, responseMetadata)
 	if err != nil {
+		measurement.Metadata[metadataRequestOutcome] = responseErrorOutcome(response.StatusCode, err)
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
 	measurement.Value = value
 	measurement.Phase = status
-	if len(metadata) > 0 {
-		measurement.Metadata = metadata
-	}
+	measurement.Metadata[metadataRequestOutcome] = requestOutcomeSuccess
 	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
@@ -421,7 +411,7 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, &responseReadError{err: err}
 	}
 
 	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
@@ -463,7 +453,7 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, map[string]string, error) {
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", v1alpha1.AnalysisPhaseError, nil, fmt.Errorf("Received no bytes in response: %v", err)
+		return "", v1alpha1.AnalysisPhaseError, nil, &responseReadError{err: err}
 	}
 
 	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
@@ -611,6 +601,10 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, na
 		if err != nil {
 			return nil, err
 		}
+		client, err := newHTTPClient(metric.Provider.Datadog)
+		if err != nil {
+			return nil, err
+		}
 
 		return &Provider{
 			logCtx: logCtx,
@@ -619,6 +613,7 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, na
 				ApiKey:  apiKey,
 				AppKey:  appKey,
 			},
+			client: client,
 		}, nil
 	} else {
 		return nil, errors.New("API or App token not found")
