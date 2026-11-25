@@ -1,12 +1,16 @@
 package commands
 
 import (
+	"io"
+	"os"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-rollouts/utils/version"
 )
 
 func TestMetricsPortFlagCompatibility(t *testing.T) {
@@ -82,4 +86,31 @@ func TestSetLogLevel(t *testing.T) {
 	assert.Equal(t, log.DebugLevel, log.GetLevel())
 	setLogLevel("warn")
 	assert.Equal(t, log.WarnLevel, log.GetLevel())
+}
+
+func TestNewCommandPrintsVersion(t *testing.T) {
+	stdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+	t.Cleanup(func() { os.Stdout = stdout })
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"--version"})
+	require.NoError(t, cmd.Execute())
+
+	require.NoError(t, w.Close())
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+	assert.Contains(t, string(out), version.GetVersion().String())
+}
+
+func TestNewCommandRejectsInvalidSharedSecretMode(t *testing.T) {
+	cmd := NewCommand()
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"--analysis-shared-secret-mode=Bogus"})
+
+	err := cmd.Execute()
+	require.ErrorContains(t, err, `invalid --analysis-shared-secret-mode "Bogus"`)
 }
