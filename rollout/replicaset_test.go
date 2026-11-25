@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -17,6 +19,7 @@ import (
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -24,9 +27,11 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	resourceversionutil "github.com/argoproj/argo-rollouts/utils/resourceversion"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
@@ -1059,4 +1064,251 @@ func TestScaleDownProgressively(t *testing.T) {
 			assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
 		})
 	}
+}
+
+func TestStaleReplicaSet(t *testing.T) {
+	newRS := func(name, resourceVersion string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Namespace: metav1.NamespaceDefault, Name: name, ResourceVersion: resourceVersion}}
+	}
+	base := reconcilerBase{replicaSetVersionTracker: resourceversionutil.NewTracker()}
+	// The controller wrote to foo and got resourceVersion 100 back. It never wrote to bar.
+	base.recordReplicaSetWrite(newRS("foo", "100"))
+
+	tests := []struct {
+		name      string
+		informer  []*appsv1.ReplicaSet
+		wantStale string
+	}{
+		{name: "the informer has not observed the write", informer: []*appsv1.ReplicaSet{newRS("bar", "5"), newRS("foo", "99")}, wantStale: "foo"},
+		{name: "resourceVersions are compared as numbers", informer: []*appsv1.ReplicaSet{newRS("foo", "9")}, wantStale: "foo"},
+		{name: "the informer has observed the write", informer: []*appsv1.ReplicaSet{newRS("bar", "5"), newRS("foo", "100")}},
+		{name: "the informer is ahead of the write", informer: []*appsv1.ReplicaSet{newRS("foo", "250")}},
+		{name: "a ReplicaSet that was not written to", informer: []*appsv1.ReplicaSet{newRS("bar", "5")}},
+		{name: "the same name in another namespace", informer: []*appsv1.ReplicaSet{{ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: "foo", ResourceVersion: "99"}}}},
+		// A ReplicaSet that was written to and is not in the informer may have been deleted: it does not hold up
+		// the reconcile.
+		{name: "the ReplicaSet is not in the informer", informer: nil},
+		{name: "a ReplicaSet without a resourceVersion", informer: []*appsv1.ReplicaSet{newRS("foo", "")}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stale := base.staleReplicaSet(test.informer)
+			if test.wantStale == "" {
+				assert.Nil(t, stale)
+				return
+			}
+			require.NotNil(t, stale)
+			assert.Equal(t, test.wantStale, stale.Name)
+		})
+	}
+
+	t.Run("forgotten after the ReplicaSet is deleted", func(t *testing.T) {
+		base := reconcilerBase{replicaSetVersionTracker: resourceversionutil.NewTracker()}
+		base.recordReplicaSetWrite(newRS("foo", "100"))
+		base.forgetReplicaSet(newRS("foo", "100"))
+		assert.Nil(t, base.staleReplicaSet([]*appsv1.ReplicaSet{newRS("foo", "99")}))
+	})
+	t.Run("without a tracker nothing is stale", func(t *testing.T) {
+		base := reconcilerBase{}
+		base.recordReplicaSetWrite(newRS("foo", "100"))
+		base.forgetReplicaSet(newRS("foo", "100"))
+		assert.Nil(t, base.staleReplicaSet([]*appsv1.ReplicaSet{newRS("foo", "99")}))
+	})
+}
+
+// Every write to a ReplicaSet is recorded with the resourceVersion the API server returned for it.
+func TestReplicaSetWritesAreRecorded(t *testing.T) {
+	deadline := timeutil.Now().Add(time.Minute).UTC().Format(time.RFC3339)
+	tests := []struct {
+		name  string
+		write func(t *testing.T, roCtx *rolloutContext, rs *appsv1.ReplicaSet)
+	}{
+		{
+			name: "updateReplicaSet",
+			write: func(t *testing.T, roCtx *rolloutContext, rs *appsv1.ReplicaSet) {
+				rs.Spec.MinReadySeconds = 5
+				_, err := roCtx.updateReplicaSet(context.Background(), rs)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "addScaleDownDelay",
+			write: func(t *testing.T, roCtx *rolloutContext, rs *appsv1.ReplicaSet) {
+				delete(rs.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+				require.NoError(t, roCtx.addScaleDownDelay(rs, 30*time.Second))
+			},
+		},
+		{
+			name: "removeScaleDownDelay",
+			write: func(t *testing.T, roCtx *rolloutContext, rs *appsv1.ReplicaSet) {
+				require.NoError(t, roCtx.removeScaleDownDelay(rs))
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ro := newCanaryRollout("foo", 10, nil, nil, ptr.To[int32](0), intstr.FromInt32(1), intstr.FromInt32(0))
+			rs := newReplicaSetWithStatus(ro, 10, 10)
+			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+			rs.ResourceVersion = "250"
+			roCtx := &rolloutContext{
+				log:     logutil.WithRollout(ro),
+				rollout: ro,
+				reconcilerBase: reconcilerBase{
+					kubeclientset:            k8sfake.NewSimpleClientset(rs.DeepCopy()),
+					recorder:                 record.NewFakeEventRecorder(),
+					replicaSetVersionTracker: resourceversionutil.NewTracker(),
+				},
+				pauseContext: &pauseContext{rollout: ro},
+			}
+			older := rs.DeepCopy()
+			older.ResourceVersion = "249"
+			require.Nil(t, roCtx.staleReplicaSet([]*appsv1.ReplicaSet{older}))
+
+			test.write(t, roCtx, rs.DeepCopy())
+
+			assert.Equal(t, older, roCtx.staleReplicaSet([]*appsv1.ReplicaSet{older}), "a copy from before the write is stale")
+			assert.Nil(t, roCtx.staleReplicaSet([]*appsv1.ReplicaSet{rs}), "a copy with the resourceVersion of the write is not")
+		})
+	}
+}
+
+// The record of a write is dropped when the ReplicaSet is deleted, by this controller or by anything else, so that
+// the tracker does not grow with every ReplicaSet the controller has ever written to.
+func TestDeletedReplicaSetIsForgotten(t *testing.T) {
+	newOldReplicaSet := func() (*v1alpha1.Rollout, *appsv1.ReplicaSet, *appsv1.ReplicaSet) {
+		r1 := newCanaryRollout("foo", 1, ptr.To[int32](0), nil, nil, intstr.FromInt32(1), intstr.FromInt32(0))
+		r2 := bumpVersion(r1)
+		oldRS := newReplicaSetWithStatus(r1, 0, 0)
+		oldRS.ResourceVersion = "100"
+		older := oldRS.DeepCopy()
+		older.ResourceVersion = "99"
+		return r2, oldRS, older
+	}
+
+	t.Run("deleted by the revision history limit", func(t *testing.T) {
+		ro, oldRS, older := newOldReplicaSet()
+		roCtx := &rolloutContext{
+			log:     logutil.WithRollout(ro),
+			rollout: ro,
+			reconcilerBase: reconcilerBase{
+				kubeclientset:            k8sfake.NewSimpleClientset(oldRS.DeepCopy()),
+				argoprojclientset:        &fake.Clientset{},
+				recorder:                 record.NewFakeEventRecorder(),
+				replicaSetVersionTracker: resourceversionutil.NewTracker(),
+			},
+			pauseContext: &pauseContext{rollout: ro},
+		}
+		roCtx.recordReplicaSetWrite(oldRS)
+		require.NotNil(t, roCtx.staleReplicaSet([]*appsv1.ReplicaSet{older}))
+
+		require.NoError(t, roCtx.reconcileRevisionHistoryLimit([]*appsv1.ReplicaSet{oldRS}))
+
+		_, err := roCtx.kubeclientset.AppsV1().ReplicaSets(oldRS.Namespace).Get(context.Background(), oldRS.Name, metav1.GetOptions{})
+		require.True(t, k8serrors.IsNotFound(err), "the ReplicaSet should have been deleted: %v", err)
+		assert.Nil(t, roCtx.staleReplicaSet([]*appsv1.ReplicaSet{older}))
+	})
+
+	t.Run("delete event from the informer", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+		ro, oldRS, older := newOldReplicaSet()
+		f.kubeobjects = append(f.kubeobjects, oldRS)
+		f.rolloutLister = append(f.rolloutLister, ro)
+		f.objects = append(f.objects, ro)
+		c, _, k8sI := f.newController(noResyncPeriodFunc)
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		k8sI.Start(stopCh)
+		require.True(t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced))
+
+		c.recordReplicaSetWrite(oldRS)
+		require.NotNil(t, c.staleReplicaSet([]*appsv1.ReplicaSet{older}))
+
+		require.NoError(t, f.kubeclient.AppsV1().ReplicaSets(oldRS.Namespace).Delete(context.Background(), oldRS.Name, metav1.DeleteOptions{}))
+
+		assert.Eventually(t, func() bool {
+			return c.staleReplicaSet([]*appsv1.ReplicaSet{older}) == nil
+		}, 5*time.Second, 10*time.Millisecond)
+	})
+}
+
+// A reconcile does not start from a ReplicaSet that is older than the controller's own last write to it.
+//
+// The Rollout is a traffic-routed canary. V1 was its stable ReplicaSet until V2 was fully promoted, and the
+// controller then gave V1 a scale-down-deadline, with a patch. V3 was applied right after. The informer has not
+// delivered that patch yet, so V1 looks like an intermediate ReplicaSet without a deadline, and those are scaled to
+// zero at once. The reconcile has to wait instead.
+func TestSyncHandlerWaitsForReplicaSetInformerToObserveOwnWrite(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}, {Pause: &v1alpha1.RolloutPause{}}}
+	r1 := newCanaryRollout("foo", 1, nil, steps, ptr.To[int32](1), intstr.FromInt32(1), intstr.FromInt32(1))
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	rs2 := newReplicaSetWithStatus(r2, 1, 1) // stable
+	rs3 := newReplicaSetWithStatus(r3, 1, 1) // canary, at the scale of its step
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// V1 as the informer has it, and as it is in the API after the controller's patch.
+	cachedRS1 := newReplicaSetWithStatus(r1, 1, 1)
+	cachedRS1.ResourceVersion = "100"
+	liveRS1 := cachedRS1.DeepCopy()
+	liveRS1.ResourceVersion = "101"
+	deadline := timeutil.Now().Add(30 * time.Second).UTC().Format(time.RFC3339)
+	liveRS1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+
+	r3 = updateCanaryRolloutStatus(r3, rs2PodHash, 3, 1, 3, false)
+	r3.Status.ObservedGeneration = strconv.Itoa(int(r3.Generation))
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 10, ServiceName: "canary", PodTemplateHash: rs3PodHash},
+		Stable: v1alpha1.WeightDestination{Weight: 90, ServiceName: "stable", PodTemplateHash: rs2PodHash},
+	}
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs3PodHash}, r3)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r3)
+
+	f.kubeobjects = append(f.kubeobjects, liveRS1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, cachedRS1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r3)
+	f.objects = append(f.objects, r3)
+
+	// The informers are not started: they hold what the fixture put in them.
+	c, _, k8sI := f.newController(noResyncPeriodFunc)
+	c.recordReplicaSetWrite(liveRS1)
+	getLiveRS1 := func() *appsv1.ReplicaSet {
+		rs, err := f.kubeclient.AppsV1().ReplicaSets(liveRS1.Namespace).Get(context.Background(), liveRS1.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		return rs
+	}
+	writes := func(actions []core.Action) []string {
+		var writes []string
+		for _, action := range actions {
+			if verb := action.GetVerb(); verb != "get" && verb != "list" && verb != "watch" {
+				writes = append(writes, verb+" "+action.GetResource().Resource)
+			}
+		}
+		return writes
+	}
+
+	// The informer is behind our write: the reconcile is put off, and nothing is written.
+	err := c.syncHandler(context.Background(), getKey(r3, t))
+	require.ErrorIs(t, err, controllerutil.StaleCacheError)
+	assert.Empty(t, writes(f.kubeclient.Actions()))
+	assert.Empty(t, writes(f.client.Actions()))
+	assert.Equal(t, int32(1), *getLiveRS1().Spec.Replicas)
+	assert.Equal(t, deadline, getLiveRS1().Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+	// The informer catches up: the reconcile runs, sees the deadline and leaves V1 scaled up.
+	require.NoError(t, k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Update(liveRS1))
+	err = c.syncHandler(context.Background(), getKey(r3, t))
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), *getLiveRS1().Spec.Replicas)
+	assert.Equal(t, deadline, getLiveRS1().Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
 }

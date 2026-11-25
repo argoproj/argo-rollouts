@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -144,6 +145,13 @@ type reconcilerBase struct {
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
 	IstioController               *istio.IstioController
 
+	// replicaSetVersionTracker remembers the ResourceVersion of this controller's last write to each ReplicaSet,
+	// so that a reconcile can be requeued while the ReplicaSet informer has not caught up with it. The
+	// scale-down-deadline of a ReplicaSet is set with a patch that carries no resourceVersion, so the API server
+	// does not reject a write that was computed from a ReplicaSet this controller has changed since. See
+	// staleReplicaSet.
+	replicaSetVersionTracker *resourceversionutil.Tracker
+
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
@@ -194,6 +202,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		smiclientset:                  cfg.SmiClientSet,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
+		replicaSetVersionTracker:      resourceversionutil.NewTracker(),
 		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
 		replicaSetInformer:            cfg.ReplicaSetInformer.Informer(),
 		rolloutsIndexer:               cfg.RolloutsInformer.Informer().GetIndexer(),
@@ -312,6 +321,10 @@ func NewController(cfg ControllerConfig) *Controller {
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
 		},
 		DeleteFunc: func(obj any) {
+			// obj can be a tombstone, which DeletionHandlingMetaNamespaceKeyFunc unwraps.
+			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
+				controller.replicaSetVersionTracker.Forget(key)
+			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 	})
@@ -430,6 +443,10 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 
 	roCtx, err := c.newRolloutContext(r)
 	if roCtx == nil {
+		if errors.Is(err, controllerutil.StaleCacheError) {
+			// Not an error: the worker requeues the Rollout after a short delay.
+			return err
+		}
 		if k8serrors.IsConflict(err) {
 			logCtx.Warnf("newRolloutContext returned nil: %v", err)
 		} else {
@@ -495,6 +512,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	rsList, err := c.getReplicaSetsForRollouts(rollout)
 	if err != nil {
 		return nil, err
+	}
+	if rs := c.staleReplicaSet(rsList); rs != nil {
+		logutil.WithRollout(rollout).Infof("ReplicaSet '%s' in the informer (resourceVersion %s) is older than our last write to it", rs.Name, rs.ResourceVersion)
+		return nil, controllerutil.StaleCacheError
 	}
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
@@ -1016,6 +1037,7 @@ func (c *rolloutContext) updateReplicaSet(ctx context.Context, rs *appsv1.Replic
 	if err != nil {
 		return nil, fmt.Errorf("error updating replicaset in updateReplicaSet %s: %w", rs.Name, err)
 	}
+	c.recordReplicaSetWrite(updatedRS)
 	updatedRS.DeepCopyInto(rs)
 
 	return rs, err

@@ -671,6 +671,7 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 			// that we may be overloading the api server.
 			return err
 		}
+		c.forgetReplicaSet(rs)
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			if ars, ok := podHashToArList[podHash]; ok {
 				c.log.Infof("Cleaning up associated analysis runs with ReplicaSet '%s'", rs.Name)
