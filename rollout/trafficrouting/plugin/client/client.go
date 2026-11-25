@@ -77,6 +77,7 @@ func (t *trafficPlugin) startPluginLocked(pluginName string) (rpc.TrafficRouterP
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath, args...),
 			Managed:         true,
+			Logger:          plugin.NewPluginClientLogger(),
 		})
 
 		rpcClient, err := t.pluginClient[pluginName].Client()
