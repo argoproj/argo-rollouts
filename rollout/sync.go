@@ -430,23 +430,13 @@ func (c *rolloutContext) patchReplicaSetScale(ctx context.Context, from, scaled 
 // replicaSetScalePatch returns the JSON merge patch that changes spec.replicas and the annotations of the ReplicaSet
 // from into those of scaled, or nil if they are the same.
 //
-// Annotations are patched key by key: a key that is not named keeps the value it has on the server, and a null value
-// removes the key. An annotation is therefore only removed if from had it, so the scale-down-deadline of a
-// ReplicaSet is never removed by a scale that was computed without seeing it.
+// Annotations are patched key by key (see stringMapPatch): a key that is not named keeps the value it has on the
+// server, and a null value removes the key. An annotation is therefore only removed if from had it, so the
+// scale-down-deadline of a ReplicaSet is never removed by a scale that was computed without seeing it.
 func replicaSetScalePatch(from, scaled *appsv1.ReplicaSet) ([]byte, error) {
-	annotationsPatch := map[string]any{}
-	for key, value := range scaled.Annotations {
-		if old, ok := from.Annotations[key]; !ok || old != value {
-			annotationsPatch[key] = value
-		}
-	}
-	for key := range from.Annotations {
-		if _, ok := scaled.Annotations[key]; !ok {
-			annotationsPatch[key] = nil
-		}
-	}
+	annotationsPatch := stringMapPatch(from.Annotations, scaled.Annotations)
 	replicasChanged := defaults.GetReplicasOrDefault(from.Spec.Replicas) != defaults.GetReplicasOrDefault(scaled.Spec.Replicas)
-	if len(annotationsPatch) == 0 && !replicasChanged {
+	if annotationsPatch == nil && !replicasChanged {
 		return nil, nil
 	}
 
@@ -454,7 +444,7 @@ func replicaSetScalePatch(from, scaled *appsv1.ReplicaSet) ([]byte, error) {
 	if from.UID != "" {
 		metadata["uid"] = string(from.UID)
 	}
-	if len(annotationsPatch) > 0 {
+	if annotationsPatch != nil {
 		metadata["annotations"] = annotationsPatch
 	}
 	patch := map[string]any{}

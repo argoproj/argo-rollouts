@@ -955,9 +955,9 @@ func TestIsScalingEventMissMatchedDesiredOldReplicas(t *testing.T) {
 	assert.Equal(t, int32(0), roStatus.Status.UpdatedReplicas)
 }
 
-// scalePatchFixture holds a rolloutContext whose kube client contains a ReplicaSet as it is in the API, and the
+// replicaSetPatchFixture holds a rolloutContext whose kube client contains a ReplicaSet as it is in the API, and the
 // older copy of it that the controller read from its informer.
-type scalePatchFixture struct {
+type replicaSetPatchFixture struct {
 	roCtx      *rolloutContext
 	kubeclient *k8sfake.Clientset
 	rollout    *v1alpha1.Rollout
@@ -965,13 +965,13 @@ type scalePatchFixture struct {
 	cached *appsv1.ReplicaSet
 }
 
-// newScalePatchFixture creates a 10-replica canary Rollout and its 10-replica ReplicaSet. mutateCached changes the
+// newReplicaSetPatchFixture creates a 10-replica canary Rollout and its 10-replica ReplicaSet. mutateCached changes the
 // ReplicaSet before the controller "reads" it, mutateLive changes the one in the API afterwards. By default the two
 // differ in what the status updates of the ReplicaSet controller change: the resourceVersion and the status.
 //
 // The kube client rejects an Update that does not carry the resourceVersion of the live ReplicaSet, as the API
 // server does.
-func newScalePatchFixture(t *testing.T, mutateCached func(*appsv1.ReplicaSet), mutateLive func(*appsv1.ReplicaSet)) *scalePatchFixture {
+func newReplicaSetPatchFixture(t *testing.T, mutateCached func(*appsv1.ReplicaSet), mutateLive func(*appsv1.ReplicaSet)) *replicaSetPatchFixture {
 	t.Helper()
 	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}}
 	ro := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](0), intstr.FromInt32(1), intstr.FromInt32(0))
@@ -1006,14 +1006,15 @@ func newScalePatchFixture(t *testing.T, mutateCached func(*appsv1.ReplicaSet), m
 			kubeclientset:            kubeclient,
 			recorder:                 record.NewFakeEventRecorder(),
 			replicaSetVersionTracker: resourceversionutil.NewTracker(),
+			ephemeralMetadataThreads: 1,
 		},
 		pauseContext: &pauseContext{rollout: ro},
 	}
-	return &scalePatchFixture{roCtx: roCtx, kubeclient: kubeclient, rollout: ro, cached: cached}
+	return &replicaSetPatchFixture{roCtx: roCtx, kubeclient: kubeclient, rollout: ro, cached: cached}
 }
 
 // replicaSetVerbs returns the verbs of the ReplicaSet requests that were made, in order.
-func (f *scalePatchFixture) replicaSetVerbs() []string {
+func (f *replicaSetPatchFixture) replicaSetVerbs() []string {
 	verbs := []string{}
 	for _, action := range f.kubeclient.Actions() {
 		if action.GetResource().Resource == "replicasets" {
@@ -1023,8 +1024,8 @@ func (f *scalePatchFixture) replicaSetVerbs() []string {
 	return verbs
 }
 
-// scalePatch returns the only ReplicaSet patch that was made.
-func (f *scalePatchFixture) scalePatch(t *testing.T) testclient.PatchAction {
+// replicaSetPatch returns the only ReplicaSet patch that was made.
+func (f *replicaSetPatchFixture) replicaSetPatch(t *testing.T) testclient.PatchAction {
 	t.Helper()
 	var patches []testclient.PatchAction
 	for _, action := range f.kubeclient.Actions() {
@@ -1036,21 +1037,21 @@ func (f *scalePatchFixture) scalePatch(t *testing.T) testclient.PatchAction {
 	return patches[0]
 }
 
-func (f *scalePatchFixture) liveReplicaSet(t *testing.T) *appsv1.ReplicaSet {
+func (f *replicaSetPatchFixture) liveReplicaSet(t *testing.T) *appsv1.ReplicaSet {
 	t.Helper()
 	live, err := f.kubeclient.AppsV1().ReplicaSets(f.cached.Namespace).Get(context.Background(), f.cached.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	return live
 }
 
-func (f *scalePatchFixture) events() []string {
+func (f *replicaSetPatchFixture) events() []string {
 	return f.roCtx.recorder.(*record.FakeEventRecorder).Events()
 }
 
 // The scale is a merge patch of the fields that change. It is applied although the ReplicaSet in the API has a newer
 // resourceVersion than the copy the scale was computed for, which would reject an Update.
 func TestScaleReplicaSetPatchesTheScale(t *testing.T) {
-	f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
 		// An outdated desired-replicas annotation, to show that the patch corrects it.
 		rs.Annotations[annotations.DesiredReplicasAnnotation] = "20"
 	}, nil)
@@ -1066,7 +1067,7 @@ func TestScaleReplicaSetPatchesTheScale(t *testing.T) {
 	assert.True(t, scaled)
 	assert.Equal(t, []string{"patch"}, f.replicaSetVerbs())
 
-	patch := f.scalePatch(t)
+	patch := f.replicaSetPatch(t)
 	assert.Equal(t, patchtypes.MergePatchType, patch.GetPatchType())
 	assert.Empty(t, patch.GetSubresource())
 	// Compared as exact bytes: the patch must contain nothing else, in particular no resourceVersion.
@@ -1098,17 +1099,17 @@ func TestScaleReplicaSetPatchesTheScale(t *testing.T) {
 // The patch names the replica count only if the scale changes, and an annotation only if its value changes.
 func TestScaleReplicaSetPatchesOnlyWhatChanges(t *testing.T) {
 	t.Run("only the scale", func(t *testing.T) {
-		f := newScalePatchFixture(t, nil, nil)
+		f := newReplicaSetPatchFixture(t, nil, nil)
 
 		scaled, _, err := f.roCtx.scaleReplicaSet(f.cached, 4, f.rollout, "down")
 
 		require.NoError(t, err)
 		assert.True(t, scaled)
-		assert.Equal(t, fmt.Sprintf(`{"metadata":{"uid":"%s"},"spec":{"replicas":4}}`, f.cached.UID), string(f.scalePatch(t).GetPatch()))
+		assert.Equal(t, fmt.Sprintf(`{"metadata":{"uid":"%s"},"spec":{"replicas":4}}`, f.cached.UID), string(f.replicaSetPatch(t).GetPatch()))
 		assert.Equal(t, int32(4), *f.liveReplicaSet(t).Spec.Replicas)
 	})
 	t.Run("only the desired-replicas annotation", func(t *testing.T) {
-		f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
 			rs.Annotations[annotations.DesiredReplicasAnnotation] = "20"
 		}, func(rs *appsv1.ReplicaSet) {
 			// Something else scaled the ReplicaSet after it was read. A patch that only has to correct the
@@ -1120,7 +1121,7 @@ func TestScaleReplicaSetPatchesOnlyWhatChanges(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.False(t, scaled, "the replica count did not change")
-		assert.Equal(t, fmt.Sprintf(`{"metadata":{"annotations":{"rollout.argoproj.io/desired-replicas":"10"},"uid":"%s"}}`, f.cached.UID), string(f.scalePatch(t).GetPatch()))
+		assert.Equal(t, fmt.Sprintf(`{"metadata":{"annotations":{"rollout.argoproj.io/desired-replicas":"10"},"uid":"%s"}}`, f.cached.UID), string(f.replicaSetPatch(t).GetPatch()))
 		live := f.liveReplicaSet(t)
 		assert.Equal(t, int32(8), *live.Spec.Replicas)
 		assert.Equal(t, "10", live.Annotations[annotations.DesiredReplicasAnnotation])
@@ -1134,7 +1135,7 @@ func TestScaleReplicaSetScaleDownDeadline(t *testing.T) {
 	past := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 
 	t.Run("removed on a full scale-down", func(t *testing.T) {
-		f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
 			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = past
 		}, nil)
 
@@ -1142,7 +1143,7 @@ func TestScaleReplicaSetScaleDownDeadline(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.True(t, scaled)
-		assert.Equal(t, fmt.Sprintf(`{"metadata":{"annotations":{"scale-down-deadline":null},"uid":"%s"},"spec":{"replicas":0}}`, f.cached.UID), string(f.scalePatch(t).GetPatch()))
+		assert.Equal(t, fmt.Sprintf(`{"metadata":{"annotations":{"scale-down-deadline":null},"uid":"%s"},"spec":{"replicas":0}}`, f.cached.UID), string(f.replicaSetPatch(t).GetPatch()))
 		live := f.liveReplicaSet(t)
 		assert.Equal(t, int32(0), *live.Spec.Replicas)
 		assert.NotContains(t, live.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
@@ -1152,18 +1153,18 @@ func TestScaleReplicaSetScaleDownDeadline(t *testing.T) {
 		// The ReplicaSet was given a deadline after the copy was read. newRolloutContext does not start a reconcile
 		// from such a copy if the deadline was our own write (see staleReplicaSet). If a scale to zero is computed
 		// from one anyway, it does not also take away a deadline it never took into account.
-		f := newScalePatchFixture(t, nil, func(rs *appsv1.ReplicaSet) {
+		f := newReplicaSetPatchFixture(t, nil, func(rs *appsv1.ReplicaSet) {
 			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = future
 		})
 
 		_, _, err := f.roCtx.scaleReplicaSet(f.cached, 0, f.rollout, "down")
 
 		require.NoError(t, err)
-		assert.NotContains(t, string(f.scalePatch(t).GetPatch()), v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		assert.NotContains(t, string(f.replicaSetPatch(t).GetPatch()), v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		assert.Equal(t, future, f.liveReplicaSet(t).Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
 	})
 	t.Run("kept when an aborted Rollout delays the scale-down", func(t *testing.T) {
-		f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+		f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
 			rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = past
 		}, nil)
 		f.rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
@@ -1175,7 +1176,7 @@ func TestScaleReplicaSetScaleDownDeadline(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.True(t, scaled)
-		assert.NotContains(t, string(f.scalePatch(t).GetPatch()), v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		assert.NotContains(t, string(f.replicaSetPatch(t).GetPatch()), v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		live := f.liveReplicaSet(t)
 		assert.Equal(t, int32(0), *live.Spec.Replicas)
 		assert.Equal(t, past, live.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
@@ -1186,7 +1187,7 @@ func TestScaleReplicaSetScaleDownDeadline(t *testing.T) {
 func TestScaleReplicaSetSendsNothingWhenNothingChanges(t *testing.T) {
 	// A Rollout that was scaled to zero and aborted keeps the scale-down-deadline of its canary. The deadline makes
 	// ReplicasAnnotationsNeedUpdate report a change, but there is none to make.
-	f := newScalePatchFixture(t, func(rs *appsv1.ReplicaSet) {
+	f := newReplicaSetPatchFixture(t, func(rs *appsv1.ReplicaSet) {
 		rs.Spec.Replicas = ptr.To[int32](0)
 		rs.Annotations[annotations.DesiredReplicasAnnotation] = "0"
 		rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = time.Now().Add(time.Minute).UTC().Format(time.RFC3339)
@@ -1209,7 +1210,7 @@ func TestScaleReplicaSetSendsNothingWhenNothingChanges(t *testing.T) {
 
 // If the patch is rejected, its error is returned, no scaling event is recorded and no write is remembered.
 func TestScaleReplicaSetReturnsPatchError(t *testing.T) {
-	f := newScalePatchFixture(t, nil, nil)
+	f := newReplicaSetPatchFixture(t, nil, nil)
 	f.kubeclient.PrependReactor("patch", "replicasets", func(action testclient.Action) (bool, runtime.Object, error) {
 		return true, nil, k8serrors.NewForbidden(appsv1.Resource("replicasets"), f.cached.Name, errors.New("not allowed"))
 	})

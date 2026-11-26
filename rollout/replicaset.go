@@ -93,8 +93,9 @@ func (c *reconcilerBase) forgetReplicaSet(rs *appsv1.ReplicaSet) {
 // staleReplicaSet returns the first of the given ReplicaSets, as read from the informer, that is older than this
 // controller's last write to it, or nil if the informer has observed all of our writes.
 //
-// The scale and the scale-down-deadline annotation are written with patches that carry no resourceVersion, so the
-// API server does not reject them when they are computed from an outdated ReplicaSet. This check takes the place of
+// The scale, the ephemeral metadata and the scale-down-deadline annotation are written with patches that carry no
+// resourceVersion, so the API server does not reject them when they are computed from an outdated ReplicaSet. This
+// check takes the place of
 // that rejection for the one kind of outdated read the controller can detect itself: a reconcile that starts before
 // the informer has delivered the controller's own previous write. Changes made by others, such as the status
 // updates of the ReplicaSet controller, are not covered and do not need to be: they do not change what the patches
@@ -112,6 +113,27 @@ func (c *reconcilerBase) staleReplicaSet(rsList []*appsv1.ReplicaSet) *appsv1.Re
 		}
 	}
 	return nil
+}
+
+// stringMapPatch returns the JSON merge patch that changes the labels or annotations from into to, or nil if they
+// have the same entries. It names the keys whose value changes and, with a null value, the keys that only from has.
+// A key it does not name keeps the value it has on the server.
+func stringMapPatch(from, to map[string]string) map[string]any {
+	patch := map[string]any{}
+	for key, value := range to {
+		if old, ok := from[key]; !ok || old != value {
+			patch[key] = value
+		}
+	}
+	for key := range from {
+		if _, ok := to[key]; !ok {
+			patch[key] = nil
+		}
+	}
+	if len(patch) == 0 {
+		return nil
+	}
+	return patch
 }
 
 func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {

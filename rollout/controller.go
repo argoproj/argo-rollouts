@@ -147,8 +147,8 @@ type reconcilerBase struct {
 
 	// replicaSetVersionTracker remembers the ResourceVersion of this controller's last write to each ReplicaSet,
 	// so that a reconcile can be requeued while the ReplicaSet informer has not caught up with it. ReplicaSets
-	// are scaled and annotated with patches that carry no resourceVersion, so the API server does not reject a
-	// write that was computed from a ReplicaSet this controller has changed since. See staleReplicaSet.
+	// are scaled, labelled and annotated with patches that carry no resourceVersion, so the API server does not
+	// reject a write that was computed from a ReplicaSet this controller has changed since. See staleReplicaSet.
 	replicaSetVersionTracker *resourceversionutil.Tracker
 
 	podRestarter RolloutPodRestarter

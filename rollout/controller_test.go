@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -1170,6 +1171,32 @@ func replicaSetFromScalePatch(t *testing.T, action core.Action) *appsv1.ReplicaS
 	rs.Name = patchAction.GetName()
 	rs.Namespace = patchAction.GetNamespace()
 	return &rs
+}
+
+// getReplicaSetAfterPatch returns the ReplicaSet rs as it is after the merge patch at index is applied to it.
+func (f *fixture) getReplicaSetAfterPatch(index int, rs *appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	f.t.Helper()
+	patchAction, ok := f.kubeActionAt(index).(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", f.kubeActionAt(index).GetVerb())
+	}
+	if patchAction.GetPatchType() != types.MergePatchType {
+		f.t.Fatalf("Expected a merge patch, not %s: %s", patchAction.GetPatchType(), patchAction.GetPatch())
+	}
+	assert.Equal(f.t, rs.Name, patchAction.GetName())
+	return applyReplicaSetMergePatch(f.t, rs, patchAction.GetPatch())
+}
+
+// applyReplicaSetMergePatch returns the ReplicaSet rs as it is after the JSON merge patch is applied to it.
+func applyReplicaSetMergePatch(t *testing.T, rs *appsv1.ReplicaSet, patch []byte) *appsv1.ReplicaSet {
+	t.Helper()
+	original, err := json.Marshal(rs)
+	require.NoError(t, err)
+	patched, err := jsonpatch.MergePatch(original, patch)
+	require.NoError(t, err)
+	patchedRS := &appsv1.ReplicaSet{}
+	require.NoError(t, json.Unmarshal(patched, patchedRS))
+	return patchedRS
 }
 
 // getReplicaSetScalePatch returns the body of the ReplicaSet scale patch at index.
