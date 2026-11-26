@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,6 +34,7 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/yaml"
 
@@ -95,7 +98,7 @@ type EventRecorderAdapter struct {
 	rolloutsClient clientset.Interface
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutsClient clientset.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory, selfServiceNotificationEnabled bool) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory, selfServiceNotificationEnabled bool) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -111,9 +114,16 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutsClient clients
 		NotificationSendPerformance:    notificationSendPerformance,
 		apiFactory:                     apiFactory,
 		selfServiceNotificationEnabled: selfServiceNotificationEnabled,
-		rolloutsClient:                 rolloutsClient,
 	}
 	recorder.eventf = recorder.defaultEventf
+	return recorder
+}
+
+// WithRolloutsClient configures the Rollouts client used to persist notified state annotations for oncePer triggers.
+func WithRolloutsClient(recorder EventRecorder, rolloutsClient clientset.Interface) EventRecorder {
+	if adapter, ok := recorder.(*EventRecorderAdapter); ok {
+		adapter.rolloutsClient = rolloutsClient
+	}
 	return recorder
 }
 
@@ -180,45 +190,48 @@ func NewFakeApiFactory() api.Factory {
 }
 
 func NewFakeEventRecorder() *FakeEventRecorder {
-	recorder := NewEventRecorder(
-		k8sfake.NewSimpleClientset(),
+	recorder := WithRolloutsClient(
+		NewEventRecorder(
+			k8sfake.NewSimpleClientset(),
+			prometheus.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "rollout_events_total",
+				},
+				[]string{"name", "namespace", "type", "reason"},
+			),
+			prometheus.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "notification_send_error",
+				},
+				[]string{"name", "namespace", "type", "reason"},
+			),
+			prometheus.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "notification_send_success",
+				},
+				[]string{"name", "namespace", "type", "reason"},
+			),
+			prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Name:    "notification_send_performance",
+					Help:    "Notification send performance.",
+					Buckets: []float64{0.01, 0.15, .25, .5, 1},
+				},
+				[]string{"namespace", "name"},
+			),
+			NewFakeApiFactory(),
+			false,
+		),
 		argofake.NewSimpleClientset(),
-		prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "rollout_events_total",
-			},
-			[]string{"name", "namespace", "type", "reason"},
-		),
-		prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "notification_send_error",
-			},
-			[]string{"name", "namespace", "type", "reason"},
-		),
-		prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "notification_send_success",
-			},
-			[]string{"name", "namespace", "type", "reason"},
-		),
-		prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Name:    "notification_send_performance",
-				Help:    "Notification send performance.",
-				Buckets: []float64{0.01, 0.15, .25, .5, 1},
-			},
-			[]string{"namespace", "name"},
-		),
-		NewFakeApiFactory(),
-		false,
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
-	fakeRecorder := &FakeEventRecorder{}
-	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
-		recorder.defaultEventf(object, warn, opts, messageFmt, args...)
+	fakeRecorder := &FakeEventRecorder{
+		EventRecorderAdapter: *recorder,
+	}
+	fakeRecorder.EventRecorderAdapter.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
+		fakeRecorder.EventRecorderAdapter.defaultEventf(object, warn, opts, messageFmt, args...)
 		fakeRecorder.appendEvents(opts.EventReason)
 	}
-	fakeRecorder.EventRecorderAdapter = *recorder
 	return fakeRecorder
 }
 
@@ -249,48 +262,57 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
 
-		if e.apiFactory != nil {
-			apis, err := e.getNotificationAPIs(namespace)
-			if err != nil {
-				logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
-				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-			}
-
-			// Notifications record their oncePer state on the object, so work on a copy to leave the
-			// caller's object untouched, then propagate the updated notified annotation back so later
-			// events in the same reconcile pass see it.
-			targetObj := object
-			if ro, ok := object.(*v1alpha1.Rollout); ok {
-				targetObj = ro.DeepCopy()
-			}
-			for _, api := range apis {
-				err := e.sendNotifications(api, targetObj, opts)
-				if err != nil {
-					logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
-				}
-			}
-			if ro, ok := object.(*v1alpha1.Rollout); ok {
-				if copyRo, ok := targetObj.(*v1alpha1.Rollout); ok {
-					if updated := copyRo.GetAnnotations(); updated != nil {
-						if val, exists := updated[subscriptions.NotifiedAnnotationKey()]; exists {
-							ann := ro.GetAnnotations()
-							if ann == nil {
-								ann = make(map[string]string)
-							}
-							ann[subscriptions.NotifiedAnnotationKey()] = val
-							ro.SetAnnotations(ann)
-						}
-					}
-				}
-			}
-		}
-
+		e.dispatchEventNotifications(object, opts, logCtx, namespace)
 	}
 	logFn := logCtx.Infof
 	if warn {
 		logFn = logCtx.Warnf
 	}
 	logFn(messageFmt, args...)
+}
+
+func (e *EventRecorderAdapter) dispatchEventNotifications(object runtime.Object, opts EventOptions, logCtx *log.Entry, namespace string) {
+	if e.apiFactory == nil {
+		return
+	}
+	apis, err := e.getNotificationAPIs(namespace)
+	if err != nil {
+		_, _, name := logutil.KindNamespaceName(logCtx)
+		logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
+		e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+	}
+
+	// Notifications record their oncePer state on the object, so work on a copy to leave the
+	// caller's object untouched, then propagate the updated notified annotation back so later
+	// events in the same reconcile pass see it.
+	targetObj := object
+	if ro, ok := object.(*v1alpha1.Rollout); ok {
+		targetObj = ro.DeepCopy()
+	}
+	for _, api := range apis {
+		if err := e.sendNotifications(api, targetObj, opts); err != nil {
+			logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+		}
+	}
+	propagateNotifiedAnnotation(targetObj, object)
+}
+
+func propagateNotifiedAnnotation(src, dst runtime.Object) {
+	srcRo, ok := src.(*v1alpha1.Rollout)
+	if !ok {
+		return
+	}
+	dstRo, ok := dst.(*v1alpha1.Rollout)
+	if !ok {
+		return
+	}
+	key := subscriptions.NotifiedAnnotationKey()
+	updated, exists := srcRo.GetAnnotations()[key]
+	prev, hadPrev := dstRo.GetAnnotations()[key]
+	if exists == hadPrev && updated == prev {
+		return
+	}
+	setNotifiedAnnotation(dstRo, key, updated, exists)
 }
 
 func (e *EventRecorderAdapter) getNotificationAPIs(namespace string) (map[string]api.API, error) {
@@ -352,6 +374,46 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 	}
 
 	return arsObj, nil
+}
+
+type varsFactory interface {
+	api.Factory
+	getVars(namespace string) api.GetVars
+}
+
+type notificationAPIFactory struct {
+	api.Factory
+	mu              sync.RWMutex
+	varsByNamespace map[string]api.GetVars
+}
+
+func (f *notificationAPIFactory) getVars(namespace string) api.GetVars {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.varsByNamespace[namespace]
+}
+
+// NewNotificationAPIFactory creates a notifications-engine Factory whose per-namespace variable
+// builders are retained so empty-condition oncePer expressions evaluate against the same variable
+// set as RunTrigger.
+func NewNotificationAPIFactory(arInformer argoinformers.AnalysisRunInformer, defaultNamespace string, secretsInformer, cmInformer cache.SharedIndexInformer) api.Factory {
+	nf := &notificationAPIFactory{
+		varsByNamespace: make(map[string]api.GetVars),
+	}
+	settings := NewAPIFactorySettings(arInformer)
+	origInit := settings.InitGetVars
+	settings.InitGetVars = func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+		gv, err := origInit(cfg, configMap, secret)
+		if err != nil {
+			return nil, err
+		}
+		nf.mu.Lock()
+		nf.varsByNamespace[cfg.Namespace] = gv
+		nf.mu.Unlock()
+		return gv, nil
+	}
+	nf.Factory = api.NewFactory(settings, defaultNamespace, secretsInformer, cmInformer)
+	return nf
 }
 
 func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Settings {
@@ -455,7 +517,12 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 
 	// oncePer relies on the notified state annotation, which is only persisted on Rollouts.
 	state, notifiedAnnotation, canTrackState := e.notifiedState(object)
+	initialState := maps.Clone(state)
 	isSelfConfig := cfg.IsSelfServiceConfig
+	var getVarsFn api.GetVars
+	if vf, ok := e.apiFactory.(varsFactory); ok {
+		getVarsFn = vf.getVars(cfg.Namespace)
+	}
 
 	// We should not return in these loops because we want other configured notifications to still send if they can.
 	errors := []error{}
@@ -486,7 +553,7 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 			if isEmptyCondition {
 				// The engine only evaluates oncePer when the when condition is true, which never
 				// holds for a condition without a when.
-				c.OncePer = emptyConditionOncePer(cfg, trigger, c.Key, objMap)
+				c.OncePer = emptyConditionOncePer(cfg, trigger, c.Key, objMap, getVarsFn)
 			}
 
 			stateKey := ""
@@ -516,7 +583,7 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 		}
 	}
 	if canTrackState {
-		if err := e.persistNotifiedState(object.(*v1alpha1.Rollout), state, notifiedAnnotation); err != nil {
+		if err := e.persistNotifiedState(object.(*v1alpha1.Rollout), initialState, state, notifiedAnnotation); err != nil {
 			log.Errorf("Failed to persist notified state, trigger: %s : %v", trigger, err)
 			errors = append(errors, err)
 		}
@@ -542,38 +609,102 @@ func (e *EventRecorderAdapter) notifiedState(object runtime.Object) (notificatio
 }
 
 // persistNotifiedState patches the notified annotation of the Rollout if the state changed. Only
-// that annotation is patched so concurrent updates of the Rollout are not overwritten. On success
-// the annotation is also set on the given object so that later notifications see it.
-func (e *EventRecorderAdapter) persistNotifiedState(ro *v1alpha1.Rollout, state notificationcontroller.NotificationsState, previous string) error {
-	annotations, err := state.Persist(ro)
-	if err != nil {
-		return err
-	}
+// that annotation is patched, guarded by resourceVersion and retrying on conflict by merging our
+// delta into the latest stored state so concurrent writes from the notifications controller are not
+// lost and already-sent notifications are not retried.
+func (e *EventRecorderAdapter) persistNotifiedState(ro *v1alpha1.Rollout, initialState, state notificationcontroller.NotificationsState, previous string) error {
 	key := subscriptions.NotifiedAnnotationKey()
-	current, present := annotations[key]
-	if current == previous {
+	target := ro
+	targetState := state
+	prevAnnotation := previous
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		annotations, err := targetState.Persist(target)
+		if err != nil {
+			return err
+		}
+		current, present := annotations[key]
+		if current == prevAnnotation {
+			if target != ro {
+				setNotifiedAnnotation(ro, key, current, present)
+			}
+			return nil
+		}
+		var value any = current
+		if !present {
+			value = nil
+		}
+		metadataPatch := map[string]any{"annotations": map[string]any{key: value}}
+		if target.ResourceVersion != "" {
+			metadataPatch["resourceVersion"] = target.ResourceVersion
+		}
+		patch, err := json.Marshal(map[string]any{"metadata": metadataPatch})
+		if err != nil {
+			return err
+		}
+		patched, err := e.rolloutsClient.ArgoprojV1alpha1().Rollouts(target.Namespace).Patch(context.Background(), target.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			if apierrors.IsConflict(err) {
+				latest, getErr := e.rolloutsClient.ArgoprojV1alpha1().Rollouts(target.Namespace).Get(context.Background(), target.Name, metav1.GetOptions{})
+				if getErr != nil {
+					return getErr
+				}
+				target = latest
+				targetState = mergeNotifiedState(notificationcontroller.NewStateFromRes(latest), initialState, state)
+				prevAnnotation = latest.GetAnnotations()[key]
+			}
+			return err
+		}
+		mergedVal := current
+		if patched != nil {
+			if serverVal, ok := patched.GetAnnotations()[key]; ok {
+				mergedVal = serverVal
+			}
+		}
+		setNotifiedAnnotation(ro, key, mergedVal, present)
 		return nil
-	}
-	var value any = current
-	if !present {
-		value = nil
-	}
-	patch, err := json.Marshal(map[string]any{"metadata": map[string]any{"annotations": map[string]any{key: value}}})
-	if err != nil {
-		return err
-	}
-	_, err = e.rolloutsClient.ArgoprojV1alpha1().Rollouts(ro.Namespace).Patch(context.Background(), ro.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	})
 	if err != nil {
 		return fmt.Errorf("failed to patch notified state of rollout %s/%s: %w", ro.Namespace, ro.Name, err)
 	}
-	ro.SetAnnotations(annotations)
 	return nil
+}
+
+func setNotifiedAnnotation(ro *v1alpha1.Rollout, key, val string, present bool) {
+	next := maps.Clone(ro.GetAnnotations())
+	if present {
+		if next == nil {
+			next = make(map[string]string, 1)
+		}
+		next[key] = val
+	} else {
+		delete(next, key)
+	}
+	ro.SetAnnotations(next)
+}
+
+func mergeNotifiedState(latestState, initialState, updatedState notificationcontroller.NotificationsState) notificationcontroller.NotificationsState {
+	merged := make(notificationcontroller.NotificationsState, len(latestState)+len(updatedState))
+	for k, v := range latestState {
+		merged[k] = v
+	}
+	for k := range initialState {
+		if _, ok := updatedState[k]; !ok {
+			delete(merged, k)
+		}
+	}
+	for k, v := range updatedState {
+		if _, ok := initialState[k]; !ok {
+			merged[k] = v
+		}
+	}
+	return merged
 }
 
 // emptyConditionOncePer evaluates the oncePer expression of the condition identified by the
 // result key, which has the form "[<index>].<hash>". It returns an empty string when the condition
 // has no oncePer or when the expression cannot be evaluated.
-func emptyConditionOncePer(cfg api.Config, trigger string, key string, objMap map[string]any) string {
+func emptyConditionOncePer(cfg api.Config, trigger, key string, objMap map[string]any, getVarsFn api.GetVars) string {
 	var index int
 	if _, err := fmt.Sscanf(key, "[%d].", &index); err != nil {
 		return ""
@@ -582,9 +713,11 @@ func emptyConditionOncePer(cfg api.Config, trigger string, key string, objMap ma
 	if index < 0 || index >= len(conditions) || conditions[index].OncePer == "" {
 		return ""
 	}
-	env := map[string]any{"rollout": objMap, "time": timeExprs}
-	if ctx, ok := objMap["context"]; ok {
-		env["context"] = ctx
+	var env map[string]any
+	if getVarsFn != nil {
+		env = getVarsFn(objMap, services.Destination{})
+	} else {
+		env = map[string]any{"rollout": objMap, "time": timeExprs}
 	}
 	val, err := expr.Eval(conditions[index].OncePer, env)
 	if err != nil {

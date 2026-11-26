@@ -2774,6 +2774,91 @@ func TestSyncHandlerStaleCacheGuard(t *testing.T) {
 	assert.ErrorIs(t, err, controllerutil.StaleCacheError)
 }
 
+func TestInformerEventHandlersDoNotMutateCachedRollout(t *testing.T) {
+	rec := &recordingObjectEventRecorder{}
+	f := newFixture(t)
+	defer f.Close()
+
+	ro := newCanaryRollout("foo", 1, nil, nil, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	ro.Annotations = map[string]string{"existing": "val"}
+	f.client = fake.NewSimpleClientset(ro)
+
+	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
+	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
+	scheme := runtime.NewScheme()
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{})
+	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
+	require.NoError(t, err)
+
+	roInformer := i.Argoproj().V1alpha1().Rollouts()
+	_ = NewController(ControllerConfig{
+		Namespace:                       metav1.NamespaceAll,
+		KubeClientSet:                   f.kubeclient,
+		ArgoProjClientset:               f.client,
+		DynamicClientSet:                dynamicClient,
+		ExperimentInformer:              i.Argoproj().V1alpha1().Experiments(),
+		AnalysisRunInformer:             i.Argoproj().V1alpha1().AnalysisRuns(),
+		AnalysisTemplateInformer:        i.Argoproj().V1alpha1().AnalysisTemplates(),
+		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
+		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
+		ServicesInformer:                k8sI.Core().V1().Services(),
+		IngressWrapper:                  ingressWrapper,
+		RolloutsInformer:                roInformer,
+		IstioPrimaryDynamicClient:       dynamicClient,
+		IstioVirtualServiceInformer:     dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
+		IstioDestinationRuleInformer:    dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
+		ResyncPeriod:                    noResyncPeriodFunc(),
+		RolloutWorkQueue:                workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts"),
+		ServiceWorkQueue:                workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Services"),
+		IngressWorkQueue:                workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses"),
+		MetricsServer:                   f.metricsRecorder,
+		Recorder:                        rec,
+	})
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	i.Start(stopCh)
+	require.True(t, cache.WaitForCacheSync(stopCh, roInformer.Informer().HasSynced))
+
+	require.Eventually(t, func() bool {
+		return len(rec.recordedObjects()) >= 1
+	}, 2*time.Second, 10*time.Millisecond)
+
+	cachedObj, exists, err := roInformer.Informer().GetIndexer().GetByKey(ro.Namespace + "/" + ro.Name)
+	require.NoError(t, err)
+	require.True(t, exists)
+	cachedRo := cachedObj.(*v1alpha1.Rollout)
+	for _, seen := range rec.recordedObjects() {
+		assert.NotSame(t, cachedRo, seen)
+	}
+	assert.Equal(t, map[string]string{"existing": "val"}, cachedRo.Annotations)
+}
+
+type recordingObjectEventRecorder struct {
+	record.FakeEventRecorder
+	mu      sync.Mutex
+	objects []*v1alpha1.Rollout
+}
+
+func (r *recordingObjectEventRecorder) Eventf(object runtime.Object, opts record.EventOptions, messageFmt string, args ...any) {
+	if ro, ok := object.(*v1alpha1.Rollout); ok {
+		r.mu.Lock()
+		// Mutate the passed object like notification propagation would
+		ann := ro.GetAnnotations()
+		ann["mutated"] = "yes"
+		ro.SetAnnotations(ann)
+		r.objects = append(r.objects, ro)
+		r.mu.Unlock()
+	}
+}
+
+func (r *recordingObjectEventRecorder) recordedObjects() []*v1alpha1.Rollout {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]*v1alpha1.Rollout(nil), r.objects...)
+}
+
 func TestRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

@@ -250,7 +250,7 @@ func NewController(cfg ControllerConfig) *Controller {
 				logCtx := logutil.WithRollout(ro)
 				logCtx.Info("rollout enqueue due to add event")
 				if cfg.Recorder != nil {
-					cfg.Recorder.Eventf(ro, record.EventOptions{
+					cfg.Recorder.Eventf(ro.DeepCopy(), record.EventOptions{
 						EventType:   corev1.EventTypeNormal,
 						EventReason: conditions.RolloutAddedToInformerReason,
 					}, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
@@ -292,7 +292,7 @@ func NewController(cfg ControllerConfig) *Controller {
 				for _, key := range istioutil.GetRolloutDesinationRuleKeys(ro) {
 					controller.IstioController.EnqueueDestinationRule(key)
 				}
-				controller.recorder.Eventf(ro, record.EventOptions{EventReason: conditions.RolloutDeletedReason}, conditions.RolloutDeletedMessage, ro.Name, ro.Namespace)
+				controller.recorder.Eventf(ro.DeepCopy(), record.EventOptions{EventReason: conditions.RolloutDeletedReason}, conditions.RolloutDeletedMessage, ro.Name, ro.Namespace)
 			}
 		},
 	})
