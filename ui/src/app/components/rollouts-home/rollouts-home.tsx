@@ -39,16 +39,19 @@ export const RolloutsHome = () => {
         return favoritesStr ? JSON.parse(favoritesStr) : {};
     });
 
-    const handleFavoriteChange = (rolloutName: string, isFavorite: boolean) => {
-        const newFavorites = {...favorites};
+    const latestFavorites = React.useRef(favorites);
+
+    const handleFavoriteChange = React.useCallback((rolloutName: string, isFavorite: boolean) => {
+        const newFavorites = {...latestFavorites.current};
         if (isFavorite) {
             newFavorites[rolloutName] = true;
         } else {
             delete newFavorites[rolloutName];
         }
+        latestFavorites.current = newFavorites;
         setFavorites(newFavorites);
         localStorage.setItem('rolloutsFavorites', JSON.stringify(newFavorites));
-    };
+    }, []);
 
     const filteredRollouts = React.useMemo(() => {
         return rollouts.filter((r) => {

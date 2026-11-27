@@ -30,13 +30,15 @@ export const isInProgress = (rollout: RolloutInfo): boolean => {
     return false;
 };
 
-export const RolloutGridWidget = (props: {
+// RolloutGridWidget is memoized, so that an update of one Rollout does not render every
+// widget of the grid. Props must keep their identity between renders for this to work.
+export const RolloutGridWidget = React.memo(function RolloutGridWidget(props: {
     rollout: RolloutInfo;
     deselect: () => void;
     selected?: boolean;
     isFavorite: boolean;
     onFavoriteChange: (rolloutName: string, isFavorite: boolean) => void;
-}) => {
+}) {
     const [watching, subscribe] = React.useState(false);
     let rollout = props.rollout;
     useWatchRollout(props.rollout?.objectMeta?.name, watching, null, (r: RolloutInfo) => (rollout = r));
@@ -86,7 +88,7 @@ export const RolloutGridWidget = (props: {
             </div>
         </Link>
     );
-};
+});
 
 const WidgetHeader = (props: {rollout: RolloutInfo; refresh: () => void; isFavorite: boolean; handleFavoriteChange: (rolloutName: string, isFavorite: boolean) => void}) => {
     const {rollout} = props;
