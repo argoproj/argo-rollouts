@@ -466,6 +466,10 @@ func main() {
 		err = json.Unmarshal(jsonBytes, &r.Object)
 		checkErr(err)
 
+		// Only the CRDs drop the env list markers: the kustomize schema keeps
+		// them so kustomize patches still merge env vars by name.
+		allowDuplicateEnvNames(&r)
+
 		// clean up crd yaml before marshalling
 		unstructured.RemoveNestedField(r.Object, "status")
 		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
