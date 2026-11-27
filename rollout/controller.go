@@ -140,6 +140,7 @@ type reconcilerBase struct {
 	ingressWrapper                IngressWrapper
 	experimentsLister             listers.ExperimentLister
 	analysisRunLister             listers.AnalysisRunLister
+	analysisRunIndexer            cache.Indexer
 	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
 	IstioController               *istio.IstioController
@@ -203,6 +204,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		ingressWrapper:                cfg.IngressWrapper,
 		experimentsLister:             cfg.ExperimentInformer.Lister(),
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
+		analysisRunIndexer:            cfg.AnalysisRunInformer.Informer().GetIndexer(),
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
 		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
 		recorder:                      cfg.Recorder,
@@ -212,6 +214,16 @@ func NewController(cfg ControllerConfig) *Controller {
 		ephemeralMetadataThreads:      cfg.EphemeralMetadataThreads,
 		ephemeralMetadataPodRetries:   cfg.EphemeralMetadataPodRetries,
 		metricsServer:                 cfg.MetricsServer,
+	}
+
+	// Index AnalysisRuns by their controller-owner UID so getAnalysisRunsForRollout
+	// can fetch owned ARs directly instead of listing every AR in the namespace.
+	if err := cfg.AnalysisRunInformer.Informer().AddIndexers(cache.Indexers{
+		analysisRunByOwnerUIDIndex: indexAnalysisRunByControllerUID,
+	}); err != nil {
+		// AddIndexers fails if the same name was added previously or the informer
+		// has already started — both indicate a wiring bug, not a runtime error.
+		panic(err)
 	}
 
 	controller := &Controller{
