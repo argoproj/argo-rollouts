@@ -318,6 +318,51 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	assert.JSONEq(t, expectedPatch, patch)
 }
 
+// TestCanaryPromoteFullProgressDeadlineAbort verifies that a progress-deadline abort during a full
+// promotion emits a single RolloutAborted event across reconciles. The full promotion calls
+// RemoveAbort on every reconcile, so calculateRolloutConditions never reports this abort.
+func TestCanaryPromoteFullProgressDeadlineAbort(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{SetWeight: ptr.To[int32](10)}, {Pause: &v1alpha1.RolloutPause{}}}
+	r1 := newCanaryRollout("foo", 10, nil, steps, ptr.To[int32](2), intstr.FromInt(10), intstr.FromInt(0))
+	r1.Spec.ProgressDeadlineSeconds = ptr.To[int32](1)
+	r1.Spec.ProgressDeadlineAbort = true
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 10, 0) // the new pods never become available
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Replicas = 20
+	r2.Status.UpdatedReplicas = 10
+	r2.Status.ReadyReplicas = 10
+	r2.Status.AvailableReplicas = 10
+	r2.Status.CurrentPodHash = rs2PodHash
+	r2.Status.CurrentStepHash = conditions.ComputeStepHash(r2)
+	r2.Status.CurrentStepIndex = ptr.To[int32](2)
+	r2.Status.PromoteFull = true
+	msg := fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, rs2.Name)
+	timedOutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r2.Status, *timedOutCond)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	patchIndex := f.expectPatchRolloutAction(r2) // sync 1: record the abort
+	f.expectGetRolloutAction(r2)                 // re-seed between syncs
+	f.runWithSyncs(getKey(r2, t), 2)             // sync 2: still timed out, nothing to patch
+
+	patchedRollout := f.getPatchedRolloutAsObject(patchIndex)
+	assert.True(t, patchedRollout.Status.Abort)
+	f.assertEvents([]string{conditions.RolloutAbortedReason, conditions.RolloutNotCompletedReason})
+}
+
 func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
