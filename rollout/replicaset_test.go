@@ -483,6 +483,58 @@ func TestAbortScaleDownDelayDoesNotWedgeScalingEvent(t *testing.T) {
 	assert.Equal(t, "4", updatedRS.Annotations[annotations.DesiredReplicasAnnotation], "desired-replicas annotation must be synced so the scaling event terminates and the next reconcile takes the full path")
 }
 
+// TestFullyPromotedAbortedRolloutScalesOnScalingEvent reconciles a traffic-routed canary that is
+// fully promoted (stableRS == currentPodHash) but still has status.abort set, and that receives a
+// spec.replicas change (e.g. from an HPA). The stable RS is also the newRS, so the abort must be
+// cleared and the RS must be scaled, instead of being held at size by the abort scale-down delay.
+func TestFullyPromotedAbortedRolloutScalesOnScalingEvent(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: ptr.To[int32](50)},
+		{Pause: &v1alpha1.RolloutPause{}},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, ptr.To[int32](2), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySvc := newService("canary", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+	stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 5, 5, 5, false)
+	r1.Status.Abort = true
+	r1.Status.AbortedAt = &metav1.Time{Time: timeutil.Now().Add(-1 * time.Hour)}
+	r1.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{Weight: 0, ServiceName: "canary", PodTemplateHash: rs1PodHash},
+		Stable: v1alpha1.WeightDestination{Weight: 100, ServiceName: "stable", PodTemplateHash: rs1PodHash},
+	}
+	// HPA scaling event while the abort flag is still set
+	r1.Spec.Replicas = ptr.To[int32](10)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r1)
+	f.run(getKey(r1, t))
+
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(10), *updatedRS.Spec.Replicas, "fully promoted RS must follow spec.replicas even if the abort flag was set")
+	_, hasDeadline := updatedRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+	assert.False(t, hasDeadline, "fully promoted RS must not get an abort scale-down deadline")
+
+	patch := f.getPatchedRolloutAsObject(patchIndex)
+	assert.False(t, patch.Status.Abort)
+	assert.Nil(t, patch.Status.AbortedAt)
+}
+
 func TestReconcileOldReplicaSet(t *testing.T) {
 	tests := []struct {
 		name                string
