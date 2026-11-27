@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/aws/smithy-go/ptr"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -35,6 +37,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 )
 
 var (
@@ -49,6 +52,7 @@ type Controller struct {
 	argoProjClientset clientset.Interface
 
 	analysisRunLister listers.AnalysisRunLister
+	rolloutLister     listers.RolloutLister
 
 	analysisRunSynced cache.InformerSynced
 
@@ -77,6 +81,8 @@ type Controller struct {
 
 	analysisSharedSecretNamespace string
 	sharedSecretMode              SharedSecretMode
+	tracer                        oteltrace.Tracer
+	traceHandoffs                 *traceutil.Handoffs
 }
 
 // ControllerConfig describes the data required to instantiate a new analysis controller
@@ -84,6 +90,7 @@ type ControllerConfig struct {
 	KubeClientSet                 kubernetes.Interface
 	ArgoProjClientset             clientset.Interface
 	AnalysisRunInformer           informers.AnalysisRunInformer
+	RolloutInformer               informers.RolloutInformer
 	JobInformer                   batchinformers.JobInformer
 	JobPodsInformer               coreinformer.PodInformer
 	ResyncPeriod                  time.Duration
@@ -92,10 +99,16 @@ type ControllerConfig struct {
 	Recorder                      record.EventRecorder
 	AnalysisSharedSecretNamespace string
 	SharedSecretMode              SharedSecretMode
+	TracingEnabled                bool
+	TraceHandoffs                 *traceutil.Handoffs
 }
 
 // NewController returns a new analysis controller
 func NewController(cfg ControllerConfig) *Controller {
+	var rolloutLister listers.RolloutLister
+	if cfg.RolloutInformer != nil {
+		rolloutLister = cfg.RolloutInformer.Lister()
+	}
 	// Normalize the shared-secret mode so an unset or unrecognized value falls back to the secure
 	// default (LabelFilter) rather than fail-open.
 	sharedSecretMode := cfg.SharedSecretMode
@@ -110,6 +123,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		kubeclientset:                 cfg.KubeClientSet,
 		argoProjClientset:             cfg.ArgoProjClientset,
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
+		rolloutLister:                 rolloutLister,
 		metricsServer:                 cfg.MetricsServer,
 		analysisRunWorkQueue:          cfg.AnalysisRunWorkQueue,
 		jobInformer:                   cfg.JobInformer,
@@ -119,6 +133,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 		analysisSharedSecretNamespace: cfg.AnalysisSharedSecretNamespace,
 		sharedSecretMode:              sharedSecretMode,
+		traceHandoffs:                 cfg.TraceHandoffs,
+	}
+	if cfg.TracingEnabled {
+		controller.tracer = otel.Tracer(traceutil.InstrumentationName + "/analysis")
 	}
 
 	controller.enqueueAnalysis = func(obj any) {
@@ -185,20 +203,39 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	return nil
 }
 
-func (c *Controller) syncHandler(ctx context.Context, key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error) {
 	startTime := timeutil.Now()
+	attempt := traceutil.NewAttempt(ctx, c.tracer, "controller.AnalysisRun", startTime)
+	var run, tracedRun *v1alpha1.AnalysisRun
+	if attempt != nil {
+		defer func() {
+			recovered := recover()
+			finishAnalysisRunAttempt(attempt, run, tracedRun, retErr, recovered)
+			if recovered != nil {
+				panic(recovered)
+			}
+		}()
+	}
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
+		setAnalysisRunReconciliationCause(attempt, "invalid_key")
 		return err
 	}
 	log.WithField(logutil.AnalysisRunKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing Analysis at (%v)", startTime)
-	run, err := c.analysisRunLister.AnalysisRuns(namespace).Get(name)
+	setAnalysisRunReconciliationCause(attempt, "resource_lookup_error")
+	run, err = c.analysisRunLister.AnalysisRuns(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
+		setAnalysisRunReconciliationCause(attempt, "resource_deleted")
 		log.WithField(logutil.AnalysisRunKey, name).WithField(logutil.NamespaceKey, namespace).Info("Analysis has been deleted")
 		return nil
 	}
 	if err != nil {
 		return err
+	}
+	if attempt != nil {
+		tracedRun = run
+		attempt.SetAttributes(analysisRunTraceAttributes(run)...)
+		setAnalysisRunReconciliationCause(attempt, "resource_event")
 	}
 
 	defer func() {
@@ -209,12 +246,34 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	if run.DeletionTimestamp != nil {
+		setAnalysisRunReconciliationCause(attempt, "deletion")
 		logutil.WithAnalysisRun(run).Info("No reconciliation as analysis marked for deletion")
 		return nil
 	}
 
 	newRun := c.reconcileAnalysisRun(run)
-	return c.persistAnalysisRunStatus(run, newRun.Status)
+	written := false
+	var beforePatch func()
+	if attempt != nil {
+		beforePatch = func() {
+			attempt.Start(c.analysisRunCreationParent(run))
+			written = true
+		}
+	}
+	persistedRun, err := c.persistAnalysisRunStatus(context.TODO(), run, newRun.Status, beforePatch)
+	if err != nil {
+		return err
+	}
+	if attempt == nil {
+		return nil
+	}
+	if sameAnalysisRunIdentity(run, persistedRun) {
+		tracedRun = persistedRun
+	}
+	if written && persistedAnalysisRunResultMatches(run, newRun, persistedRun) {
+		c.traceHandoffs.RecordResult(run, persistedRun, attempt.SpanContext())
+	}
+	return nil
 }
 
 func (c *Controller) jobParentReference(obj any) (*v1.OwnerReference, string) {

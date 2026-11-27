@@ -790,6 +790,7 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	}
 	logCtx.Infof("Patched conditions: %s", string(patch))
 	c.newRollout = newRollout
+	c.tracePersistedStatus(r, newRollout)
 	c.emitPendingRolloutDuration()
 	return nil
 }
@@ -1054,6 +1055,7 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	c.sendStateChangeEvents(&prevStatus, newStatus)
 	logCtx.Infof("Patched: %s", patch)
 	c.newRollout = newRollout
+	c.tracePersistedStatus(c.rollout, newRollout)
 	c.emitPendingRolloutDuration()
 	return nil
 }

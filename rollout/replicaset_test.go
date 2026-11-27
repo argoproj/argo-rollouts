@@ -555,7 +555,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			informers.Start(stopCh)
 			informers.WaitForCacheSync(stopCh)
 			close(stopCh)
-			roCtx, err := c.newRolloutContext(rollout)
+			roCtx, err := c.newRolloutContext(rollout, nil)
 			assert.NoError(t, err)
 			roCtx.otherRSs = []*appsv1.ReplicaSet{oldRS}
 			scaled, err := roCtx.reconcileOtherReplicaSets()

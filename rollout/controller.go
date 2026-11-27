@@ -9,6 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -57,6 +60,7 @@ import (
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -84,10 +88,13 @@ type Controller struct {
 	// rolloutVersionTracker remembers ResourceVersions from our last successful writes so
 	// syncHandler can requeue when the informer cache hasn't caught up yet.
 	rolloutVersionTracker *resourceversionutil.Tracker
+	tracer                oteltrace.Tracer
 }
 
 // ControllerConfig describes the data required to instantiate a new rollout controller
 type ControllerConfig struct {
+	TracingEnabled                  bool
+	TraceHandoffs                   *traceutil.Handoffs
 	Namespace                       string
 	KubeClientSet                   kubernetes.Interface
 	ArgoProjClientset               clientset.Interface
@@ -118,6 +125,7 @@ type ControllerConfig struct {
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
 // reconcile a rollout. This is shared between the controller and the rolloutContext
 type reconcilerBase struct {
+	traceHandoffs *traceutil.Handoffs
 	// kubeclientset is a standard kubernetes clientset
 	kubeclientset kubernetes.Interface
 	// argoprojclientset is a clientset for our own API group
@@ -188,6 +196,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	}
 	base := reconcilerBase{
+		traceHandoffs:                 cfg.TraceHandoffs,
 		kubeclientset:                 cfg.KubeClientSet,
 		argoprojclientset:             cfg.ArgoProjClientset,
 		dynamicclientset:              cfg.DynamicClientSet,
@@ -222,6 +231,9 @@ func NewController(cfg ControllerConfig) *Controller {
 		serviceWorkqueue:      cfg.ServiceWorkQueue,
 		ingressWorkqueue:      cfg.IngressWorkQueue,
 		rolloutVersionTracker: resourceversionutil.NewTracker(),
+	}
+	if cfg.TracingEnabled {
+		controller.tracer = otel.Tracer(traceutil.InstrumentationName + "/rollout")
 	}
 	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
@@ -390,12 +402,23 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
-func (c *Controller) syncHandler(ctx context.Context, key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key string) (retErr error) {
 	startTime := timeutil.Now()
+	attempt := newRolloutTraceAttempt(ctx, c.tracer, startTime)
+	var roCtx *rolloutContext
+	defer func() {
+		recovered := recover()
+		finishRolloutAttempt(attempt, roCtx, retErr, recovered)
+		if recovered != nil {
+			panic(recovered)
+		}
+	}()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
+		attempt.setCause("invalid_key")
 		return err
 	}
+	attempt.setCause("resource_lookup_error")
 	rollout, err := c.rolloutsLister.Rollouts(namespace).Get(name)
 	if k8serrors.IsNotFound(err) {
 		c.rolloutVersionTracker.Forget(key)
@@ -405,6 +428,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return err
 	}
 
+	attempt.setRollout(rollout)
 	if c.rolloutVersionTracker.IsCacheStale(key, rollout.ResourceVersion) {
 		return controllerutil.StaleCacheError
 	}
@@ -428,26 +452,9 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	roCtx, err := c.newRolloutContext(r)
-	if roCtx == nil {
-		if k8serrors.IsConflict(err) {
-			logCtx.Warnf("newRolloutContext returned nil: %v", err)
-		} else {
-			logCtx.Errorf("newRolloutContext returned nil: %v", err)
-		}
-		return err
-	}
-	if err != nil {
-		if _, ok := err.(*field.Error); ok {
-			logCtx := logutil.WithRollout(roCtx.rollout)
-			logCtx.Info("rollout enqueue due to validation error")
-			// We want to frequently requeue rollouts with InvalidSpec errors, because the error
-			// condition might be timing related (e.g. the Rollout was applied before the Service).
-			c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
-			return nil // do not requeue from error because we already re-queued above
-		}
-		logCtx.Errorf("newRolloutContext err %v", err)
-		return err
+	roCtx, err = c.newRolloutContext(r, attempt)
+	if roCtx == nil || err != nil {
+		return c.handleRolloutContextError(roCtx, logCtx, err)
 	}
 	if roCtx.newRollout != nil {
 		// We modified the rollout object already. Let the next reconciliation process the update.
@@ -459,13 +466,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
-		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
-		return nil
+		return c.defaultRolloutReplicas(ctx, key, r, attempt)
 	}
 
 	err = roCtx.reconcile()
@@ -483,7 +484,40 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	return nil
 }
 
-func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
+func (c *Controller) handleRolloutContextError(roCtx *rolloutContext, logCtx *log.Entry, err error) error {
+	if roCtx == nil {
+		if k8serrors.IsConflict(err) {
+			logCtx.Warnf("newRolloutContext returned nil: %v", err)
+		} else {
+			logCtx.Errorf("newRolloutContext returned nil: %v", err)
+		}
+		return err
+	}
+	if _, ok := err.(*field.Error); ok {
+		logutil.WithRollout(roCtx.rollout).Info("rollout enqueue due to validation error")
+		// Validation can depend on resources that have not been created yet, so
+		// preserve the delayed retry instead of returning a rate-limited error.
+		c.enqueueRolloutAfter(roCtx.rollout, 20*time.Second)
+		return nil
+	}
+	logCtx.Errorf("newRolloutContext err %v", err)
+	return err
+}
+
+func (c *Controller) defaultRolloutReplicas(ctx context.Context, key string, rollout *v1alpha1.Rollout, attempt *rolloutTraceAttempt) error {
+	rollout.Spec.Replicas = ptr.To[int32](defaults.DefaultReplicas)
+	newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(ctx, rollout, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	if attempt != nil {
+		attempt.persisted = newRollout
+	}
+	c.rolloutVersionTracker.Record(key, newRollout.ResourceVersion)
+	return nil
+}
+
+func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout, attempt *rolloutTraceAttempt) (*rolloutContext, error) {
 	// This needs to be run before replicasets are found/resolved below.
 	// Additionally, for whatever reason, the tests also have assertions that
 	// fail if we delay finding the replicasets, analysisruns and experiments
@@ -517,17 +551,18 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 
 	logCtx := logutil.WithRollout(rollout)
 	roCtx := rolloutContext{
-		rollout:    rollout,
-		log:        logCtx,
-		newRS:      newRS,
-		stableRS:   stableRS,
-		olderRSs:   olderRSs,
-		otherRSs:   otherRSs,
-		allRSs:     rsList,
-		currentArs: currentArs,
-		otherArs:   otherArs,
-		currentEx:  currentEx,
-		otherExs:   otherExs,
+		traceAttempt: attempt,
+		rollout:      rollout,
+		log:          logCtx,
+		newRS:        newRS,
+		stableRS:     stableRS,
+		olderRSs:     olderRSs,
+		otherRSs:     otherRSs,
+		allRSs:       rsList,
+		currentArs:   currentArs,
+		otherArs:     otherArs,
+		currentEx:    currentEx,
+		otherExs:     otherExs,
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
 			// ALB and ALBs are copied because traffic routers mutate them on

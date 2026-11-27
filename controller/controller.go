@@ -57,6 +57,7 @@ import (
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	traceutil "github.com/argoproj/argo-rollouts/utils/trace"
 )
 
 const (
@@ -197,16 +198,14 @@ func NewAnalysisManager(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
 	resyncPeriod time.Duration,
-	metricsPort int,
-	healthzPort int,
+	metricsPort, healthzPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
-	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
-	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	dynamicInformerFactory, clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	jobInformerFactory kubeinformers.SharedInformerFactory,
+	kubeInformerFactory, jobInformerFactory kubeinformers.SharedInformerFactory,
 	analysisSharedSecretNamespace string,
 	analysisSharedSecretMode analysis.SharedSecretMode,
+	tracingEnabled bool,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -226,6 +225,7 @@ func NewAnalysisManager(
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil, false)
 	analysisController := analysis.NewController(analysis.ControllerConfig{
+		TracingEnabled:                tracingEnabled,
 		KubeClientSet:                 kubeclientset,
 		ArgoProjClientset:             argoprojclientset,
 		AnalysisRunInformer:           analysisRunInformer,
@@ -292,29 +292,21 @@ func NewManager(
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
 	istioPrimaryDynamicClient dynamic.Interface,
-	istioVirtualServiceInformer cache.SharedIndexInformer,
-	istioDestinationRuleInformer cache.SharedIndexInformer,
-	notificationConfigMapInformerFactory kubeinformers.SharedInformerFactory,
-	notificationSecretInformerFactory kubeinformers.SharedInformerFactory,
+	istioVirtualServiceInformer, istioDestinationRuleInformer cache.SharedIndexInformer,
+	notificationConfigMapInformerFactory, notificationSecretInformerFactory kubeinformers.SharedInformerFactory,
 	resyncPeriod time.Duration,
 	instanceID string,
-	metricsPort int,
-	healthzPort int,
+	metricsPort, healthzPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
-	nginxIngressClasses []string,
-	albIngressClasses []string,
-	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
-	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
-	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	nginxIngressClasses, albIngressClasses []string,
+	dynamicInformerFactory, clusterDynamicInformerFactory, istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	replicaSetInformerFactory kubeinformers.SharedInformerFactory,
-	jobInformerFactory kubeinformers.SharedInformerFactory,
-	ephemeralMetadataThreads int,
-	ephemeralMetadataPodRetries int,
+	kubeInformerFactory, replicaSetInformerFactory, jobInformerFactory kubeinformers.SharedInformerFactory,
+	ephemeralMetadataThreads, ephemeralMetadataPodRetries int,
 	selfServiceNotificationEnabled bool,
 	analysisSharedSecretNamespace string,
 	analysisSharedSecretMode analysis.SharedSecretMode,
+	tracingEnabled bool,
 ) *Manager {
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -349,8 +341,14 @@ func NewManager(
 		newNotificationController = notificationcontroller.NewControllerWithNamespaceSupport
 	}
 	notificationsController := newNotificationController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory, toUnstructured)
+	var traceHandoffs *traceutil.Handoffs
+	if tracingEnabled {
+		traceHandoffs = traceutil.NewHandoffs()
+	}
 
 	rolloutController := rollout.NewController(rollout.ControllerConfig{
+		TracingEnabled:                  tracingEnabled,
+		TraceHandoffs:                   traceHandoffs,
 		Namespace:                       namespace,
 		KubeClientSet:                   kubeclientset,
 		ArgoProjClientset:               argoprojclientset,
@@ -395,9 +393,12 @@ func NewManager(
 	})
 
 	analysisController := analysis.NewController(analysis.ControllerConfig{
+		TracingEnabled:                tracingEnabled,
 		KubeClientSet:                 kubeclientset,
 		ArgoProjClientset:             argoprojclientset,
 		AnalysisRunInformer:           analysisRunInformer,
+		RolloutInformer:               rolloutsInformer,
+		TraceHandoffs:                 traceHandoffs,
 		JobInformer:                   jobInformer,
 		JobPodsInformer:               jobPodsInformer,
 		ResyncPeriod:                  resyncPeriod,

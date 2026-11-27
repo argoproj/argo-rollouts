@@ -11,8 +11,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func (c *Controller) persistAnalysisRunStatus(orig *v1alpha1.AnalysisRun, newStatus v1alpha1.AnalysisRunStatus) error {
-	ctx := context.TODO()
+func (c *Controller) persistAnalysisRunStatus(ctx context.Context, orig *v1alpha1.AnalysisRun, newStatus v1alpha1.AnalysisRunStatus, beforePatch func()) (*v1alpha1.AnalysisRun, error) {
 	logCtx := logutil.WithAnalysisRun(orig)
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&v1alpha1.AnalysisRun{
@@ -23,18 +22,21 @@ func (c *Controller) persistAnalysisRunStatus(orig *v1alpha1.AnalysisRun, newSta
 		}, v1alpha1.AnalysisRun{})
 	if err != nil {
 		logCtx.Errorf("Error constructing AnalysisRun status patch: %v", err)
-		return err
+		return nil, err
 	}
 	if !modified {
 		logCtx.Info("No status changes. Skipping patch")
-		return nil
+		return orig, nil
 	}
 	logCtx.Debugf("AnalysisRun Patch: %s", patch)
-	_, err = c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	if beforePatch != nil {
+		beforePatch()
+	}
+	persistedRun, err := c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(orig.Namespace).Patch(ctx, orig.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warningf("Error updating analysisRun: %v", err)
-		return err
+		return nil, err
 	}
 	logCtx.Info("Patch status successfully")
-	return nil
+	return persistedRun, nil
 }

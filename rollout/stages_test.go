@@ -132,7 +132,7 @@ func TestCanaryStageSyncFailurePreservesNewRS(t *testing.T) {
 	f.kubeclient.PrependReactor("update", "replicasets", func(action k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("api server unavailable")
 	})
-	roCtx, err := ctrl.newRolloutContext(r2)
+	roCtx, err := ctrl.newRolloutContext(r2, nil)
 	assert.NoError(t, err)
 
 	res := canaryStageSyncRevisionOnChange(roCtx)

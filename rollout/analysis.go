@@ -401,7 +401,13 @@ func (c *rolloutContext) createAnalysisRun(rolloutAnalysis *v1alpha1.RolloutAnal
 		return nil, err
 	}
 	analysisRunIf := c.argoprojclientset.ArgoprojV1alpha1().AnalysisRuns(c.rollout.Namespace)
-	return analysisutil.CreateWithCollisionCounter(c.log, analysisRunIf, *ar)
+	return analysisutil.CreateWithCollisionCounterWithCallback(c.log, analysisRunIf, *ar, func(created *v1alpha1.AnalysisRun) {
+		if c.traceAttempt == nil {
+			return
+		}
+		c.traceAttempt.Context()
+		c.traceHandoffs.RecordCreation(c.rollout, created, c.traceAttempt.SpanContext())
+	})
 }
 
 func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun, error) {
@@ -433,8 +439,10 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 
 	switch currentAr.Status.Phase {
 	case v1alpha1.AnalysisPhaseInconclusive:
+		c.traceResult(currentAr)
 		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonInconclusiveAnalysis)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+		c.traceResult(currentAr)
 		message := "Step-based analysis phase error/failed"
 		if currentAr.Status.Message != "" {
 			message += ": " + currentAr.Status.Message
@@ -466,7 +474,7 @@ func (c *rolloutContext) cancelAnalysisRuns(analysisRuns []*v1alpha1.AnalysisRun
 }
 
 // newAnalysisRunFromRollout generates an AnalysisRun from the rollouts, the AnalysisRun Step, the new/stable ReplicaSet, and any extra objects.
-func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash string, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
+func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.RolloutAnalysis, args []v1alpha1.Argument, podHash, infix string, labels map[string]string) (*v1alpha1.AnalysisRun, error) {
 	revision := c.rollout.Annotations[annotations.RevisionAnnotation]
 	nameParts := []string{c.rollout.Name, podHash, revision}
 	if infix != "" {
