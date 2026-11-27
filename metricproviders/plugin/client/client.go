@@ -68,6 +68,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath, args...),
 				Managed:         true,
+				Logger:          plugin.NewPluginClientLogger(),
 			})
 
 			rpcClient, err := m.pluginClient[pluginName].Client()

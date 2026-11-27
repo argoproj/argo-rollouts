@@ -64,6 +64,7 @@ func (t *stepPlugin) startPlugin(pluginName string) (rpc.StepPlugin, error) {
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath, args...),
 			Managed:         true,
+			Logger:          plugin.NewPluginClientLogger(),
 		})
 
 		rpcClient, err := t.client[pluginName].Client()
