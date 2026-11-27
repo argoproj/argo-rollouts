@@ -875,6 +875,25 @@ func TestVerifyWeight(t *testing.T) {
 		assert.Nil(t, weightVerified)
 	}
 
+	// Aborted from a non-setWeight step: the abort weight of 0 must still be verified, else the
+	// canary can be scaled down while the target group is still routing to it
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		r.cfg.Rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{Pause: &v1alpha1.RolloutPause{}}}
+		r.cfg.Rollout.Status.CurrentStepIndex = ptr.To[int32](0)
+		r.cfg.Rollout.Status.Abort = true
+		// The canary still has pods, so the shift away from it is still worth verifying.
+		r.cfg.Rollout.Status.UpdatedReplicas = 1
+		// Already reported once, so an abort that went unrecognised would take the "no need to
+		// verify" early return above and yield a nil (rather than unverified) result.
+		r.cfg.Rollout.Status.ALB = &v1alpha1.ALBStatus{}
+		weightVerified, err := r.VerifyWeight(0)
+		assert.NoError(t, err)
+		assert.NotNil(t, weightVerified, "abort weight must be verified whichever step we aborted from")
+		assert.False(t, *weightVerified)
+	}
+
 	// LoadBalancer found, not at weight
 	{
 		var status v1alpha1.RolloutStatus
