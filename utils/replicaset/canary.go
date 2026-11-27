@@ -77,8 +77,11 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
 		// For basic canary, all older ReplicaSets must be scaled to zero since they serve traffic.
 		// For traffic weighted canary, it's okay if they are still scaled up, since the traffic
-		// router will prevent them from serving traffic
-		if GetAvailableReplicaCountForReplicaSets(olderRSs) != int32(0) {
+		// router will prevent them from serving traffic.
+		// Checking availability alone is not enough: an older ReplicaSet that still has unavailable
+		// replicas uses up maxSurge, so CalculateReplicaCountsForBasicCanary caps the desired canary
+		// count below the step's target and the step would complete with too few canary pods.
+		if GetReplicaCountForReplicaSets(olderRSs) != int32(0) || GetAvailableReplicaCountForReplicaSets(olderRSs) != int32(0) {
 			return false
 		}
 	}
