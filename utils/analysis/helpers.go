@@ -253,7 +253,8 @@ func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argum
 }
 
 // CreateWithCollisionCounter attempts to create the given analysisrun and if an AlreadyExists error
-// is encountered, and the existing run is semantically equal and running, returns the exiting run.
+// is encountered, and the existing run is semantically equal and still running without a
+// termination request, returns the existing run.
 func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.AnalysisRunInterface, run v1alpha1.AnalysisRun) (*v1alpha1.AnalysisRun, error) {
 	ctx := context.TODO()
 	newControllerRef := metav1.GetControllerOf(&run)
@@ -279,7 +280,7 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 		controllerRef := metav1.GetControllerOf(existingRun)
 		controllerUIDEqual := controllerRef != nil && controllerRef.UID == newControllerRef.UID
 		logCtx.Infof("Encountered collision of existing analysisrun %s (phase: %s, equal: %v, controllerUIDEqual: %v)", existingRun.Name, existingRun.Status.Phase, existingEqual, controllerUIDEqual)
-		if !existingRun.Status.Phase.Completed() && existingEqual && controllerUIDEqual {
+		if !existingRun.Status.Phase.Completed() && !existingRun.Spec.Terminate && existingEqual && controllerUIDEqual {
 			// If we get here, the existing run has been determined to be our analysis run and we
 			// likely reconciled the rollout with a stale cache (quite common).
 			return existingRun, nil
