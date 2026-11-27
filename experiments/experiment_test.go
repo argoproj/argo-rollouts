@@ -17,6 +17,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -606,6 +607,104 @@ func TestServiceNameSet(t *testing.T) {
 
 	assert.NotNil(t, exCtx.templateServices["bar"])
 	assert.Equal(t, exCtx.templateServices["bar"].Name, "service-name")
+}
+
+// newRetriedExperiment returns an experiment whose status was cleared by a retry, with the
+// ReplicaSet created from the original template and the template image changed afterwards.
+func newRetriedExperiment(newImage string) (*v1alpha1.Experiment, *appsv1.ReplicaSet) {
+	templates := generateTemplates("bar")
+	// Default the pod template like the API server does for a live ReplicaSet.
+	podTemplate := corev1.PodTemplate{Template: templates[0].Template}
+	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
+	templates[0].Template = podTemplate.Template
+	ex := newExperiment("foo", templates, "")
+	rs := templateToRS(ex, *templates[0].DeepCopy(), 1)
+	ex.Spec.Templates[0].Template.Spec.Containers[0].Image = newImage
+	ex.Status = v1alpha1.ExperimentStatus{}
+	return ex, rs
+}
+
+func hasDeleteReplicaSetAction(client *k8sfake.Clientset) bool {
+	for _, action := range client.Actions() {
+		if action.Matches("delete", "replicasets") {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRetryRecreatesReplicaSetWithChangedTemplate(t *testing.T) {
+	ex, oldRS := newRetriedExperiment("bar-v2")
+	exCtx := newTestContext(ex, oldRS)
+	exCtx.templateRSs["bar"] = oldRS
+
+	exCtx.reconcile()
+
+	kubeclient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	assert.True(t, hasDeleteReplicaSetAction(kubeclient))
+	rs, err := kubeclient.AppsV1().ReplicaSets(ex.Namespace).Get(t.Context(), oldRS.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotEqual(t, oldRS.UID, rs.UID)
+	assert.Equal(t, "bar-v2", rs.Spec.Template.Spec.Containers[0].Image)
+}
+
+func TestRetryKeepsReplicaSetWithUnchangedTemplate(t *testing.T) {
+	ex, oldRS := newRetriedExperiment("bar")
+	exCtx := newTestContext(ex, oldRS)
+	exCtx.templateRSs["bar"] = oldRS
+
+	exCtx.reconcile()
+
+	assert.False(t, hasDeleteReplicaSetAction(exCtx.kubeclientset.(*k8sfake.Clientset)))
+}
+
+func TestRunningExperimentKeepsReplicaSetWithChangedTemplate(t *testing.T) {
+	ex, oldRS := newRetriedExperiment("bar-v2")
+	ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	exCtx := newTestContext(ex, oldRS)
+	exCtx.templateRSs["bar"] = oldRS
+
+	exCtx.reconcile()
+
+	assert.False(t, hasDeleteReplicaSetAction(exCtx.kubeclientset.(*k8sfake.Clientset)))
+}
+
+func TestRetryDeleteReplicaSetError(t *testing.T) {
+	ex, oldRS := newRetriedExperiment("bar-v2")
+	exCtx := newTestContext(ex, oldRS)
+	exCtx.templateRSs["bar"] = oldRS
+	exCtx.kubeclientset.(*k8sfake.Clientset).PrependReactor("delete", "replicasets", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("intentional error")
+	})
+
+	newStatus := exCtx.reconcile()
+
+	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
+	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to delete outdated ReplicaSet")
+}
+
+func TestRetryUpdatesServiceSelectorForRecreatedReplicaSet(t *testing.T) {
+	ex, oldRS := newRetriedExperiment("bar-v2")
+	setExperimentService(&ex.Spec.Templates[0])
+	svc := templateToService(ex, ex.Spec.Templates[0], *oldRS)
+	svc.Spec.Selector = map[string]string{"key": "value", v1alpha1.DefaultRolloutUniqueLabelKey: "old-hash"}
+	exCtx := newTestContext(ex, oldRS)
+	kubeclient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	assert.NoError(t, kubeclient.Tracker().Add(svc))
+	exCtx.templateRSs["bar"] = oldRS
+	exCtx.templateServices["bar"] = svc
+
+	// The first pass recreates the ReplicaSet, the second one points the Service at it.
+	exCtx.reconcile()
+	exCtx.reconcile()
+
+	rs, err := kubeclient.AppsV1().ReplicaSets(ex.Namespace).Get(t.Context(), oldRS.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	newHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	assert.NotEmpty(t, newHash)
+	updatedSvc, err := kubeclient.CoreV1().Services(ex.Namespace).Get(t.Context(), svc.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, newHash, updatedSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 }
 
 func TestCreatenalysisRunWithClusterTemplatesAndTemplateAndInnerTemplates(t *testing.T) {
