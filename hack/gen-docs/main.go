@@ -80,9 +80,19 @@ func generatePluginsDocs() {
 // from its cobra command, so the reference can never drift from the code.
 // The page is linked from mkdocs.yml by hand (single page, no nav section).
 func generateControllerDocs() {
-	os.RemoveAll("./docs/generated/argo-rollouts")
-	os.MkdirAll("./docs/generated/argo-rollouts/", 0755)
-	if _, err := GenMarkdownTree(controllercmd.NewCommand(), "./docs/generated/argo-rollouts"); err != nil {
+	command := controllercmd.NewCommand()
+	dir := filepath.Join("./docs/generated", command.Name())
+	os.RemoveAll(dir)
+	os.MkdirAll(dir, 0755)
+	f, err := os.Create(filepath.Join(dir, command.Name()+".md"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Same header as the Argo CD command reference; the default one capitalizes the binary name.
+	if err := genMarkdown(command, f, fmt.Sprintf("`%s` Command Reference", command.Name())); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -178,11 +188,15 @@ func GenMarkdownTree(cmd *cobra.Command, dir string) ([]string, error) {
 
 // GenMarkdown write command markdown to writer
 func GenMarkdown(cmd *cobra.Command, w io.Writer) error {
+	return genMarkdown(cmd, w, strings.Title(commandName(cmd.CommandPath())))
+}
+
+// genMarkdown writes the command markdown to the writer under the given title
+func genMarkdown(cmd *cobra.Command, w io.Writer, title string) error {
 	cmd.InitDefaultHelpCmd()
 	cmd.InitDefaultHelpFlag()
 
 	buf := new(bytes.Buffer)
-	title := strings.Title(commandName(cmd.CommandPath()))
 
 	short := cmd.Short
 	long := cmd.Long

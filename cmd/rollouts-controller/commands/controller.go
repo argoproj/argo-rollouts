@@ -48,7 +48,7 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName    = "argo-rollouts"
+	cliName    = "rollouts-controller"
 	jsonFormat = "json"
 	textFormat = "text"
 
@@ -100,7 +100,7 @@ func NewCommand() *cobra.Command {
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
 		Use:   cliName,
-		Short: "argo-rollouts is a controller to operate on rollout CRD",
+		Short: cliName + " is a controller to operate on rollout CRD",
 		RunE: func(c *cobra.Command, args []string) error {
 			if printVersion {
 				fmt.Println(version.GetVersion())

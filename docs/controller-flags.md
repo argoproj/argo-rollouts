@@ -18,7 +18,7 @@ spec:
 The complete list of flags, with their defaults, is generated from the controller's command definition on every
 `make codegen` run, so it always matches the code of the release you are reading the docs for:
 
-* [Flag Reference](generated/argo-rollouts/argo-rollouts.md)
+* [Flag Reference](generated/rollouts-controller/rollouts-controller.md)
 
 Run `rollouts-controller --help` to see the flags of the exact binary you are running.
 

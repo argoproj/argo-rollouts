@@ -1,13 +1,13 @@
-# Argo-Rollouts
+# `rollouts-controller` Command Reference
 
-argo-rollouts is a controller to operate on rollout CRD
+rollouts-controller is a controller to operate on rollout CRD
 
 ## Synopsis
 
-argo-rollouts is a controller to operate on rollout CRD
+rollouts-controller is a controller to operate on rollout CRD
 
 ```shell
-argo-rollouts [flags]
+rollouts-controller [flags]
 ```
 
 ## Options
@@ -38,7 +38,7 @@ argo-rollouts [flags]
       --ephemeral-metadata-update-pod-retries int     Set the number of retries to update pod Ephemeral Metadata (default 3)
       --experiment-threads int                        Set the number of worker threads for the Experiment controller (default 10)
       --healthzPort int                               Set the port the healthz endpoint should be exposed over (default 8080)
-  -h, --help                                          help for argo-rollouts
+  -h, --help                                          help for rollouts-controller
       --ingress-api-version string                    Set the Ingress apiVersion that the controller should use.
       --ingress-threads int                           Set the number of worker threads for the Ingress controller (default 10)
       --insecure-skip-tls-verify                      If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
