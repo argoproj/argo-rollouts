@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -862,28 +863,83 @@ func TestShouldFullPromoteCanaryAvailableVsDesired(t *testing.T) {
 }
 
 func TestScaleDownDeploymentOnSuccess(t *testing.T) {
-	ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
-	newStatus := &v1alpha1.RolloutStatus{
-		CurrentPodHash: "2f646bf702",
-		StableRS:       "15fb5ffc01",
+	healthy := func(stable, current string) *v1alpha1.RolloutStatus {
+		return &v1alpha1.RolloutStatus{Phase: v1alpha1.RolloutPhaseHealthy, CurrentPodHash: current, StableRS: stable}
 	}
-	err := ctx.promoteStable(newStatus, "reason")
-
-	assert.Nil(t, err)
-	k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
-	updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, int32(0), *updatedDeployment.Spec.Replicas)
-
-	// test scale deployment error
-	ctx = createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
-	newStatus = &v1alpha1.RolloutStatus{
-		CurrentPodHash: "2f646bf702",
-		StableRS:       "15fb5ffc01",
+	deploymentReplicas := func(t *testing.T, ctx *testRolloutContext) int32 {
+		t.Helper()
+		d, err := ctx.kubeclientset.(*k8sfake.Clientset).AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+		require.NoError(t, err)
+		return *d.Spec.Replicas
 	}
-	err = ctx.promoteStable(newStatus, "reason")
 
-	assert.NotNil(t, err)
+	t.Run("scales the deployment to zero when the rollout becomes healthy", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		require.NoError(t, ctx.scaleDownWorkloadOnSuccess(healthy("2f646bf702", "2f646bf702")))
+		assert.Equal(t, int32(0), deploymentReplicas(t, ctx))
+	})
+
+	t.Run("also scales down on later revisions", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+		ctx.rollout.Annotations["rollout.argoproj.io/revision"] = "3"
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		require.NoError(t, ctx.scaleDownWorkloadOnSuccess(healthy("2f646bf702", "2f646bf702")))
+		assert.Equal(t, int32(0), deploymentReplicas(t, ctx))
+	})
+
+	t.Run("does nothing while the rollout is not healthy", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		status := healthy("2f646bf702", "2f646bf702")
+		status.Phase = v1alpha1.RolloutPhaseProgressing
+		require.NoError(t, ctx.scaleDownWorkloadOnSuccess(status))
+		assert.Equal(t, int32(5), deploymentReplicas(t, ctx))
+	})
+
+	t.Run("does nothing when the stable ReplicaSet is not the current one", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		require.NoError(t, ctx.scaleDownWorkloadOnSuccess(healthy("15fb5ffc01", "2f646bf702")))
+		assert.Equal(t, int32(5), deploymentReplicas(t, ctx))
+	})
+
+	t.Run("does not touch the deployment when the rollout was already healthy", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseHealthy
+		require.NoError(t, ctx.scaleDownWorkloadOnSuccess(healthy("2f646bf702", "2f646bf702")))
+		assert.Empty(t, ctx.kubeclientset.(*k8sfake.Clientset).Actions(), "no API call expected when the phase did not change")
+		assert.Equal(t, int32(5), deploymentReplicas(t, ctx))
+	})
+
+	t.Run("ignores other scaleDown modes", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownNever, 5, true, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		require.NoError(t, ctx.scaleDownWorkloadOnSuccess(healthy("2f646bf702", "2f646bf702")))
+		assert.Equal(t, int32(5), deploymentReplicas(t, ctx))
+	})
+
+	t.Run("returns the error when the deployment cannot be scaled", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		require.Error(t, ctx.scaleDownWorkloadOnSuccess(healthy("2f646bf702", "2f646bf702")))
+	})
+
+	t.Run("does not persist the status when the deployment cannot be scaled", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, false, nil)
+		ctx.rollout.Status.Phase = v1alpha1.RolloutPhaseProgressing
+		ctx.pauseContext.rollout = ctx.rollout
+		status := &v1alpha1.RolloutStatus{UpdatedReplicas: 1, AvailableReplicas: 1, CurrentPodHash: "2f646bf702", StableRS: "2f646bf702"}
+		require.Error(t, ctx.persistRolloutStatus(status))
+		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status.Phase)
+		assert.Empty(t, ctx.argoprojclientset.(*fake.Clientset).Actions(), "the status must not be patched, so that the scale-down is retried")
+	})
+
+	t.Run("promoteStable no longer scales the deployment itself", func(t *testing.T) {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownOnSuccess, 5, true, nil)
+		require.NoError(t, ctx.promoteStable(&v1alpha1.RolloutStatus{CurrentPodHash: "2f646bf702", StableRS: "15fb5ffc01"}, "reason"))
+		assert.Equal(t, int32(5), deploymentReplicas(t, ctx))
+	})
 }
 
 // This tests validates that when there are old replicasets that have miss matched desired-count annotations aka they do
