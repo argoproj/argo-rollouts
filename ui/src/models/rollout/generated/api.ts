@@ -912,6 +912,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     replicaProgressThreshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ReplicaProgressThreshold;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StableScaleDownPolicy}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    stableScaleDownPolicy?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StableScaleDownPolicy;
 }
 /**
  * 
@@ -3016,6 +3022,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingM
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
      */
     interval?: string;
+}
+/**
+ * StableScaleDownPolicy holds options for delaying stable ReplicaSet scale-down when using dynamicStableScale.
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StableScaleDownPolicy
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StableScaleDownPolicy {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StableScaleDownPolicy
+     */
+    delaySeconds?: number;
 }
 /**
  * 

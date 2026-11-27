@@ -481,6 +481,12 @@ spec:
       # are created the number of stable pods stays the same. 
       dynamicStableScale: false
 
+      # Holds stable ReplicaSet scale-downs under dynamicStableScale for delaySeconds: during the
+      # update after the stable's desired count last dropped, and after promotion before the
+      # previous stable is scaled to zero. Requires dynamicStableScale: true and trafficRouting.
+      stableScaleDownPolicy:
+        delaySeconds: 60
+
 status:
   pauseConditions:
     - reason: StepPause
