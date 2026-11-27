@@ -37,10 +37,11 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 		return nil
 	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
-	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	patchedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("error removing scale-down-deadline annotation from RS '%s': %w", rs.Name, err)
 	}
+	c.recordReplicaSetWrite(patchedRS)
 	c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 	delete(rs.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	return nil
@@ -67,8 +68,72 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	if err != nil {
 		return fmt.Errorf("error adding scale-down-deadline annotation to RS '%s': %w", rs.Name, err)
 	}
+	c.recordReplicaSetWrite(rs)
 	c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
 	return err
+}
+
+// recordReplicaSetWrite remembers the ResourceVersion the API server returned for a write to rs. Every write this
+// controller makes to a ReplicaSet of a Rollout has to be recorded: see staleReplicaSet.
+func (c *reconcilerBase) recordReplicaSetWrite(rs *appsv1.ReplicaSet) {
+	if c.replicaSetVersionTracker == nil || rs == nil {
+		return
+	}
+	c.replicaSetVersionTracker.Record(rs.Namespace+"/"+rs.Name, rs.ResourceVersion)
+}
+
+// forgetReplicaSet drops the record of our last write to a ReplicaSet that has been deleted.
+func (c *reconcilerBase) forgetReplicaSet(rs *appsv1.ReplicaSet) {
+	if c.replicaSetVersionTracker == nil || rs == nil {
+		return
+	}
+	c.replicaSetVersionTracker.Forget(rs.Namespace + "/" + rs.Name)
+}
+
+// staleReplicaSet returns the first of the given ReplicaSets, as read from the informer, that is older than this
+// controller's last write to it, or nil if the informer has observed all of our writes.
+//
+// The scale, the ephemeral metadata and the scale-down-deadline annotation are written with patches that carry no
+// resourceVersion, so the API server does not reject them when they are computed from an outdated ReplicaSet. This
+// check takes the place of
+// that rejection for the one kind of outdated read the controller can detect itself: a reconcile that starts before
+// the informer has delivered the controller's own previous write. Changes made by others, such as the status
+// updates of the ReplicaSet controller, are not covered and do not need to be: they do not change what the patches
+// write.
+//
+// Only ReplicaSets that are in the informer are compared. A ReplicaSet that was written to and is not in the list is
+// not treated as stale, because that cannot be told apart from a ReplicaSet that has since been deleted.
+func (c *reconcilerBase) staleReplicaSet(rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	if c.replicaSetVersionTracker == nil {
+		return nil
+	}
+	for _, rs := range rsList {
+		if c.replicaSetVersionTracker.IsCacheStale(rs.Namespace+"/"+rs.Name, rs.ResourceVersion) {
+			return rs
+		}
+	}
+	return nil
+}
+
+// stringMapPatch returns the JSON merge patch that changes the labels or annotations from into to, or nil if they
+// have the same entries. It names the keys whose value changes and, with a null value, the keys that only from has.
+// A key it does not name keeps the value it has on the server.
+func stringMapPatch(from, to map[string]string) map[string]any {
+	patch := map[string]any{}
+	for key, value := range to {
+		if old, ok := from[key]; !ok || old != value {
+			patch[key] = value
+		}
+	}
+	for key := range from {
+		if _, ok := to[key]; !ok {
+			patch[key] = nil
+		}
+	}
+	if len(patch) == 0 {
+		return nil
+	}
+	return patch
 }
 
 func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.ReplicaSet, error) {

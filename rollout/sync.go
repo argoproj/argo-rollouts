@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -373,13 +374,13 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
-			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSet
+			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via the patch in patchReplicaSetScale
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
-		rs, err = c.updateReplicaSet(ctx, rsCopy)
+		rs, err = c.patchReplicaSetScale(ctx, rs, rsCopy)
 		if err != nil {
-			return scaled, rs, fmt.Errorf("failed to updateReplicaSet in scaleReplicaSet: %w", err)
+			return scaled, rs, fmt.Errorf("failed to patchReplicaSetScale in scaleReplicaSet: %w", err)
 		}
 
 		if sizeNeedsUpdate {
@@ -389,6 +390,71 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		}
 	}
 	return scaled, rs, err
+}
+
+// patchReplicaSetScale applies the scale that scaleReplicaSet computed: it changes the ReplicaSet from, the copy the
+// scale was computed for, into scaled, and returns the ReplicaSet as the API server stored it.
+//
+// The scale is sent as a JSON merge patch that names only what changes: spec.replicas and the annotations
+// scaleReplicaSet set or removed. It carries no resourceVersion, so it is not rejected when something else has
+// written to the ReplicaSet since it was read. The ReplicaSet controller updates the status of a ReplicaSet each
+// time one of its pods changes readiness, and on a large ReplicaSet that is often enough to reject a full Update on
+// every reconcile, which stops the Rollout from progressing (see #5227).
+//
+// Without a resourceVersion the API server no longer tells us that from is outdated. The outdated read we have to
+// guard against is our own previous write that the informer has not delivered yet, and newRolloutContext does not
+// start a reconcile in that state (see staleReplicaSet). What is left are writes by others, and the patch does not
+// depend on them: the replica count and the desired-replicas annotation are absolute values that this controller
+// owns, and everything the patch does not name is left as it is on the server.
+//
+// The UID is a precondition: the API server rejects the patch if the ReplicaSet was deleted and recreated under the
+// same name.
+func (c *rolloutContext) patchReplicaSetScale(ctx context.Context, from, scaled *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
+	patch, err := replicaSetScalePatch(from, scaled)
+	if err != nil {
+		return nil, fmt.Errorf("error creating the scale patch for replicaset %s: %w", from.Name, err)
+	}
+	if patch == nil {
+		// Nothing to change, for example an aborted Rollout that keeps the scale-down-deadline of a ReplicaSet that
+		// is already at its scale.
+		return scaled, nil
+	}
+	patchedRS, err := c.kubeclientset.AppsV1().ReplicaSets(from.Namespace).Patch(ctx, from.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error patching the scale of replicaset %s: %w", from.Name, err)
+	}
+	c.recordReplicaSetWrite(patchedRS)
+	return patchedRS, nil
+}
+
+// replicaSetScalePatch returns the JSON merge patch that changes spec.replicas and the annotations of the ReplicaSet
+// from into those of scaled, or nil if they are the same.
+//
+// Annotations are patched key by key (see stringMapPatch): a key that is not named keeps the value it has on the
+// server, and a null value removes the key. An annotation is therefore only removed if from had it, so the
+// scale-down-deadline of a ReplicaSet is never removed by a scale that was computed without seeing it.
+func replicaSetScalePatch(from, scaled *appsv1.ReplicaSet) ([]byte, error) {
+	annotationsPatch := stringMapPatch(from.Annotations, scaled.Annotations)
+	replicasChanged := defaults.GetReplicasOrDefault(from.Spec.Replicas) != defaults.GetReplicasOrDefault(scaled.Spec.Replicas)
+	if annotationsPatch == nil && !replicasChanged {
+		return nil, nil
+	}
+
+	metadata := map[string]any{}
+	if from.UID != "" {
+		metadata["uid"] = string(from.UID)
+	}
+	if annotationsPatch != nil {
+		metadata["annotations"] = annotationsPatch
+	}
+	patch := map[string]any{}
+	if len(metadata) > 0 {
+		patch["metadata"] = metadata
+	}
+	if replicasChanged {
+		patch["spec"] = map[string]any{"replicas": defaults.GetReplicasOrDefault(scaled.Spec.Replicas)}
+	}
+	return json.Marshal(patch)
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
@@ -671,6 +737,7 @@ func (c *rolloutContext) reconcileRevisionHistoryLimit(oldRSs []*appsv1.ReplicaS
 			// that we may be overloading the api server.
 			return err
 		}
+		c.forgetReplicaSet(rs)
 		if podHash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
 			if ars, ok := podHashToArList[podHash]; ok {
 				c.log.Infof("Cleaning up associated analysis runs with ReplicaSet '%s'", rs.Name)

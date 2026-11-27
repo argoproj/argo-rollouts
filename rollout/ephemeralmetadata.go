@@ -2,6 +2,8 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"time"
@@ -9,8 +11,10 @@ import (
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -107,12 +111,12 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	// So that any replicas created in the interim between the two steps are using the new updated version.
 	// 1. Update ReplicaSet so that any new pods it creates will have the metadata
 	if modified {
-		rs, err := c.updateReplicaSet(ctx, modifiedRS)
+		_, err := c.patchReplicaSetEphemeralMetadata(ctx, rs, modifiedRS)
 		if err != nil {
 			c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, originalRSCopy.Name, err)
 			return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
 		}
-		c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
+		c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, originalRSCopy.Name)
 	}
 
 	if isZeroReplicaReplicaSet(rs) {
@@ -138,6 +142,94 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	}
 
 	return eg.Wait()
+}
+
+// errNotEphemeralMetadataChange is returned by replicaSetEphemeralMetadataPatch for a change that it cannot express.
+var errNotEphemeralMetadataChange = stderrors.New("the change is not limited to the annotations of the ReplicaSet and the labels and annotations of its pod template")
+
+// patchReplicaSetEphemeralMetadata applies the ephemeral metadata change that syncEphemeralMetadata computed: it
+// changes the ReplicaSet from, the copy the change was computed for, into synced, and returns the ReplicaSet as the
+// API server stored it.
+//
+// Like the scale (see patchReplicaSetScale), the change is sent as a JSON merge patch without a resourceVersion, so
+// that it is not rejected when something else has written to the ReplicaSet since it was read. A ReplicaSet that
+// loses its metadata is usually one the Rollout has moved away from while it still has its pods, so the ReplicaSet
+// controller is updating its status, and the write comes after the pods of the new and the stable ReplicaSet have
+// been listed. A full Update is then rejected on every reconcile, and it is rejected before anything is scaled
+// (see #5227).
+//
+// The patch names only the keys that change: the ephemeral metadata annotation of the ReplicaSet, and the labels and
+// annotations that are added to, changed in or removed from its pod template. Those are written by this controller
+// only, and newRolloutContext does not start a reconcile before the informer has delivered our previous write to
+// them (see staleReplicaSet). Everything else is left as it is on the server, including a scale that was sent
+// earlier in the same reconcile and that from does not have yet.
+//
+// A change that the patch cannot express is sent as an Update, as it was before. There is none today: this is for a
+// later change to what the ephemeral metadata sync modifies.
+func (c *rolloutContext) patchReplicaSetEphemeralMetadata(ctx context.Context, from, synced *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
+	patch, err := replicaSetEphemeralMetadataPatch(from, synced)
+	if stderrors.Is(err, errNotEphemeralMetadataChange) {
+		c.log.Warnf("Updating ReplicaSet '%s' instead of patching its ephemeral metadata: %v", from.Name, err)
+		return c.updateReplicaSet(ctx, synced)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error creating the ephemeral metadata patch for replicaset %s: %w", from.Name, err)
+	}
+	if patch == nil {
+		return synced, nil
+	}
+	patchedRS, err := c.kubeclientset.AppsV1().ReplicaSets(from.Namespace).Patch(ctx, from.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error patching the ephemeral metadata of replicaset %s: %w", from.Name, err)
+	}
+	c.recordReplicaSetWrite(patchedRS)
+	return patchedRS, nil
+}
+
+// replicaSetEphemeralMetadataPatch returns the JSON merge patch that changes the annotations of the ReplicaSet from,
+// and the labels and annotations of its pod template, into those of synced, or nil if they are the same. If synced
+// differs from from in anything else it returns errNotEphemeralMetadataChange, so that a change is never applied in
+// part.
+//
+// Labels and annotations are patched key by key (see stringMapPatch). The UID is a precondition: the API server
+// rejects the patch if the ReplicaSet was deleted and recreated under the same name.
+func replicaSetEphemeralMetadataPatch(from, synced *appsv1.ReplicaSet) ([]byte, error) {
+	// expected is from with the fields this patch carries taken from synced, so it equals synced unless something
+	// else was changed.
+	expected := from.DeepCopy()
+	expected.Annotations = synced.Annotations
+	expected.Spec.Template.Labels = synced.Spec.Template.Labels
+	expected.Spec.Template.Annotations = synced.Spec.Template.Annotations
+	if !apiequality.Semantic.DeepEqual(expected, synced) {
+		return nil, errNotEphemeralMetadataChange
+	}
+
+	metadata := map[string]any{}
+	if annotationsPatch := stringMapPatch(from.Annotations, synced.Annotations); annotationsPatch != nil {
+		metadata["annotations"] = annotationsPatch
+	}
+	templateMetadata := map[string]any{}
+	if labelsPatch := stringMapPatch(from.Spec.Template.Labels, synced.Spec.Template.Labels); labelsPatch != nil {
+		templateMetadata["labels"] = labelsPatch
+	}
+	if annotationsPatch := stringMapPatch(from.Spec.Template.Annotations, synced.Spec.Template.Annotations); annotationsPatch != nil {
+		templateMetadata["annotations"] = annotationsPatch
+	}
+	if len(metadata) == 0 && len(templateMetadata) == 0 {
+		return nil, nil
+	}
+
+	if from.UID != "" {
+		metadata["uid"] = string(from.UID)
+	}
+	patch := map[string]any{}
+	if len(metadata) > 0 {
+		patch["metadata"] = metadata
+	}
+	if len(templateMetadata) > 0 {
+		patch["spec"] = map[string]any{"template": map[string]any{"metadata": templateMetadata}}
+	}
+	return json.Marshal(patch)
 }
 
 // updatePodMetadataWithRetry attempts to update a pod's ephemeral metadata with exponential backoff retry

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -1144,19 +1145,68 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet { //nolint
-	action := f.kubeActionAt(index)
+// getPatchedReplicaSet returns what the ReplicaSet scale patch at index names. See replicaSetFromScalePatch.
+func (f *fixture) getPatchedReplicaSet(index int) *appsv1.ReplicaSet {
+	f.t.Helper()
+	return replicaSetFromScalePatch(f.t, f.kubeActionAt(index))
+}
+
+// replicaSetFromScalePatch returns the fields that a scale patch of scaleReplicaSet names, as a ReplicaSet:
+// spec.replicas, which is nil if the patch does not change the scale, and the annotations the patch sets. An
+// annotation that the patch removes has an empty value. The name and namespace are those of the patched ReplicaSet.
+// Everything else is left out of the patch and is empty here.
+func replicaSetFromScalePatch(t *testing.T, action core.Action) *appsv1.ReplicaSet {
+	t.Helper()
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
-		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+		t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
-
+	if patchAction.GetPatchType() != types.MergePatchType {
+		t.Fatalf("Expected a merge patch, not %s: %s", patchAction.GetPatchType(), patchAction.GetPatch())
+	}
 	rs := appsv1.ReplicaSet{}
-	err := json.Unmarshal(patchAction.GetPatch(), &rs)
-	if err != nil {
-		panic(err)
+	if err := json.Unmarshal(patchAction.GetPatch(), &rs); err != nil {
+		t.Fatalf("Scale patch %s is not a ReplicaSet: %v", patchAction.GetPatch(), err)
 	}
+	rs.Name = patchAction.GetName()
+	rs.Namespace = patchAction.GetNamespace()
 	return &rs
+}
+
+// getReplicaSetAfterPatch returns the ReplicaSet rs as it is after the merge patch at index is applied to it.
+func (f *fixture) getReplicaSetAfterPatch(index int, rs *appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	f.t.Helper()
+	patchAction, ok := f.kubeActionAt(index).(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", f.kubeActionAt(index).GetVerb())
+	}
+	if patchAction.GetPatchType() != types.MergePatchType {
+		f.t.Fatalf("Expected a merge patch, not %s: %s", patchAction.GetPatchType(), patchAction.GetPatch())
+	}
+	assert.Equal(f.t, rs.Name, patchAction.GetName())
+	return applyReplicaSetMergePatch(f.t, rs, patchAction.GetPatch())
+}
+
+// applyReplicaSetMergePatch returns the ReplicaSet rs as it is after the JSON merge patch is applied to it.
+func applyReplicaSetMergePatch(t *testing.T, rs *appsv1.ReplicaSet, patch []byte) *appsv1.ReplicaSet {
+	t.Helper()
+	original, err := json.Marshal(rs)
+	require.NoError(t, err)
+	patched, err := jsonpatch.MergePatch(original, patch)
+	require.NoError(t, err)
+	patchedRS := &appsv1.ReplicaSet{}
+	require.NoError(t, json.Unmarshal(patched, patchedRS))
+	return patchedRS
+}
+
+// getReplicaSetScalePatch returns the body of the ReplicaSet scale patch at index.
+func (f *fixture) getReplicaSetScalePatch(index int) string {
+	f.t.Helper()
+	patchAction, ok := f.kubeActionAt(index).(core.PatchAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", f.kubeActionAt(index).GetVerb())
+	}
+	return string(patchAction.GetPatch())
 }
 
 func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
@@ -1396,7 +1446,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r)                 // sync 1: update status
 	f.expectGetRolloutAction(r)                          // re-seed between syncs
 	f.expectPatchRolloutAction(r)                        // sync 2: patch status
-	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{}) // sync 2: scale up RS
+	f.expectPatchReplicaSetAction(&appsv1.ReplicaSet{})  // sync 2: scale up RS
 	f.runWithSyncs(getKey(r, t), 2)
 }
 
@@ -1537,7 +1587,7 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.expectGetRolloutAction(r)                   // third reconciliation
 	f.expectPatchRolloutAction(r)                 // sync 3: patch status
 	f.expectCreateReplicaSetAction(&appsv1.ReplicaSet{})
-	f.expectUpdateReplicaSetAction(&appsv1.ReplicaSet{})
+	f.expectPatchReplicaSetAction(&appsv1.ReplicaSet{})
 	f.runWithSyncs(getKey(r, t), 3)
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)

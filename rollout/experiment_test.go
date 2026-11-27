@@ -519,7 +519,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r2) // sync 1: update progressing condition
 	f.expectGetRolloutAction(r2)          // re-seed between syncs
 	f.expectPatchRolloutAction(r1)        // sync 2: patch status
-	f.expectUpdateReplicaSetAction(rs2)   // sync 2: scale replicaset
+	f.expectPatchReplicaSetAction(rs2)    // sync 2: scale replicaset
 	f.runWithSyncs(getKey(r2, t), 2)
 }
 
