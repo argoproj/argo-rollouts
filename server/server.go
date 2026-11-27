@@ -382,10 +382,16 @@ func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (
 	var m = make(map[string]bool)
 	var namespaces []string
 
-	rolloutList, err := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
-	if err == nil {
+	// Only the namespace of each Rollout is needed, so list them through the
+	// dynamic client. Unlike the typed client, this does not decode the Rollout
+	// spec, so a single Rollout with a malformed field (e.g. resources.limits set
+	// to a string) does not make the whole list fail.
+	rolloutList, err := s.Options.DynamicClientset.Resource(v1alpha1.RolloutGVR).List(ctx, v1.ListOptions{})
+	if err != nil {
+		log.Warnf("failed to list rollouts across namespaces: %v", err)
+	} else {
 		for _, r := range rolloutList.Items {
-			ns := r.Namespace
+			ns := r.GetNamespace()
 			if !m[ns] {
 				m[ns] = true
 				namespaces = append(namespaces, ns)
