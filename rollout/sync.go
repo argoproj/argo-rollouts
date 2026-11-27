@@ -2,13 +2,17 @@ package rollout
 
 import (
 	"context"
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -71,19 +75,29 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// annotationsToSkip from the parent rollout, and update revision and desiredReplicas)
 	// and also update the revision annotation in the rollout with the
 	// latest revision.
-	rsCopy := c.newRS.DeepCopy()
+	// The change is a function so that it can be applied again to the live ReplicaSet if the Update conflicts.
+	change := func(rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, bool) {
+		rsCopy := rs.DeepCopy()
 
-	// Set existing new replica set's annotation
-	annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
-	minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
-	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
-
-	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
+		// Set existing new replica set's annotation
+		annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
+		minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
+		affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+		if !annotationsUpdated && !minReadySecondsNeedsUpdate && !affinityNeedsUpdate {
+			return rsCopy, false
+		}
 
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
+		return rsCopy, true
+	}
+	rsCopy, changed := change(c.newRS)
 
+	if changed {
 		rs, err := c.updateReplicaSet(ctx, rsCopy)
+		if errors.IsConflict(err) {
+			rs, err = c.patchReplicaSetAfterConflict(ctx, c.newRS, change, err)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to update replicaset revision on %s: %w", rsCopy.Name, err)
 		}
@@ -372,12 +386,19 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
-		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+		removeScaleDownDeadline := fullScaleDown && !c.shouldDelayScaleDownOnAbort()
+		if removeScaleDownDeadline {
 			// This bypasses the normal call to removeScaleDownDelay and then depends on the removal via an update in updateReplicaSet
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 
+		cachedRS := rs
 		rs, err = c.updateReplicaSet(ctx, rsCopy)
+		if errors.IsConflict(err) {
+			// The ReplicaSet was written to after we read it. If only its status or metadata changed, the scale can
+			// still be applied with a patch instead of failing this reconcile.
+			rs, err = c.patchReplicaSetScaleAfterConflict(ctx, cachedRS, newScale, rolloutReplicas, removeScaleDownDeadline, err)
+		}
 		if err != nil {
 			return scaled, rs, fmt.Errorf("failed to updateReplicaSet in scaleReplicaSet: %w", err)
 		}
@@ -391,7 +412,234 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	return scaled, rs, err
 }
 
+// patchReplicaSetScaleAfterConflict applies the scale that scaleReplicaSet could not Update because of a conflict.
+//
+// The Update carries the resourceVersion of the ReplicaSet that was read at the start of the reconcile, so it is
+// rejected if anything wrote to the ReplicaSet since then. That includes the status updates the ReplicaSet
+// controller makes each time one of its pods changes readiness. On a large ReplicaSet those can be frequent enough
+// that the Update is rejected on every reconcile, and the Rollout stops progressing.
+//
+// A JSON merge patch carries no resourceVersion and cannot conflict, so it is only sent after checking that the live
+// ReplicaSet is the one the scale was computed for (same UID) and that its spec is unchanged (same generation, which
+// the API server increments on every spec change and on nothing else). Otherwise the conflict is returned and the
+// Rollout is reconciled again, as it would be without the patch.
+//
+// The patch sets only what the Update would have changed: spec.replicas, the desired-replicas annotation and, when
+// removeScaleDownDeadline is set, the removal of the scale-down-deadline annotation.
+func (c *rolloutContext) patchReplicaSetScaleAfterConflict(ctx context.Context, rs *appsv1.ReplicaSet, newScale, rolloutReplicas int32, removeScaleDownDeadline bool, conflictErr error) (*appsv1.ReplicaSet, error) {
+	client := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace)
+
+	live, err := client.Get(ctx, rs.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting replicaset %s after an update conflict: %w", rs.Name, err)
+	}
+	if live.UID != rs.UID || live.Generation != rs.Generation {
+		c.log.Infof("Conflict updating ReplicaSet '%s' and its spec has changed (generation %d, was %d): not patching the scale", rs.Name, live.Generation, rs.Generation)
+		return nil, conflictErr
+	}
+
+	patch, err := replicaSetScalePatch(rs.UID, newScale, rolloutReplicas, removeScaleDownDeadline)
+	if err != nil {
+		return nil, fmt.Errorf("error creating the scale patch for replicaset %s: %w", rs.Name, err)
+	}
+	patched, err := client.Patch(ctx, rs.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error patching the scale of replicaset %s after an update conflict: %w", rs.Name, err)
+	}
+	c.log.Infof("Conflict updating ReplicaSet '%s' with an unchanged spec (generation %d): patched replicas to %d", rs.Name, rs.Generation, newScale)
+	return patched, nil
+}
+
+// replicaSetScalePatch returns the JSON merge patch that scales a ReplicaSet.
+//
+// The UID is a precondition: the API server rejects the patch if the ReplicaSet was deleted and recreated under the
+// same name. A null annotation value removes the annotation and is ignored if the annotation is absent.
+func replicaSetScalePatch(uid patchtypes.UID, newScale, rolloutReplicas int32, removeScaleDownDeadline bool) ([]byte, error) {
+	annots := map[string]any{
+		annotations.DesiredReplicasAnnotation: strconv.Itoa(int(rolloutReplicas)),
+	}
+	if removeScaleDownDeadline {
+		annots[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nil
+	}
+	meta := map[string]any{"annotations": annots}
+	if uid != "" {
+		meta["uid"] = string(uid)
+	}
+	return json.Marshal(map[string]any{
+		"metadata": meta,
+		"spec":     map[string]any{"replicas": newScale},
+	})
+}
+
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
+// errUnsupportedReplicaSetChange is returned for a change that replicaSetChangePatch cannot express.
+var errUnsupportedReplicaSetChange = stderrors.New("the change is not limited to annotations, minReadySeconds and the pod template's labels, annotations and affinity")
+
+// patchReplicaSetAfterConflict applies a change to a ReplicaSet whose Update was rejected with a conflict. It is used
+// for the two Updates other than the scale: the revision sync and the ephemeral metadata sync.
+//
+// change is the function that produced the rejected Update: it returns a changed copy of a ReplicaSet and whether
+// the copy differs. It is run again on the live ReplicaSet, so the result does not depend on how old the cached copy
+// was, and the difference is sent as a JSON merge patch. The patch carries no resourceVersion, so status updates
+// cannot reject it, and it names only the fields that change, so everything else on the ReplicaSet is left as it is.
+//
+// The patch is sent only if the live ReplicaSet is the one that was read (same UID) and the change is one that
+// replicaSetChangePatch can express. Otherwise the conflict is returned and the Rollout is reconciled again, as it
+// would be without the patch. If the live ReplicaSet already has the change, nothing is sent.
+//
+// Unlike the scale, these changes do not depend on the status or the replica count of the cached copy, so the
+// generation of the live ReplicaSet is not compared.
+func (c *rolloutContext) patchReplicaSetAfterConflict(ctx context.Context, cached *appsv1.ReplicaSet, change func(*appsv1.ReplicaSet) (*appsv1.ReplicaSet, bool), conflictErr error) (*appsv1.ReplicaSet, error) {
+	client := c.kubeclientset.AppsV1().ReplicaSets(cached.Namespace)
+
+	live, err := client.Get(ctx, cached.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting replicaset %s after an update conflict: %w", cached.Name, err)
+	}
+	if live.UID != cached.UID {
+		c.log.Infof("Conflict updating ReplicaSet '%s' and it has been replaced: not patching it", cached.Name)
+		return nil, conflictErr
+	}
+
+	desired, changed := change(live)
+	if !changed {
+		c.log.Infof("Conflict updating ReplicaSet '%s' and it already has the change: nothing to patch", cached.Name)
+		return live, nil
+	}
+	patch, err := replicaSetChangePatch(live, desired)
+	if stderrors.Is(err, errUnsupportedReplicaSetChange) {
+		c.log.Warnf("Conflict updating ReplicaSet '%s': not patching it: %v", cached.Name, err)
+		return nil, conflictErr
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error creating the patch for replicaset %s: %w", cached.Name, err)
+	}
+	if patch == nil {
+		return live, nil
+	}
+	patched, err := client.Patch(ctx, cached.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error patching replicaset %s after an update conflict: %w", cached.Name, err)
+	}
+	c.log.Infof("Conflict updating ReplicaSet '%s': applied the change as a patch: %s", cached.Name, patch)
+	return patched, nil
+}
+
+// replicaSetChangePatch returns the JSON merge patch that changes live into desired, or nil if there is nothing to
+// change.
+//
+// It carries only what the revision sync and the ephemeral metadata sync change: the annotations, minReadySeconds,
+// and the labels, annotations and affinity of the pod template. If desired differs from live in anything else, it
+// returns errUnsupportedReplicaSetChange, so that a change is never applied in part.
+//
+// Labels and annotations are patched key by key: a key that is not named keeps the value it has on the server, and a
+// null value removes the key. The UID is a precondition: the API server rejects the patch if the ReplicaSet was
+// deleted and recreated under the same name.
+func replicaSetChangePatch(live, desired *appsv1.ReplicaSet) ([]byte, error) {
+	// rest is desired with the fields this patch carries taken from live, so it equals live unless something else
+	// was changed.
+	rest := desired.DeepCopy()
+	rest.Annotations = live.Annotations
+	rest.Spec.MinReadySeconds = live.Spec.MinReadySeconds
+	rest.Spec.Template.Labels = live.Spec.Template.Labels
+	rest.Spec.Template.Annotations = live.Spec.Template.Annotations
+	rest.Spec.Template.Spec.Affinity = live.Spec.Template.Spec.Affinity
+	if !apiequality.Semantic.DeepEqual(rest, live) {
+		return nil, errUnsupportedReplicaSetChange
+	}
+
+	meta := map[string]any{}
+	if annots := stringMapPatch(live.Annotations, desired.Annotations); annots != nil {
+		meta["annotations"] = annots
+	}
+
+	templateMeta := map[string]any{}
+	if labels := stringMapPatch(live.Spec.Template.Labels, desired.Spec.Template.Labels); labels != nil {
+		templateMeta["labels"] = labels
+	}
+	if annots := stringMapPatch(live.Spec.Template.Annotations, desired.Spec.Template.Annotations); annots != nil {
+		templateMeta["annotations"] = annots
+	}
+	template := map[string]any{}
+	if len(templateMeta) > 0 {
+		template["metadata"] = templateMeta
+	}
+	if !apiequality.Semantic.DeepEqual(live.Spec.Template.Spec.Affinity, desired.Spec.Template.Spec.Affinity) {
+		affinity, err := affinityPatch(live.Spec.Template.Spec.Affinity, desired.Spec.Template.Spec.Affinity)
+		if err != nil {
+			return nil, err
+		}
+		template["spec"] = map[string]any{"affinity": affinity}
+	}
+
+	spec := map[string]any{}
+	if live.Spec.MinReadySeconds != desired.Spec.MinReadySeconds {
+		spec["minReadySeconds"] = desired.Spec.MinReadySeconds
+	}
+	if len(template) > 0 {
+		spec["template"] = template
+	}
+
+	if len(meta) == 0 && len(spec) == 0 {
+		// change reported a difference that is not one, for example an empty map instead of no map.
+		return nil, nil
+	}
+	if live.UID != "" {
+		meta["uid"] = string(live.UID)
+	}
+	patch := map[string]any{"metadata": meta}
+	if len(spec) > 0 {
+		patch["spec"] = spec
+	}
+	return json.Marshal(patch)
+}
+
+// stringMapPatch returns the JSON merge patch that changes the map from into the map to, or nil if they have the
+// same entries: the entries of to that from does not have, and a null for each key that only from has.
+func stringMapPatch(from, to map[string]string) map[string]any {
+	patch := map[string]any{}
+	for key, value := range to {
+		if old, ok := from[key]; !ok || old != value {
+			patch[key] = value
+		}
+	}
+	for key := range from {
+		if _, ok := to[key]; !ok {
+			patch[key] = nil
+		}
+	}
+	if len(patch) == 0 {
+		return nil
+	}
+	return patch
+}
+
+// affinityPatch returns the JSON merge patch value that changes the affinity live into desired. A merge patch merges
+// objects key by key, so removing a rule needs a null for it: jsonpatch.CreateMergePatch produces those. Lists are
+// replaced as a whole.
+func affinityPatch(live, desired *corev1.Affinity) (any, error) {
+	if desired == nil {
+		// A null removes the affinity.
+		return nil, nil
+	}
+	desiredJSON, err := json.Marshal(desired)
+	if err != nil {
+		return nil, err
+	}
+	if live == nil {
+		return json.RawMessage(desiredJSON), nil
+	}
+	liveJSON, err := json.Marshal(live)
+	if err != nil {
+		return nil, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(liveJSON, desiredJSON)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(patch), nil
+}
+
 func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	prevStatus := c.rollout.Status
 

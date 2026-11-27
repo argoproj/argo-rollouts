@@ -108,6 +108,13 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	// 1. Update ReplicaSet so that any new pods it creates will have the metadata
 	if modified {
 		rs, err := c.updateReplicaSet(ctx, modifiedRS)
+		if errors.IsConflict(err) {
+			// The ReplicaSet was written to after we read it. The metadata does not depend on what was written, so
+			// apply it to the live ReplicaSet with a patch instead of failing this reconcile.
+			rs, err = c.patchReplicaSetAfterConflict(ctx, originalRSCopy, func(live *appsv1.ReplicaSet) (*appsv1.ReplicaSet, bool) {
+				return replicasetutil.SyncReplicaSetEphemeralPodMetadata(live, podMetadata)
+			}, err)
+		}
 		if err != nil {
 			c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, originalRSCopy.Name, err)
 			return fmt.Errorf("failed to sync ephemeral metadata: %w", err)
