@@ -137,12 +137,11 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: rollouts-demo-rollouts-demo-stable-canary
-spec:
-  ingressClassName: nginx
-  # (controller copies ingressClassName to canary ingress)
+  annotations:
     nginx.ingress.kubernetes.io/canary: "true"
     nginx.ingress.kubernetes.io/canary-weight: "5"
 spec:
+  ingressClassName: nginx
   rules:
   - host: rollouts-demo.local
     http:
