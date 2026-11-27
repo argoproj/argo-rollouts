@@ -22,17 +22,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	k8srecord "k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	argofake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	argoinformersfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -975,4 +979,299 @@ func TestWorkloadRefObjectMap(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, ok)
 	assert.NotNil(t, selectorMap)
+}
+
+func TestSendNotificationsOncePer(t *testing.T) {
+	newRollout := func(podHash string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "guestbook",
+				Namespace:   "default",
+				Annotations: map[string]string{"notifications.argoproj.io/subscribe.on-foo-reason.console": "console"},
+			},
+			Status: v1alpha1.RolloutStatus{CurrentPodHash: podHash},
+		}
+	}
+	// newRec returns a recorder whose mock API reports the given condition result and counts the
+	// notifications that were sent.
+	newRec := func(t *testing.T, r *v1alpha1.Rollout, condition triggers.Condition, cr triggers.ConditionResult, sendErrs ...error) (*FakeEventRecorder, notificationapi.API, *int) {
+		mockAPI := mocks.NewMockAPI(gomock.NewController(t))
+		sent := 0
+		mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return([]triggers.ConditionResult{cr}, nil).AnyTimes()
+		mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(map[string]any, []string, services.Destination) error {
+			sent++
+			if len(sendErrs) >= sent {
+				return sendErrs[sent-1]
+			}
+			return nil
+		}).AnyTimes()
+		mockAPI.EXPECT().GetConfig().Return(api.Config{
+			Triggers: map[string][]triggers.Condition{"on-foo-reason": {condition}}}).AnyTimes()
+		rec := NewFakeEventRecorder()
+		rec.EventRecorderAdapter.rolloutsClient = argofake.NewSimpleClientset(r.DeepCopy())
+		return rec, mockAPI, &sent
+	}
+	notifiedAnnotation := "notified.notifications.argoproj.io"
+	emptyConditionResult := triggers.ConditionResult{Key: "[0]." + hash(""), Templates: []string{"my-template"}}
+
+	t.Run("NoWhenSendsOncePerValue", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+
+		// The state is persisted on the Rollout, so a fresh copy of it does not send again either
+		persisted, err := rec.rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Get(t.Context(), "guestbook", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Contains(t, persisted.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+		require.Nil(t, rec.sendNotifications(mockAPI, persisted, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+	})
+
+	t.Run("NoWhenChangedOncePerSendsAgain", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		r.Status.CurrentPodHash = "def"
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "def:on-foo-reason:")
+	})
+
+	t.Run("WhenSendsOncePerValue", func(t *testing.T) {
+		r := newRollout("abc")
+		cr := triggers.ConditionResult{Key: "[0].whenhash", OncePer: "abc", Triggered: true, Templates: []string{"my-template"}}
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{When: "true", OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, cr)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+	})
+
+	t.Run("NoOncePerSendsEveryTime", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("FailedSendIsRetried", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult, errors.New("failed to send"))
+
+		require.Len(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}), 1)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+	})
+
+	t.Run("WhenNotTriggeredDoesNotSend", func(t *testing.T) {
+		r := newRollout("abc")
+		cr := triggers.ConditionResult{Key: "[0].whenhash", OncePer: "abc", Triggered: false, Templates: []string{"my-template"}}
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{When: "false", OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, cr)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 0, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("NoRolloutsClientSendsEveryTime", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+		rec.rolloutsClient = nil
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("InvalidOncePerExpressionSendsEveryTime", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.(", Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 2, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("UnreadableNotifiedStateIsCleared", func(t *testing.T) {
+		r := newRollout("abc")
+		r.Annotations[notifiedAnnotation] = "not-json"
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+		assert.NotContains(t, r.Annotations, notifiedAnnotation)
+		persisted, err := rec.rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Get(t.Context(), "guestbook", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotContains(t, persisted.Annotations, notifiedAnnotation)
+	})
+
+	t.Run("PersistErrorIsReturned", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, _ := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+		// The rollout does not exist in the client, so patching its annotation fails
+		rec.rolloutsClient = argofake.NewSimpleClientset()
+
+		errs := rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"})
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "failed to patch notified state")
+	})
+
+	t.Run("NullNotifiedStateDoesNotPanic", func(t *testing.T) {
+		r := newRollout("abc")
+		r.Annotations[notifiedAnnotation] = "null"
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		assert.Equal(t, 1, *sent)
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+	})
+
+	t.Run("DefaultEventfPropagatesNotifiedAnnotation", func(t *testing.T) {
+		r := newRollout("abc")
+		rec, mockAPI, sent := newRec(t, r, triggers.Condition{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}, emptyConditionResult)
+		rec.EventRecorderAdapter.apiFactory = &recordingAPIFactory{api: mockAPI}
+
+		rec.Eventf(r, EventOptions{EventReason: "FooReason"}, "event 1")
+		rec.Eventf(r, EventOptions{EventReason: "FooReason"}, "event 2")
+		assert.Equal(t, 1, *sent)
+		assert.Equal(t, []string{"FooReason", "FooReason"}, rec.Events())
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+	})
+
+	t.Run("PersistConflictMergesConcurrentStateWithoutResending", func(t *testing.T) {
+		r := newRollout("abc")
+		r.ResourceVersion = "1"
+		r.Annotations[notifiedAnnotation] = `{"existing-key":100}`
+
+		mockAPI := mocks.NewMockAPI(gomock.NewController(t))
+		sent := 0
+		mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return([]triggers.ConditionResult{emptyConditionResult}, nil).AnyTimes()
+		mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(map[string]any, []string, services.Destination) error {
+			sent++
+			return nil
+		}).AnyTimes()
+		mockAPI.EXPECT().GetConfig().Return(api.Config{
+			Triggers: map[string][]triggers.Condition{"on-foo-reason": {{OncePer: "rollout.status.currentPodHash", Send: []string{"my-template"}}}},
+		}).AnyTimes()
+
+		client := argofake.NewSimpleClientset(r.DeepCopy())
+		patchAttempts := 0
+		client.PrependReactor("patch", "rollouts", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			patchAttempts++
+			patchAction := action.(k8stesting.PatchAction)
+			var payload struct {
+				Metadata struct {
+					ResourceVersion string `json:"resourceVersion"`
+				} `json:"metadata"`
+			}
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &payload))
+			if patchAttempts == 1 {
+				// First patch must carry our starting resourceVersion precondition
+				assert.Equal(t, "1", payload.Metadata.ResourceVersion)
+				// Simulate concurrent notifications-controller write updating RV and adding its own key
+				latest := r.DeepCopy()
+				latest.ResourceVersion = "2"
+				latest.Annotations[notifiedAnnotation] = `{"concurrent-key":150,"existing-key":100}`
+				require.NoError(t, client.Tracker().Update(
+					schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "rollouts"},
+					latest,
+					"default",
+				))
+				return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "rollouts"}, r.Name, errors.New("optimistic lock"))
+			}
+			assert.Equal(t, "2", payload.Metadata.ResourceVersion)
+			return false, nil, nil
+		})
+
+		rec := newTestEventRecorder(&recordingAPIFactory{api: mockAPI}, false)
+		WithRolloutsClient(rec, client)
+
+		require.Nil(t, rec.sendNotifications(mockAPI, r, EventOptions{EventReason: "FooReason"}))
+		// Notification must not be re-sent during conflict resolution
+		assert.Equal(t, 1, sent)
+		assert.Equal(t, 2, patchAttempts)
+
+		persisted, err := client.ArgoprojV1alpha1().Rollouts("default").Get(t.Context(), "guestbook", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Contains(t, persisted.Annotations[notifiedAnnotation], "existing-key")
+		assert.Contains(t, persisted.Annotations[notifiedAnnotation], "concurrent-key")
+		assert.Contains(t, persisted.Annotations[notifiedAnnotation], "abc:on-foo-reason:")
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "concurrent-key")
+	})
+
+	t.Run("NoWhenOncePerUsesFullVariableSet", func(t *testing.T) {
+		r := newRollout("abc")
+		r.Namespace = "argo-rollouts"
+		r.Annotations[annotations.RevisionAnnotation] = "1"
+
+		ar := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "ar-1",
+				Namespace:   "argo-rollouts",
+				Labels:      map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abc"},
+				Annotations: map[string]string{annotations.RevisionAnnotation: "1"},
+			},
+		}
+		f := argofake.NewSimpleClientset(r.DeepCopy(), ar)
+		rolloutsI := argoinformersfactory.NewSharedInformerFactory(f, noResyncPeriodFunc())
+		arInformer := rolloutsI.Argoproj().V1alpha1().AnalysisRuns()
+		require.NoError(t, arInformer.Informer().GetIndexer().Add(ar))
+
+		sent := 0
+		mockSvc := &mockNotificationService{onSend: func() error {
+			sent++
+			return nil
+		}}
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: NotificationConfigMap, Namespace: defaults.Namespace()},
+			Data: map[string]string{
+				"context":               "cluster: prod-west",
+				"template.my-template":  "message: hello",
+				"trigger.on-foo-reason": "- oncePer: \"context.cluster + ':' + string(len(secrets['token'])) + ':' + string(len(analysisRuns))\"\n  send: [my-template]\n",
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: NotificationSecret, Namespace: defaults.Namespace()},
+			Data:       map[string][]byte{"token": []byte("s3cr3t")},
+		}
+		k8sI := informers.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
+		cmInformer := k8sI.Core().V1().ConfigMaps().Informer()
+		secretInformer := k8sI.Core().V1().Secrets().Informer()
+		require.NoError(t, cmInformer.GetIndexer().Add(cm))
+		require.NoError(t, secretInformer.GetIndexer().Add(secret))
+
+		apiFactory := NewNotificationAPIFactory(arInformer, defaults.Namespace(), secretInformer, cmInformer)
+		nAPI, err := apiFactory.GetAPI()
+		require.NoError(t, err)
+		nAPI.AddNotificationService("console", mockSvc)
+
+		rec := newTestEventRecorder(apiFactory, false)
+		WithRolloutsClient(rec, f)
+
+		rec.Eventf(r, EventOptions{EventReason: "FooReason"}, "first event")
+		rec.Eventf(r, EventOptions{EventReason: "FooReason"}, "second event")
+		assert.Equal(t, 1, sent)
+		assert.Contains(t, r.Annotations[notifiedAnnotation], "prod-west:6:1:on-foo-reason:")
+	})
+}
+
+type mockNotificationService struct {
+	onSend func() error
+}
+
+func (m *mockNotificationService) Send(notification services.Notification, dest services.Destination) error {
+	return m.onSend()
 }
