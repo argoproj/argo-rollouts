@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: warning-rollout
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      canaryMetadata:
+        labels:
+          role: canary
+      stableMetadata:
+        labels:
+          role: stable
+      steps:
+        - setWeight: 20
+        - pause: {}
+  selector:
+    matchLabels:
+      app: warning-rollout
+  template:
+    metadata:
+      labels:
+        app: warning-rollout
+        role: stable
+    spec:
+      containers:
+        - name: warning-rollout
+          image: warning-rollout:0.0.0

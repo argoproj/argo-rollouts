@@ -2788,3 +2788,45 @@ func TestRun(t *testing.T) {
 	}()
 	c.Run(ctx, 1)
 }
+
+func TestDuplicateEphemeralMetadataWarningEvent(t *testing.T) {
+	tests := []struct {
+		name             string
+		canaryLabels     map[string]string
+		expectedWarnings int
+	}{
+		{name: "duplicate key emits warning event", canaryLabels: map[string]string{"role": "canary"}, expectedWarnings: 1},
+		{name: "distinct keys emit no warning event", canaryLabels: map[string]string{"other": "canary"}, expectedWarnings: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			defer f.Close()
+
+			r := newCanaryRollout("foo", 10, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+			r.Status.CurrentPodHash = ""
+			r.Status.Duration = nil
+			r.Spec.Template.Labels["role"] = "stable"
+			r.Spec.Strategy.Canary.CanaryMetadata = &v1alpha1.PodTemplateMetadata{Labels: tt.canaryLabels}
+			f.rolloutLister = append(f.rolloutLister, r)
+			f.objects = append(f.objects, r)
+
+			rs := newReplicaSet(r, 1)
+			f.expectCreateReplicaSetAction(rs)   // sync 1: create RS
+			f.expectUpdateRolloutStatusAction(r) // sync 1: update status
+			f.expectGetRolloutAction(r)          // re-seed between syncs
+			f.expectPatchRolloutAction(r)        // sync 2: patch status
+			f.expectUpdateReplicaSetAction(rs)   // sync 2: scale up rs
+			f.runWithSyncs(getKey(r, t), 2)
+
+			warningEvents := 0
+			for _, e := range f.events {
+				if e == conditions.DuplicateEphemeralMetadataReason {
+					warningEvents++
+				}
+			}
+			// the warning must be emitted exactly once per generation, not once per reconcile
+			assert.Equal(t, tt.expectedWarnings, warningEvents)
+		})
+	}
+}

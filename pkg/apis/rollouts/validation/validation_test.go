@@ -1246,3 +1246,108 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		assert.Equal(t, 0, len(allErrs))
 	})
 }
+
+func TestGetRolloutWarnings(t *testing.T) {
+	newRollout := func(labels, annotations map[string]string) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-rollout"},
+			Spec: v1alpha1.RolloutSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{Labels: labels, Annotations: annotations},
+				},
+			},
+		}
+	}
+	canary := func(canaryMd, stableMd *v1alpha1.PodTemplateMetadata) v1alpha1.RolloutStrategy {
+		return v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{CanaryMetadata: canaryMd, StableMetadata: stableMd}}
+	}
+	blueGreen := func(previewMd, activeMd *v1alpha1.PodTemplateMetadata) v1alpha1.RolloutStrategy {
+		return v1alpha1.RolloutStrategy{BlueGreen: &v1alpha1.BlueGreenStrategy{PreviewMetadata: previewMd, ActiveMetadata: activeMd}}
+	}
+	labels := func(kv ...string) *v1alpha1.PodTemplateMetadata {
+		md := &v1alpha1.PodTemplateMetadata{Labels: map[string]string{}}
+		for i := 0; i < len(kv); i += 2 {
+			md.Labels[kv[i]] = kv[i+1]
+		}
+		return md
+	}
+
+	tests := []struct {
+		name        string
+		labels      map[string]string
+		annotations map[string]string
+		strategy    v1alpha1.RolloutStrategy
+		expected    []string
+	}{
+		{
+			name:     "no ephemeral metadata",
+			labels:   map[string]string{"app": "foo"},
+			strategy: canary(nil, nil),
+			expected: nil,
+		},
+		{
+			name:     "canary stableMetadata label overrides template label",
+			labels:   map[string]string{"app": "foo", "role": "stable"},
+			strategy: canary(nil, labels("role", "stable")),
+			expected: []string{
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "role", "labels", "spec.strategy.canary.stableMetadata", "labels"),
+			},
+		},
+		{
+			name:        "canary canaryMetadata annotation overrides template annotation",
+			annotations: map[string]string{"note": "base"},
+			strategy:    canary(&v1alpha1.PodTemplateMetadata{Annotations: map[string]string{"note": "canary"}}, nil),
+			expected: []string{
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "annotation", "note", "annotations", "spec.strategy.canary.canaryMetadata", "annotations"),
+			},
+		},
+		{
+			name:     "blueGreen preview and active metadata override template label",
+			labels:   map[string]string{"role": "base"},
+			strategy: blueGreen(labels("role", "preview"), labels("role", "active")),
+			expected: []string{
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "role", "labels", "spec.strategy.blueGreen.previewMetadata", "labels"),
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "role", "labels", "spec.strategy.blueGreen.activeMetadata", "labels"),
+			},
+		},
+		{
+			name:     "different keys",
+			labels:   map[string]string{"app": "foo"},
+			strategy: canary(labels("role", "canary"), labels("role", "stable")),
+			expected: nil,
+		},
+		{
+			name:        "same key as label in one place and annotation in the other",
+			annotations: map[string]string{"role": "base"},
+			strategy:    canary(labels("role", "canary"), nil),
+			expected:    nil,
+		},
+		{
+			name:     "issue 4755 example",
+			labels:   map[string]string{"test": "test"},
+			strategy: canary(labels("test", "canary"), labels("test", "stable")),
+			expected: []string{
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "test", "labels", "spec.strategy.canary.canaryMetadata", "labels"),
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "test", "labels", "spec.strategy.canary.stableMetadata", "labels"),
+			},
+		},
+		{
+			name:     "multiple keys are reported in sorted order",
+			labels:   map[string]string{"c": "1", "a": "1", "b": "1"},
+			strategy: canary(nil, labels("c", "2", "a", "2", "b", "2")),
+			expected: []string{
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "a", "labels", "spec.strategy.canary.stableMetadata", "labels"),
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "b", "labels", "spec.strategy.canary.stableMetadata", "labels"),
+				fmt.Sprintf(DuplicateEphemeralMetadataWarning, "my-rollout", "label", "c", "labels", "spec.strategy.canary.stableMetadata", "labels"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ro := newRollout(tt.labels, tt.annotations)
+			ro.Spec.Strategy = tt.strategy
+			assert.Equal(t, tt.expected, GetRolloutWarnings(ro))
+		})
+	}
+}

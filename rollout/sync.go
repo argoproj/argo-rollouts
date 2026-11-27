@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -1052,6 +1053,12 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 	}
 
 	c.sendStateChangeEvents(&prevStatus, newStatus)
+	// Emit spec warnings only on the reconcile that persists a new observedGeneration, so they are emitted once per spec change
+	if prevStatus.ObservedGeneration != newStatus.ObservedGeneration {
+		for _, w := range validation.GetRolloutWarnings(c.rollout) {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.DuplicateEphemeralMetadataReason}, "%s", w)
+		}
+	}
 	logCtx.Infof("Patched: %s", patch)
 	c.newRollout = newRollout
 	c.emitPendingRolloutDuration()

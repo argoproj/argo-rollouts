@@ -3,6 +3,7 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -89,6 +90,9 @@ const (
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+	// DuplicateEphemeralMetadataWarning indicates that a label/annotation is defined both in the pod template and in ephemeral metadata.
+	// TODO: turn this into a validation error in a future version
+	DuplicateEphemeralMetadataWarning = "Rollout %q defines %s %q in both spec.template.metadata.%s and %s.%s. Overriding pod template metadata with ephemeral metadata is deprecated and will be prohibited in a future version of Argo Rollouts. Define it in only one place."
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
@@ -124,6 +128,39 @@ func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, ValidateRolloutSpec(rollout, field.NewPath("spec"))...)
 	return allErrs
+}
+
+// GetRolloutWarnings returns non-blocking warnings about the rollout spec.
+// Currently it reports labels/annotations that are defined both in the pod template and in ephemeral metadata.
+func GetRolloutWarnings(rollout *v1alpha1.Rollout) []string {
+	var warnings []string
+	check := func(path string, md *v1alpha1.PodTemplateMetadata) {
+		if md == nil {
+			return
+		}
+		warnings = append(warnings, duplicateKeyWarnings(rollout.Name, "label", "labels", path, rollout.Spec.Template.Labels, md.Labels)...)
+		warnings = append(warnings, duplicateKeyWarnings(rollout.Name, "annotation", "annotations", path, rollout.Spec.Template.Annotations, md.Annotations)...)
+	}
+	if canary := rollout.Spec.Strategy.Canary; canary != nil {
+		check("spec.strategy.canary.canaryMetadata", canary.CanaryMetadata)
+		check("spec.strategy.canary.stableMetadata", canary.StableMetadata)
+	}
+	if blueGreen := rollout.Spec.Strategy.BlueGreen; blueGreen != nil {
+		check("spec.strategy.blueGreen.previewMetadata", blueGreen.PreviewMetadata)
+		check("spec.strategy.blueGreen.activeMetadata", blueGreen.ActiveMetadata)
+	}
+	return warnings
+}
+
+func duplicateKeyWarnings(rolloutName, kind, field, path string, template, ephemeral map[string]string) []string {
+	var warnings []string
+	for key := range ephemeral {
+		if _, ok := template[key]; ok {
+			warnings = append(warnings, fmt.Sprintf(DuplicateEphemeralMetadataWarning, rolloutName, kind, key, field, path, field))
+		}
+	}
+	slices.Sort(warnings)
+	return warnings
 }
 
 // ValidateRolloutSpec checks for a valid spec otherwise returns a list of errors.

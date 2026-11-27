@@ -70,3 +70,36 @@ updated _in place_ to use the stable metadata (without recreating the pods).
     In order for tooling to take advantage of this feature, they would need to recognize the change in
     labels and/or annotations that happen _after_ the Pod has already started. Not all tools may detect
     this. For application code apart from the Kubernetes Downward API you also need a programming library that automatically reloads configuration files when they change their contents.
+
+## Avoid Ephemeral metadata overrides
+
+Ephemeral metadata is meant to fully describe the labels and annotations of the stable/canary (or active/preview) pods.
+You should **not** define the same label or annotation key both in `spec.template.metadata` and in any of
+`canaryMetadata`, `stableMetadata`, `previewMetadata` or `activeMetadata`. For example, the following is discouraged:
+
+```yaml
+spec:
+  strategy:
+    canary:
+      stableMetadata:
+        labels:
+          role: stable
+      canaryMetadata:
+        labels:
+          role: canary
+  template:
+    metadata:
+      labels:
+        role: stable # Do not do this. "role" is already defined in ephemeral metadata
+```
+
+Using ephemeral metadata to "override" a value from the pod template is ambiguous. For example it is not clear if the value from the pod
+template should be restored after the ReplicaSet switches roles or not (see [#2916](https://github.com/argoproj/argo-rollouts/issues/2916)).
+
+To migrate, define the key **only** in the ephemeral metadata fields and remove it from `spec.template.metadata`. You do not need the
+pod template to provide a "default" value, as `stableMetadata`/`activeMetadata` is also applied when no update is in progress.
+
+!!! warning
+    Currently the Argo Rollouts controller prints a warning in its logs (when the Rollout is created or updated)
+    and `kubectl argo rollouts lint` prints a warning if the same key is defined in both places.
+    In a future version of Argo Rollouts this will become a validation error.

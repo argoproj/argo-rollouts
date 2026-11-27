@@ -120,6 +120,9 @@ func (l *LintOptions) lintResource(path string) error {
 		roRef := matchRolloutToReferences(rollout, refResource)
 
 		errList = append(errList, validation.ValidateRollout(&roRef.Rollout)...)
+		for _, w := range validation.GetRolloutWarnings(&roRef.Rollout) {
+			fmt.Fprintln(l.ErrOut, "Warning: "+w)
+		}
 		errList = append(errList, validation.ValidateRolloutReferencedResources(&roRef.Rollout, roRef.References)...)
 	}
 
