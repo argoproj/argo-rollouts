@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
@@ -296,8 +298,11 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
-	r2.Status.Abort = false
+	r2.Status.Abort = true
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	client := fake.NewSimpleClientset(r2)
+	r2, err := retry.RetryRollout(client.ArgoprojV1alpha1().Rollouts(r2.Namespace), r2.Name)
+	require.NoError(t, err)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
