@@ -1500,6 +1500,48 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+// TestBlueGreenClearsCanaryWeights verifies that traffic weights recorded while the rollout used
+// the canary strategy are cleared once it uses blue-green. Otherwise the canary's stable
+// ReplicaSet stays "referenced" and is never scaled down (issue #4223).
+func TestBlueGreenClearsCanaryWeights(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	serviceSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	s := newService("bar", 80, serviceSelector, r2)
+	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true, true)
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{PodTemplateHash: rs1PodHash},
+		Stable: v1alpha1.WeightDestination{Weight: 100, PodTemplateHash: rs1PodHash},
+	}
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.serviceLister = append(f.serviceLister, s)
+
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+	expectedPatch := calculatePatch(r2, `{
+		"status": {
+			"observedGeneration": "",
+			"canary": {"weights": null}
+		}
+	}`)
+	assert.Equal(t, expectedPatch, patch)
+}
+
 func TestFastRollback(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

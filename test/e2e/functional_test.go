@@ -774,6 +774,87 @@ spec:
 		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"}, false)
 }
 
+// TestCanaryToBlueGreen tests behavior when migrating from a traffic routed canary to bluegreen.
+// The ReplicaSet that was stable under canary must be scaled down once bluegreen promotes a new
+// one (https://github.com/argoproj/argo-rollouts/issues/4223).
+func (s *FunctionalSuite) TestCanaryToBlueGreen() {
+	s.Given().
+		RolloutObjects(newService("canary-to-bluegreen", "canary-to-bluegreen")).
+		RolloutObjects(newService("canary-to-bluegreen-canary", "canary-to-bluegreen")).
+		RolloutObjects(`
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: canary-to-bluegreen
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: canary-to-bluegreen
+            port:
+              number: 80
+`).
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-to-bluegreen
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      canaryService: canary-to-bluegreen-canary
+      stableService: canary-to-bluegreen
+      trafficRouting:
+        nginx:
+          stableIngress: canary-to-bluegreen
+      steps:
+      - setWeight: 50
+  selector:
+    matchLabels:
+      app: canary-to-bluegreen
+  template:
+    metadata:
+      labels:
+        app: canary-to-bluegreen
+    spec:
+      containers:
+      - name: canary-to-bluegreen
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        foo: bar
+  strategy:
+    canary: null
+    blueGreen:
+      activeService: canary-to-bluegreen
+      previewService: canary-to-bluegreen-canary
+      scaleDownDelaySeconds: 5
+`).
+		WaitForRolloutStatus("Healthy").
+		WaitForRevisionPodCount("2", 0).
+		Then().
+		ExpectRevisionPodCount("3", 2).
+		ExpectRollout("canary weights cleared", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Canary.Weights == nil
+		})
+}
+
 // TestFixInvalidSpec verifies we recover from an InvalidSpec after applying
 func (s *FunctionalSuite) TestFixInvalidSpec() {
 	s.Given().
