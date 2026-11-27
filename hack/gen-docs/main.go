@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	controllercmd "github.com/argoproj/argo-rollouts/cmd/rollouts-controller/commands"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
@@ -23,6 +24,7 @@ import (
 func main() {
 	generateNotificationsDocs()
 	generatePluginsDocs()
+	generateControllerDocs()
 }
 
 func generateNotificationsDocs() {
@@ -71,6 +73,27 @@ func generatePluginsDocs() {
 		if e := updateMkDocsNav("Kubectl Plugin", "Commands", files); e != nil {
 			log.Fatal(e)
 		}
+	}
+}
+
+// generateControllerDocs renders the flags of the rollouts-controller binary
+// from its cobra command, so the reference can never drift from the code.
+// The page is linked from mkdocs.yml by hand (single page, no nav section).
+func generateControllerDocs() {
+	command := controllercmd.NewCommand()
+	dir := filepath.Join("./docs/generated", command.Name())
+	os.RemoveAll(dir)
+	os.MkdirAll(dir, 0755)
+	f, err := os.Create(filepath.Join(dir, command.Name()+".md"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Same header as the Argo CD command reference; the default one capitalizes the binary name.
+	if err := genMarkdown(command, f, fmt.Sprintf("`%s` Command Reference", command.Name())); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -165,11 +188,15 @@ func GenMarkdownTree(cmd *cobra.Command, dir string) ([]string, error) {
 
 // GenMarkdown write command markdown to writer
 func GenMarkdown(cmd *cobra.Command, w io.Writer) error {
+	return genMarkdown(cmd, w, strings.Title(commandName(cmd.CommandPath())))
+}
+
+// genMarkdown writes the command markdown to the writer under the given title
+func genMarkdown(cmd *cobra.Command, w io.Writer, title string) error {
 	cmd.InitDefaultHelpCmd()
 	cmd.InitDefaultHelpFlag()
 
 	buf := new(bytes.Buffer)
-	title := strings.Title(commandName(cmd.CommandPath()))
 
 	short := cmd.Short
 	long := cmd.Long

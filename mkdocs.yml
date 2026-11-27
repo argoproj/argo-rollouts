@@ -135,6 +135,9 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
+- Controller Flags:
+  - Overview: controller-flags.md
+  - Flag Reference: generated/rollouts-controller/rollouts-controller.md
 - Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
