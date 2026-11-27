@@ -879,3 +879,51 @@ func NewTestClient(fn RoundTripFunc) http.Client {
 		Transport: fn,
 	}
 }
+
+// TestRunLooksUpCanaryConfigWithConfigurationAccount guards against the lookup
+// being issued with the storage account: the two accounts differ here, so the
+// test fails if the wrong one is put in the query string.
+func TestRunLooksUpCanaryConfigWithConfigurationAccount(t *testing.T) {
+	e := log.NewEntry(log.New())
+	metric := buildMetric()
+	metric.Provider.Kayenta.ConfigurationAccountName = "config-account"
+	metric.Provider.Kayenta.StorageAccountName = "storage-account"
+
+	expectedLookupURL := "https://kayenta.example.oom/canaryConfig?application=guestbook&configurationAccountName=config-account"
+	expectedJobURL := "https://kayenta.example.oom/canary/bf9795c0-170f-403e-bb7f-fef3f9a44d42?application=guestbook&metricsAccountName=wavefront-prod&configurationAccountName=config-account&storageAccountName=storage-account"
+
+	var requestedURLs []string
+	c := NewTestClient(func(req *http.Request) *http.Response {
+		requestedURLs = append(requestedURLs, req.URL.String())
+		if req.URL.Path == "/canaryConfig" {
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				Header:     make(http.Header),
+			}
+		}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"canaryExecutionId": "01DS50WVHAWSTAQACJKB1VKDQB"}`)),
+			Header:     make(http.Header),
+		}
+	})
+
+	p := NewKayentaProvider(*e, c)
+	stableHash := "xxxx"
+	canaryHash := "yyyy"
+	startTime := "2019-03-29T01:08:34Z"
+	endTime := "2019-03-29T01:38:34Z"
+	run := newAnalysisRun()
+	run.Spec.Args = []v1alpha1.Argument{
+		{Name: "start-time", Value: &startTime},
+		{Name: "end-time", Value: &endTime},
+		{Name: "stable-hash", Value: &stableHash},
+		{Name: "canary-hash", Value: &canaryHash},
+	}
+
+	measurement := p.Run(run, metric)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
+	assert.Equal(t, []string{expectedLookupURL, expectedJobURL}, requestedURLs)
+}
