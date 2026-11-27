@@ -12,8 +12,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	core "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 
@@ -1119,6 +1122,55 @@ func TestBlueGreenRolloutScaleUpdateStableRS(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs2)
 	f.run(getKey(r2, t))
+}
+
+// When the rollout is fully promoted, the stable RS is also the new RS. A scaling event must
+// update that RS once; a second update from a stale copy conflicts on a real API server.
+func TestBlueGreenRolloutScaleUpdateFullyPromotedRS(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1.ResourceVersion = "1"
+	f.kubeobjects = append(f.kubeobjects, rs1)
+	f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateBlueGreenRolloutStatus(r1, "", rs1PodHash, rs1PodHash, 1, 1, 1, 1, false, true, true)
+	r1.Spec.Replicas = ptr.To[int32](2)
+	f.rolloutLister = append(f.rolloutLister, r1)
+	f.objects = append(f.objects, r1)
+
+	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r1)
+	f.kubeobjects = append(f.kubeobjects, activeSvc)
+	f.serviceLister = append(f.serviceLister, activeSvc)
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	f.expectPatchRolloutAction(r1)
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	f.kubeclient.PrependReactor("update", "replicasets", rejectStaleResourceVersion(f))
+	f.runController(getKey(r1, t), true, false, c, i, k8sI)
+
+	assert.Equal(t, int32(2), *f.getUpdatedReplicaSet(updatedRSIndex).Spec.Replicas)
+}
+
+func rejectStaleResourceVersion(f *fixture) core.ReactionFunc {
+	return func(action core.Action) (bool, runtime.Object, error) {
+		update := action.(core.UpdateAction)
+		rs := update.GetObject().(*appsv1.ReplicaSet).DeepCopy()
+		stored, err := f.kubeclient.Tracker().Get(update.GetResource(), rs.Namespace, rs.Name)
+		if err != nil {
+			return true, nil, err
+		}
+		current := stored.(*appsv1.ReplicaSet).ResourceVersion
+		if rs.ResourceVersion != current {
+			return true, nil, apierrors.NewConflict(update.GetResource().GroupResource(), rs.Name, fmt.Errorf("the object has been modified"))
+		}
+		version, _ := strconv.Atoi(current)
+		rs.ResourceVersion = strconv.Itoa(version + 1)
+		return true, rs, f.kubeclient.Tracker().Update(update.GetResource(), rs, rs.Namespace)
+	}
 }
 
 func TestBlueGreenStableRSReconciliationShouldNotScaleOnFirstTimeRollout(t *testing.T) {
