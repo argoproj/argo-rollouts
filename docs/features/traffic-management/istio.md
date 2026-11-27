@@ -63,8 +63,10 @@ spec:
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
 two route destinations with `host` values that match the `canaryService` and `stableService`
 referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
-its name should be `rollout-vsvc.<vsvc namespace name>`. Note that Istio requires that all weights add to
-100, so the initial weights can be 100% to stable, and 0% to canary.
+set `namespace` on the `virtualService` (or `virtualServices` entry) reference, or give its name as
+`rollout-vsvc.<vsvc namespace name>`. When both are set, the namespace in the name takes precedence.
+Note that Istio requires that all weights add to 100, so the initial weights can be 100% to stable,
+and 0% to canary.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -242,6 +244,10 @@ spec:
     labels:        # labels will be injected with stable rollouts-pod-template-hash value
       app: rollout-example
 ```
+
+If the DestinationRule is defined in a different namespace than the Rollout, set `namespace` on the
+`destinationRule` reference. Argo Rollouts then records the Rollout as `<rollout namespace>/<rollout name>`
+in the DestinationRule's `argo-rollouts.argoproj.io/managed-by-rollouts` annotation.
 
 During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts will continuously:
 

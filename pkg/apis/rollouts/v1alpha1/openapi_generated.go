@@ -2706,6 +2706,13 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref common.Reference
 							},
 						},
 					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the DestinationRule. Defaults to the Rollout namespace.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"name", "canarySubsetName", "stableSubsetName"},
 			},
@@ -2810,6 +2817,13 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 									},
 								},
 							},
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the VirtualService. Defaults to the Rollout namespace. A namespace given in the name (\"name.namespace\") takes precedence over this field.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

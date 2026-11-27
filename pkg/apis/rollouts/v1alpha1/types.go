@@ -494,6 +494,10 @@ type IstioVirtualService struct {
 	TLSRoutes []TLSRoute `json:"tlsRoutes,omitempty" protobuf:"bytes,3,rep,name=tlsRoutes"`
 	// A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
 	TCPRoutes []TCPRoute `json:"tcpRoutes,omitempty" protobuf:"bytes,4,rep,name=tcpRoutes"`
+	// Namespace of the VirtualService. Defaults to the Rollout namespace. A namespace given in
+	// the name ("name.namespace") takes precedence over this field.
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,5,opt,name=namespace"`
 }
 
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
@@ -521,6 +525,9 @@ type IstioDestinationRule struct {
 	// AdditionalSubsetNames contains a list of additional names for subset DestinationRules that are not controlled by Argo Rollouts
 	// +optional
 	AdditionalSubsetNames []string `json:"additionalSubsetNames,omitempty" protobuf:"bytes,4,rep,name=additionalSubsetNames"`
+	// Namespace of the DestinationRule. Defaults to the Rollout namespace.
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,5,opt,name=namespace"`
 }
 
 // AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration

@@ -416,7 +416,8 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 		return nil
 	}
 	ctx := context.TODO()
-	client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace)
+	dRuleNamespace := istioutil.GetDestinationRuleNamespace(dRuleSpec, r.rollout.Namespace)
+	client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(dRuleNamespace)
 
 	origBytes, dRule, dRuleNew, err := r.getDestinationRule(dRuleSpec, client, ctx)
 	if err != nil {
@@ -425,7 +426,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 	if dRuleNew.Annotations == nil {
 		dRuleNew.Annotations = make(map[string]string)
 	}
-	dRuleNew.Annotations[v1alpha1.ManagedByRolloutsKey] = r.rollout.Name
+	dRuleNew.Annotations[v1alpha1.ManagedByRolloutsKey] = istioutil.GetDestinationRuleManagedByValue(r.rollout, dRuleNamespace)
 	// Maps service to WeightDestination object
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	for _, dest := range additionalDestinations {
@@ -750,11 +751,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	ctx := context.TODO()
 	virtualServices := r.getVirtualServices()
 	for _, virtualService := range virtualServices {
-		name := virtualService.Name
-		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
-		if namespace == "" {
-			namespace = r.rollout.Namespace
-		}
+		namespace, vsvcName := istioutil.GetVirtualServiceRefNamespaceName(virtualService, r.rollout.Namespace)
 
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		vsvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
@@ -857,11 +854,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 	ctx := context.TODO()
 	virtualServices := r.getVirtualServices()
 	for _, virtualService := range virtualServices {
-		name := virtualService.Name
-		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
-		if namespace == "" {
-			namespace = r.rollout.Namespace
-		}
+		namespace, vsvcName := istioutil.GetVirtualServiceRefNamespaceName(virtualService, r.rollout.Namespace)
 
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		vsvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
@@ -891,7 +884,8 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 func (r *Reconciler) getDestinationRuleHost() (string, error) {
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
 		ctx := context.TODO()
-		client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace)
+		dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
+		client := r.client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(istioutil.GetDestinationRuleNamespace(dRuleSpec, r.rollout.Namespace))
 		_, dRule, _, err := r.getDestinationRule(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule, client, ctx)
 		if err != nil {
 			return "", err
@@ -905,7 +899,7 @@ func (r *Reconciler) getDestinationRule(dRuleSpec *v1alpha1.IstioDestinationRule
 	var dRuleUn *unstructured.Unstructured
 	var err error
 	if r.destinationRuleLister != nil {
-		dRuleUn, err = r.destinationRuleLister.Namespace(r.rollout.Namespace).Get(dRuleSpec.Name)
+		dRuleUn, err = r.destinationRuleLister.Namespace(istioutil.GetDestinationRuleNamespace(dRuleSpec, r.rollout.Namespace)).Get(dRuleSpec.Name)
 	} else {
 		dRuleUn, err = client.Get(ctx, dRuleSpec.Name, metav1.GetOptions{})
 	}
@@ -1253,11 +1247,7 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 	virtualServices := r.getVirtualServices()
 
 	for _, virtualService := range virtualServices {
-		name := virtualService.Name
-		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
-		if namespace == "" {
-			namespace = r.rollout.Namespace
-		}
+		namespace, vsvcName := istioutil.GetVirtualServiceRefNamespaceName(virtualService, r.rollout.Namespace)
 
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		istioVirtualSvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
@@ -1588,11 +1578,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	virtualServices := r.getVirtualServices()
 
 	for _, virtualService := range virtualServices {
-		name := virtualService.Name
-		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
-		if namespace == "" {
-			namespace = r.rollout.Namespace
-		}
+		namespace, vsvcName := istioutil.GetVirtualServiceRefNamespaceName(virtualService, r.rollout.Namespace)
 
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		istioVirtualService, err := r.getVirtualService(namespace, vsvcName, client, ctx)
