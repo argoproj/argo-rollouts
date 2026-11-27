@@ -236,7 +236,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// But we can only increase canary weight according to available replica counts of the canary.
 			// we will need to set the desiredWeight to 0 when the newRS is not available.
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-				desiredWeight = int32(int64(weightutil.MaxTrafficWeight(c.rollout)) * int64(c.newRS.Status.AvailableReplicas) / int64(*c.rollout.Spec.Replicas))
+				desiredWeight = dynamicPromoteFullWeight(weightutil.MaxTrafficWeight(c.rollout), c.newRS.Status.AvailableReplicas, *c.rollout.Spec.Replicas)
 			} else if c.rollout.Status.Canary.Weights != nil {
 				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
 			}
@@ -357,6 +357,22 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 // calculateDesiredWeightOnAbortOrStableRollback returns the desired weight to use when we are either
 // aborting, or rolling back to stable RS.
+// dynamicPromoteFullWeight returns the canary weight for a full promotion with dynamicStableScale:
+// the share of maxWeight that the available canary replicas represent. A setCanaryScale step may have
+// left the canary with more available replicas than spec.replicas, so the result is capped at maxWeight.
+// The product is computed and capped in int64 before narrowing, so a large custom maxTrafficWeight cannot
+// overflow int32 into a negative weight.
+func dynamicPromoteFullWeight(maxWeight, availableReplicas, specReplicas int32) int32 {
+	if specReplicas <= 0 {
+		return maxWeight
+	}
+	weight := int64(maxWeight) * int64(availableReplicas) / int64(specReplicas)
+	if weight > int64(maxWeight) {
+		return maxWeight
+	}
+	return int32(weight)
+}
+
 func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
 	// Safety checks and early returns for immediate rollback scenarios
 	if !c.rollout.Spec.Strategy.Canary.DynamicStableScale ||
