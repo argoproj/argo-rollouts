@@ -1872,10 +1872,34 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			},
 		}
 
+		// The second ingress's load balancer has its own target groups for the additional destinations
+		for i, dest := range weightDestinations {
+			name := fmt.Sprintf("multi-ingress-%s-tg-abc123-name", dest.ServiceName)
+			fakeClient.targetGroups = append(fakeClient.targetGroups, aws.TargetGroupMeta{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupName: ptr.To[string](name),
+					TargetGroupArn:  ptr.To[string](fmt.Sprintf("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/%s/1234567890123456", name)),
+				},
+				Weight: &weightDestinations[i].Weight,
+				Tags: map[string]string{
+					ALB_TAG_KEY_RESOURCE_ID: fmt.Sprintf("default/multi-ingress-%s:443", dest.ServiceName),
+				},
+			})
+		}
+
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
+
+		// The second ingress's additional destination target groups don't have the desired weights yet,
+		// so the weights must not be verified even though all other target groups have them
+		for i := len(fakeClient.targetGroups) - len(weightDestinations); i < len(fakeClient.targetGroups); i++ {
+			fakeClient.targetGroups[i].Weight = ptr.To[int32](100)
+		}
+		weightVerified, err = r.VerifyWeight(10, weightDestinations...)
+		assert.NoError(t, err)
+		assert.False(t, *weightVerified)
 	}
 }
 
