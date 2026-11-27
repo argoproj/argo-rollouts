@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamiclister"
 
@@ -844,7 +846,12 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1
 		return err
 	}
 
-	httpRoutesI = append(httpRoutesI, createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset))
+	headerRoute := createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset)
+	headerRoute, err = r.inheritManagedRoute(headerRoute, httpRoutesI)
+	if err != nil {
+		return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to inherit route: %w", err)
+	}
+	httpRoutesI = append(httpRoutesI, headerRoute)
 
 	err = unstructured.SetNestedSlice(obj.Object, httpRoutesI, "spec", Http)
 	if err != nil {
@@ -1156,6 +1163,18 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 	if len(routeNames) == 0 && len(httpRoutesNotWithinManagedRoutes) > 1 {
 		return fmt.Errorf("spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
 	}
+
+	for _, managedRoute := range r.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+		if managedRoute.InheritFrom == "" {
+			continue
+		}
+		found := slices.ContainsFunc(httpRoutes, func(route VirtualServiceHTTPRoute) bool {
+			return route.Name == managedRoute.InheritFrom
+		})
+		if !found {
+			return fmt.Errorf("managed route '%s' inherits from route '%s' which does not exist in VirtualService", managedRoute.Name, managedRoute.InheritFrom)
+		}
+	}
 	return nil
 }
 
@@ -1333,6 +1352,10 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 	if !found {
 		return fmt.Errorf(SpecHttpNotFound)
 	}
+	mR, err = r.inheritManagedRoute(mR, vsRoutes)
+	if err != nil {
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to inherit route: %w", err)
+	}
 	vsRoutes = append([]any{mR}, vsRoutes...)
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, vsRoutes, "spec", Http); err != nil {
 		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to update virtual service routes via set nested slice: %w", err)
@@ -1408,6 +1431,116 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 	}
 
 	return mirrorRouteI, nil
+}
+
+// inheritManagedRoute When the managed route has the inheritFrom field set, this returns a copy of the inherited route
+// from httpRoutesI with the fields of the managed route on top of it. The match conditions of both routes are combined,
+// so the managed route only matches requests that also match the inherited route.
+func (r *Reconciler) inheritManagedRoute(managedRoute map[string]any, httpRoutesI []any) (map[string]any, error) {
+	inheritFrom := getManagedRouteInheritFrom(r.rollout, managedRoute["name"])
+	if inheritFrom == "" {
+		return managedRoute, nil
+	}
+	baseRoute, err := findHttpRoute(inheritFrom, httpRoutesI)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateInheritableRoute(inheritFrom, baseRoute); err != nil {
+		return nil, err
+	}
+	route := runtime.DeepCopyJSON(baseRoute)
+	for key, value := range managedRoute {
+		route[key] = value
+	}
+	baseMatches, _ := baseRoute["match"].([]any)
+	matches, _ := managedRoute["match"].([]any)
+	route["match"], err = combineRouteMatches(baseMatches, matches)
+	if err != nil {
+		return nil, err
+	}
+	return route, nil
+}
+
+// validateInheritableRoute ensures the route forwards traffic, as Istio does not allow the route destinations of the
+// managed route to be set together with any of the other route actions
+func validateInheritableRoute(routeName string, route map[string]any) error {
+	for _, action := range []string{"redirect", "directResponse", "delegate"} {
+		if _, found := route[action]; found {
+			return fmt.Errorf("route '%s' uses %s, which can not be inherited by a managed route", routeName, action)
+		}
+	}
+	return nil
+}
+
+// getManagedRouteInheritFrom returns the inheritFrom field of the managed route named routeName
+func getManagedRouteInheritFrom(ro *v1alpha1.Rollout, routeName any) string {
+	for _, managedRoute := range ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+		if managedRoute.Name == routeName {
+			return managedRoute.InheritFrom
+		}
+	}
+	return ""
+}
+
+// findHttpRoute returns the http route named routeName from httpRoutesI
+func findHttpRoute(routeName string, httpRoutesI []any) (map[string]any, error) {
+	for _, routeI := range httpRoutesI {
+		route, ok := routeI.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("could not cast type to map[string]any to find route name in Istio Virtual Service")
+		}
+		if route["name"] == routeName {
+			return route, nil
+		}
+	}
+	return nil, fmt.Errorf("route '%s' not found in Istio Virtual Service", routeName)
+}
+
+// combineRouteMatches returns every combination of the base matches with the matches, so that each resulting match
+// requires the conditions of both. It fails when a match sets a condition that the base match already sets differently.
+func combineRouteMatches(baseMatches, matches []any) ([]any, error) {
+	if len(baseMatches) == 0 {
+		return matches, nil
+	}
+	if len(matches) == 0 {
+		return runtime.DeepCopyJSONValue(baseMatches).([]any), nil
+	}
+	var combined []any
+	for _, baseMatchI := range baseMatches {
+		for _, matchI := range matches {
+			baseMatch, _ := runtime.DeepCopyJSONValue(baseMatchI).(map[string]any)
+			if baseMatch == nil {
+				baseMatch = map[string]any{}
+			}
+			match, _ := matchI.(map[string]any)
+			if err := addMatchConditions(baseMatch, match, ""); err != nil {
+				return nil, err
+			}
+			combined = append(combined, baseMatch)
+		}
+	}
+	return combined, nil
+}
+
+// addMatchConditions adds the conditions to the match. Headers are added to the existing headers, while any condition
+// already set to a different value is a conflict, as both conditions can not be required at once.
+func addMatchConditions(match, conditions map[string]any, prefix string) error {
+	for key, value := range conditions {
+		existing, found := match[key]
+		if !found || reflect.DeepEqual(existing, value) {
+			match[key] = value
+			continue
+		}
+		existingHeaders, isExistingMap := existing.(map[string]any)
+		headers, isMap := value.(map[string]any)
+		if prefix != "" || key != "headers" || !isExistingMap || !isMap {
+			return fmt.Errorf("match condition '%s%s' conflicts with the inherited route", prefix, key)
+		}
+		if err := addMatchConditions(existingHeaders, headers, "headers."); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // getVirtualServiceSetWeightRoute This functions goes through the list of Istio Virtual service routes and finds the first

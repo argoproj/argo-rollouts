@@ -86,6 +86,82 @@ spec:
           - name: priority-route-3
 ```
 
+### Inheriting the Configuration of an Existing Route
+
+**Traffic Router Support: Istio**
+
+By default a managed route only contains the match conditions defined in the `setHeaderRoute` or `setMirrorRoute` step.
+When the managed route should only apply to the traffic of an existing route, set `inheritFrom` to the name of that route.
+The managed route starts with a copy of every field of the inherited route (e.g. `rewrite`, `corsPolicy`, `timeout`, `retries`).
+The `route` and `mirror` fields that Argo Rollouts sets on the managed route replace the inherited values.
+Its match conditions are added to each match condition of the inherited route. The inherited route itself is not modified.
+
+The route referenced by `inheritFrom` must exist in the VirtualService, must not be a managed route and must forward
+traffic, since a route using `redirect`, `directResponse` or `delegate` can not be inherited. A match condition
+of the step that is already set differently on the inherited route (e.g. another `uri`, or another value for the same header)
+is rejected, since both conditions can not be required at once. `inheritFrom` can not be used together with AWS ALB.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+spec:
+  strategy:
+    canary:
+      trafficRouting:
+        managedRoutes:
+          - name: set-header-1
+            inheritFrom: api # copies the configuration of the "api" route
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc
+            routes:
+              - api
+      steps:
+        - setHeaderRoute:
+            name: set-header-1
+            match:
+              - headerName: x-canary
+                headerValue:
+                  exact: "true"
+```
+
+With the following route defined in the VirtualService:
+
+```yaml
+  http:
+  - name: api
+    match:
+    - uri:
+        prefix: /api
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: stable-service
+      weight: 100
+    - destination:
+        host: canary-service
+      weight: 0
+```
+
+Argo Rollouts creates the header route below, which only sends the `/api` requests with the `x-canary: true` header to the canary:
+
+```yaml
+  - name: set-header-1
+    match:
+    - uri:
+        prefix: /api
+      headers:
+        x-canary:
+          exact: "true"
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: canary-service
+      weight: 100
+```
+
 ## Traffic Routing Based on Header Values for Canary
 
 **Traffic Router Support: Istio, Apache APISIX, AWS ALB, Gateway API (via plugin)**

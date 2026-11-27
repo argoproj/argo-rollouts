@@ -1481,6 +1481,10 @@
       "properties": {
         "name": {
           "type": "string"
+        },
+        "inheritFrom": {
+          "type": "string",
+          "title": "InheritFrom is the name of an existing route whose configuration is copied into this managed route.\nThe match conditions of the managed route are added to the match conditions of the inherited route.\n+optional"
         }
       }
     },
