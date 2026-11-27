@@ -45,9 +45,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollouts-demo-stable
-  annotations:
-    kubernetes.io/ingress.class: nginx
 spec:
+  ingressClassName: nginx
   rules:
   - host: rollouts-demo.local
     http:
@@ -139,10 +138,10 @@ kind: Ingress
 metadata:
   name: rollouts-demo-rollouts-demo-stable-canary
   annotations:
-    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/canary: "true"
     nginx.ingress.kubernetes.io/canary-weight: "5"
 spec:
+  ingressClassName: nginx
   rules:
   - host: rollouts-demo.local
     http:
