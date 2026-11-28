@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -391,5 +393,79 @@ func TestLeaseLockName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, leaseLockName(tt.instanceID))
 		})
+	}
+}
+
+func freeAddr(t *testing.T) string {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l.Close()
+	return l.Addr().String()
+}
+
+func waitForListener(t *testing.T, addr string) {
+	require.Eventually(t, func() bool {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			return false
+		}
+		conn.Close()
+		return true
+	}, 10*time.Second, 10*time.Millisecond)
+}
+
+func TestRunClosesMetricsListenerWhileHealthzDrains(t *testing.T) {
+	f := newFixture(t)
+	cm := f.newManager(t)
+
+	// A healthz request that only finishes when the test releases it.
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	cm.healthzServer.Addr = freeAddr(t)
+	cm.healthzServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(entered)
+		select {
+		case <-release:
+		case <-time.After(10 * time.Second):
+		}
+	})
+	cm.metricsServer.Addr = freeAddr(t)
+
+	electOpts := NewLeaderElectionOptions()
+	electOpts.LeaderElect = false
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+	}()
+	waitForListener(t, cm.healthzServer.Addr)
+	waitForListener(t, cm.metricsServer.Addr)
+
+	go func() {
+		resp, err := http.Get("http://" + cm.healthzServer.Addr + "/")
+		if err == nil {
+			resp.Body.Close()
+		}
+	}()
+	<-entered
+	cancel()
+
+	// The metrics server stops accepting connections without waiting for the healthz request.
+	assert.Eventually(t, func() bool {
+		conn, err := net.Dial("tcp", cm.metricsServer.Addr)
+		if err != nil {
+			return true
+		}
+		conn.Close()
+		return false
+	}, 3*time.Second, 10*time.Millisecond)
+
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run did not return")
 	}
 }

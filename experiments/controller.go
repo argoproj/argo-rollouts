@@ -230,11 +230,14 @@ func (ec *Controller) Run(ctx context.Context, threadiness int) error {
 	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
 		wg.Add(1)
-		go wait.Until(func() {
-			controllerutil.RunWorker(ctx, ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
-			log.Debug("Experiment worker has stopped")
-			wg.Done()
-		}, time.Second, ctx.Done())
+		go func() {
+			// Done runs even when ctx is already canceled and wait.Until never calls the worker.
+			defer wg.Done()
+			wait.Until(func() {
+				controllerutil.RunWorker(ctx, ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
+				log.Debug("Experiment worker has stopped")
+			}, time.Second, ctx.Done())
+		}()
 	}
 	log.Info("Started Experiment workers")
 	<-ctx.Done()

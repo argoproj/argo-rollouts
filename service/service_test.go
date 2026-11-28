@@ -249,3 +249,23 @@ func TestRun(t *testing.T) {
 	}()
 	c.Run(ctx, 1)
 }
+
+func TestRunReturnsWhenContextIsAlreadyCanceled(t *testing.T) {
+	// wait.Until never calls the worker when ctx is already canceled, so Run must not depend on it to
+	// mark the worker as done.
+	c, _, _, _ := newFakeServiceController(nil, nil)
+	ctx, cancel := context.WithCancel(context.TODO())
+	cancel()
+	c.serviceWorkqueue.ShutDownWithDrain()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		c.Run(ctx, 2)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return after its context was canceled")
+	}
+}
