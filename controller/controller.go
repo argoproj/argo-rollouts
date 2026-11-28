@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -515,14 +516,14 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 	go func() {
 		log.Infof("Starting Healthz Server at %s", c.healthzServer.Addr)
 		err := c.healthzServer.ListenAndServe()
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error(fmt.Errorf("Healthz Server Error: %w", err))
 		}
 	}()
 
 	go func() {
 		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
-		if err := c.metricsServer.ListenAndServe(); err != nil {
+		if err := c.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error(fmt.Errorf("Metric Server Error: %w", err))
 		}
 	}()
@@ -584,10 +585,17 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 
 	c.analysisRunWorkqueue.ShutDownWithDrain()
 
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second) // give max of 10 seconds for http servers to shut down
+	// ctx is already canceled at this point, so the servers get a timeout of their own to finish in-flight requests.
+	// Both shut down at the same time, so neither keeps accepting new requests while the other drains.
+	ctxWithTimeout, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	c.healthzServer.Shutdown(ctxWithTimeout)
-	c.metricsServer.Shutdown(ctxWithTimeout)
+	var shutdownWg sync.WaitGroup
+	for _, srv := range []*http.Server{c.healthzServer, c.metricsServer.Server} {
+		shutdownWg.Go(func() {
+			srv.Shutdown(ctxWithTimeout)
+		})
+	}
+	shutdownWg.Wait()
 
 	c.wg.Wait()
 
