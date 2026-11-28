@@ -171,11 +171,14 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
 		wg.Add(1)
-		go wait.Until(func() {
-			controllerutil.RunWorker(ctx, c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
-			log.Debug("Analysis worker has stopped")
-			wg.Done()
-		}, time.Second, ctx.Done())
+		go func() {
+			// Done runs even when ctx is already canceled and wait.Until never calls the worker.
+			defer wg.Done()
+			wait.Until(func() {
+				controllerutil.RunWorker(ctx, c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
+				log.Debug("Analysis worker has stopped")
+			}, time.Second, ctx.Done())
+		}()
 	}
 	log.Infof("Started %d analysis workers", threadiness)
 	<-ctx.Done()
