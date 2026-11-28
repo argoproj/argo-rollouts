@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -429,4 +430,20 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, DefaultDescribeTagsLimit, GetDescribeTagsLimit())
 	SetDescribeTagsLimit(2)
 	assert.Equal(t, 2, GetDescribeTagsLimit())
+}
+
+func TestGetOldReplicaSetScaleDownBatchSize(t *testing.T) {
+	rollout := func(scaleDown *v1alpha1.OldReplicaSetScaleDown) *v1alpha1.Rollout {
+		return &v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{
+			Replicas: ptr.To[int32](10),
+			Strategy: v1alpha1.RolloutStrategy{Canary: &v1alpha1.CanaryStrategy{OldReplicaSetScaleDown: scaleDown}},
+		}}
+	}
+	assert.Equal(t, int32(1), GetOldReplicaSetScaleDownBatchSize(&v1alpha1.Rollout{}))
+	assert.Equal(t, int32(1), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{})))
+	assert.Equal(t, int32(3), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromInt(3))})))
+	assert.Equal(t, int32(3), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromString("25%"))})))
+	assert.Equal(t, int32(1), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromString("1%"))})))
+	// A percentage that scales beyond int32 is clamped instead of overflowing to a negative batch.
+	assert.Equal(t, int32(math.MaxInt32), GetOldReplicaSetScaleDownBatchSize(rollout(&v1alpha1.OldReplicaSetScaleDown{MaxUnavailable: ptr.To(intstr.FromString("99999999999%"))})))
 }
